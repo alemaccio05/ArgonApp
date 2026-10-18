@@ -7,33 +7,69 @@ import '../core/daily_seed.dart';
 import '../core/palette_theme.dart';
 import '../game/ink_sling_game.dart';
 
-/// Schermata di Fine Partita protetta da qualsiasi RenderFlex overflow,
-/// con Mini-Mappa 0-100m della traiettoria percorsa, Revive con Scudo e Condivisione.
+/// Schermata di Fine Partita (Vittoria o Sconfitta) dal design accattivante,
+/// con 5 settori grafici di avanzamento, Mini-Mappa, statistiche dettagliate,
+/// classifica contestuale e passaggio diretto al Livello successivo (senza voti S+/A/B).
 class GameOverOverlay extends StatelessWidget {
   final InkSlingGame game;
   const GameOverOverlay({super.key, required this.game});
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<RisographPalette>(
-      valueListenable: game.paletteNotifier,
-      builder: (context, p, _) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        game.paletteNotifier,
+        game.languageNotifier,
+      ]),
+      builder: (context, _) {
+        final p = game.paletteNotifier.value;
+        final s = game.strings;
+        final lang = game.languageNotifier.value;
+
         final meters = game.maxMetersReached;
-        final topPct =
-            DailySeedEngine.estimateTopPercentile(meters, game.isVictory);
+        final targetMeters = game.currentGoalMeters;
+        final isLevelMode = game.activeMode == GameMode.levelProgression;
+        final progressRatio = (meters / targetMeters).clamp(0.0, 1.0);
+        final progressPct = (progressRatio * 100).round();
+
+        final topPct = DailySeedEngine.estimateTopPercentile(
+          meters,
+          game.isVictory,
+          targetMeters: targetMeters,
+        );
+
+        final leaderboard = isLevelMode
+            ? DailySeedEngine.getGlobalLeaderboard(
+                playerName: game.storage.playerName,
+                playerLevel: game.storage.currentTowerLevel,
+                playerBestMeters: game.storage.bestMetersCurrentLevel,
+              )
+            : DailySeedEngine.getDailyLeaderboard(
+                playerName: game.storage.playerName,
+                playerBestMetersToday: game.storage.bestMetersToday,
+                completedToday: game.storage.completedToday,
+              );
+        final userRank =
+            leaderboard.firstWhere((e) => e.isCurrentUser).rank;
+
+        // Il testo di sfida viene usato SOLO nel pulsante CONDIVIDI
         final receiptText = DailySeedEngine.buildShareReceipt(
           meters: meters,
+          targetMeters: targetMeters,
           isVictory: game.isVictory,
           bounces: game.totalBounces,
           seconds: game.runTimeSeconds,
           attemptNumber: game.currentAttemptNumber,
+          mode: game.activeMode,
+          level: game.currentLevel,
+          lang: lang,
         );
 
         return Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 385),
+              constraints: const BoxConstraints(maxWidth: 390),
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -52,74 +88,97 @@ class GameOverOverlay extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Intestazione (Expanded sulla colonna di sinistra per impedire qualsiasi overflow!)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    // Intestazione con Titolo Vittoria/Sconfitta (senza medaglia S+/A/B)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  game.isVictory
-                                      ? 'TORRE COMPLETATA!'
-                                      : 'FERMATO A ${meters.toStringAsFixed(1)}m',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                    color: game.isVictory
-                                        ? p.matchaSafe
-                                        : p.vermilionHazard,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                game.lastRunWasNewDailyRecord
-                                    ? '★ NUOVO RECORD DI OGGI • TOP $topPct%'
-                                    : 'MIGLIORE OGGI: ${game.storage.bestMetersToday.toStringAsFixed(1)}m • TOP $topPct%',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: p.inkSecondary,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        // Badge icona risultato (niente caratteri orientali)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
+                            horizontal: 8,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: game.isVictory
-                                ? p.matchaSafe
-                                : p.vermilionHazard,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: p.inkPrimary, width: 2),
+                            color: game.lastRunWasNewDailyRecord
+                                ? p.ochreSeal
+                                : p.inkPrimary,
+                            borderRadius: BorderRadius.circular(5),
                           ),
-                          child: Icon(
+                          child: Text(
+                            game.lastRunWasNewDailyRecord
+                                ? (game.leveledUpInLastRun
+                                    ? s.newLevelUnlockedBadge
+                                    : s.newPersonalRecordBadge)
+                                : (isLevelMode
+                                    ? '${s.levelShort} ${game.currentLevel} • TOP $topPct%'
+                                    : '${s.hudDailyBadge} • TOP $topPct%'),
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                              color: game.lastRunWasNewDailyRecord
+                                  ? p.inkPrimary
+                                  : p.paperCard,
+                              letterSpacing: 0.7,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
                             game.isVictory
-                                ? Icons.emoji_events_rounded
-                                : Icons.flag_rounded,
-                            color: Colors.white,
-                            size: 20,
+                                ? (isLevelMode
+                                    ? s.levelWonTitle(game.currentLevel)
+                                    : s.dailyTowerCompletedTitle)
+                                : s.fellAtTitle(meters.toStringAsFixed(1)),
+                            style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w900,
+                              color: game.isVictory
+                                  ? p.matchaSafe
+                                  : p.vermilionHazard,
+                              height: 1.05,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
 
-                    // Mini-mappa verticale + Riepilogo condivisibile
+                    // Banner motivazionale contestuale
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: game.isVictory
+                            ? p.matchaSafe.withAlpha((0.15 * 255).round())
+                            : p.ochreSeal.withAlpha((0.16 * 255).round()),
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(
+                          color: game.isVictory ? p.matchaSafe : p.ochreSeal,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        s.motivatingSubtitle(
+                          meters: meters,
+                          targetMeters: targetMeters,
+                          isVictory: game.isVictory,
+                          isLevelMode: isLevelMode,
+                          nextLevel: game.currentLevel + 1,
+                        ),
+                        style: TextStyle(
+                          color: p.inkPrimary,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Scheda Grafica Risultato: Mini-Mappa + Settori Torre + Statistiche
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -129,46 +188,164 @@ class GameOverOverlay extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
+                          // Mini-mappa del tracciato
                           Container(
-                            width: 64,
-                            height: 128,
+                            width: 66,
+                            height: 136,
                             decoration: BoxDecoration(
                               color: p.paperCard,
                               borderRadius: BorderRadius.circular(8),
-                              border:
-                                  Border.all(color: p.inkPrimary, width: 1.6),
+                              border: Border.all(
+                                color: p.inkPrimary,
+                                width: 1.6,
+                              ),
                             ),
                             child: CustomPaint(
                               painter: RisographFlightMapPainter(
                                 flightPath: game.flightPath,
                                 isVictory: game.isVictory,
+                                targetMeters: targetMeters,
                                 palette: p,
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
+
+                          // Dettagli visuali della scalata
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'IL TUO TRACCIATO DI OGGI',
-                                  style: TextStyle(
-                                    color: p.inkSecondary,
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.0,
-                                  ),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          s.towerProgressLabel,
+                                          style: TextStyle(
+                                            color: p.inkSecondary,
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$progressPct% (${meters.toStringAsFixed(1)}/${targetMeters.toInt()}m)',
+                                      style: TextStyle(
+                                        color: p.inkPrimary,
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 6),
-                                SelectableText(
-                                  receiptText,
-                                  style: TextStyle(
-                                    fontFamily: 'monospace',
-                                    fontSize: 11.5,
-                                    color: p.inkPrimary,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.4,
+
+                                // 5 blocchi grafici dei settori della torre
+                                Row(
+                                  children: List.generate(5, (index) {
+                                    final sectorNum = index + 1;
+                                    final sectorSize = targetMeters / 5.0;
+                                    final top = sectorNum * sectorSize;
+                                    final isCompleted = meters >= top;
+                                    final isCurrent = !isCompleted &&
+                                        meters >= (top - sectorSize);
+
+                                    Color boxColor = p.paperCard;
+                                    if (isCompleted) {
+                                      boxColor = p.matchaSafe;
+                                    } else if (isCurrent) {
+                                      boxColor = game.isVictory
+                                          ? p.matchaSafe
+                                          : p.vermilionHazard;
+                                    }
+
+                                    return Expanded(
+                                      child: Container(
+                                        height: 16,
+                                        margin: EdgeInsets.only(
+                                          right: index < 4 ? 4 : 0,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: boxColor,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: p.inkPrimary,
+                                            width: 1.4,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Griglia Statistiche (Tempo, Sponde, Posizione Classifica)
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildMiniStatBox(
+                                        label: s.timeLabel,
+                                        value:
+                                            '${game.runTimeSeconds.toStringAsFixed(1)}s',
+                                        p: p,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: _buildMiniStatBox(
+                                        label: s.bouncesLabel,
+                                        value: '${game.totalBounces}',
+                                        p: p,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: _buildMiniStatBox(
+                                        label: s.rankLabel,
+                                        value: '#$userRank',
+                                        p: p,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+
+                                // Badge Riepilogo Posizione Contestuale (Livelli o Torre di Oggi)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: p.paperCard,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: p.paperGrid,
+                                      width: 1.3,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    s.globalRankSummary(
+                                      userRank,
+                                      isLevelMode,
+                                      game.storage.currentTowerLevel,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: p.inkPrimary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -201,8 +378,9 @@ class GameOverOverlay extends StatelessWidget {
                             final granted =
                                 await game.monetization.showRewardedAd(
                               context: context,
-                              rewardTitle:
-                                  'Continua da ${meters.toStringAsFixed(1)}m con Piattaforma + Scudo',
+                              rewardTitle: s.reviveWithShieldBtn(
+                                meters.toStringAsFixed(0),
+                              ),
                               isProUnlocked: game.storage.proUnlocked,
                             );
                             if (granted) {
@@ -214,7 +392,7 @@ class GameOverOverlay extends StatelessWidget {
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                'CONTINUA DA ${meters.toStringAsFixed(0)}m CON SCUDO (VIDEO)',
+                                s.reviveWithShieldBtn(meters.toStringAsFixed(0)),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 12,
@@ -225,7 +403,7 @@ class GameOverOverlay extends StatelessWidget {
                         ),
                       ),
 
-                    // Pulsanti Condividi & Riprova
+                    // Pulsanti Condividi & Riprova / Livello Successivo
                     Row(
                       children: [
                         Expanded(
@@ -250,7 +428,7 @@ class GameOverOverlay extends StatelessWidget {
                                   SnackBar(
                                     backgroundColor: p.inkPrimary,
                                     content: Text(
-                                      'Risultato copiato! Incollalo nei commenti!',
+                                      s.shareCopiedSnack,
                                       style: TextStyle(color: p.paperCard),
                                     ),
                                     duration: const Duration(seconds: 2),
@@ -263,12 +441,14 @@ class GameOverOverlay extends StatelessWidget {
                             },
                             icon:
                                 const Icon(Icons.ios_share_rounded, size: 16),
-                            label: const Flexible(
+                            label: Flexible(
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  'CONDIVIDI',
-                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                  s.shareBtn,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
                             ),
@@ -278,8 +458,10 @@ class GameOverOverlay extends StatelessWidget {
                         Expanded(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: p.playerFill,
-                              foregroundColor: p.paperCard,
+                              backgroundColor: game.isVictory
+                                  ? p.matchaSafe
+                                  : p.playerFill,
+                              foregroundColor: Colors.white,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(
                                 vertical: 13,
@@ -291,12 +473,28 @@ class GameOverOverlay extends StatelessWidget {
                                     BorderSide(color: p.inkPrimary, width: 2.0),
                               ),
                             ),
-                            onPressed: game.startRun,
-                            child: const FittedBox(
+                            onPressed: () {
+                              if (game.isVictory && isLevelMode) {
+                                game.startRun(
+                                  mode: GameMode.levelProgression,
+                                  level: game.currentLevel + 1,
+                                );
+                              } else {
+                                game.startRun(
+                                  mode: game.activeMode,
+                                  level: game.currentLevel,
+                                );
+                              }
+                            },
+                            child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                'RIPROVA SUBITO',
-                                style: TextStyle(fontWeight: FontWeight.w900),
+                                game.isVictory && isLevelMode
+                                    ? s.nextLevelBtn(game.currentLevel + 1)
+                                    : s.retryNowBtn,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
                           ),
@@ -307,7 +505,7 @@ class GameOverOverlay extends StatelessWidget {
                     TextButton(
                       onPressed: game.returnToMainMenu,
                       child: Text(
-                        'Torna al Menu Principale',
+                        s.backToMenuBtn,
                         style: TextStyle(
                           color: p.inkSecondary,
                           fontSize: 12,
@@ -324,17 +522,61 @@ class GameOverOverlay extends StatelessWidget {
       },
     );
   }
+
+  Widget _buildMiniStatBox({
+    required String label,
+    required String value,
+    required RisographPalette p,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      decoration: BoxDecoration(
+        color: p.paperCard,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: p.paperGrid, width: 1.4),
+      ),
+      child: Column(
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: p.inkSecondary,
+                fontSize: 8.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: p.inkPrimary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-/// Disegna la mini-mappa 0-100m della traiettoria percorsa
+/// Disegna la mini-mappa della traiettoria percorsa fino al traguardo del livello
 class RisographFlightMapPainter extends CustomPainter {
   final List<Vector2> flightPath;
   final bool isVictory;
+  final double targetMeters;
   final RisographPalette palette;
 
   RisographFlightMapPainter({
     required this.flightPath,
     required this.isVictory,
+    required this.targetMeters,
     required this.palette,
   });
 
@@ -350,17 +592,14 @@ class RisographFlightMapPainter extends CustomPainter {
 
     if (flightPath.isEmpty) return;
 
+    final maxPixels = targetMeters * DailySeedEngine.metersToPixels;
     final path = Path();
     for (int i = 0; i < flightPath.length; i++) {
       final pt = flightPath[i];
       final normX = ((pt.x + DailySeedEngine.worldWidth / 2) /
               DailySeedEngine.worldWidth)
           .clamp(0.08, 0.92);
-      final normY = (1.0 -
-              (-pt.y /
-                  (DailySeedEngine.goalMeters *
-                      DailySeedEngine.metersToPixels)))
-          .clamp(0.06, 0.94);
+      final normY = (1.0 - (-pt.y / maxPixels)).clamp(0.06, 0.94);
 
       final x = normX * size.width;
       final y = normY * size.height;
@@ -384,11 +623,7 @@ class RisographFlightMapPainter extends CustomPainter {
             DailySeedEngine.worldWidth)
         .clamp(0.08, 0.92) *
         size.width;
-    final endY = (1.0 -
-            (-last.y /
-                (DailySeedEngine.goalMeters * DailySeedEngine.metersToPixels)))
-        .clamp(0.06, 0.94) *
-        size.height;
+    final endY = (1.0 - (-last.y / maxPixels)).clamp(0.06, 0.94) * size.height;
 
     canvas.drawCircle(
       Offset(endX, endY),

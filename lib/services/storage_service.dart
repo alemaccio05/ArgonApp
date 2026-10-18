@@ -1,9 +1,14 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/app_strings.dart';
 import '../core/daily_seed.dart';
 
 /// Gestisce il salvataggio locale veloce di:
+/// - Progressione infinita dei livelli (Livello 1, 2, 3...) e record sul livello attuale
+/// - Nome giocatore per la Classifica
+/// - Lingua selezionata (rilevata automaticamente dal dispositivo al primo avvio)
+/// - Stato Audio ON/OFF
 /// - Record giornaliero sul seed di oggi
-/// - Tentativi ufficiali ("Timbri") rimasti oggi
+/// - Tentativi ("Vite") rimasti oggi
 /// - Streak di giorni consecutivi giocati
 /// - Palette Risograph selezionata
 class StorageService {
@@ -15,6 +20,11 @@ class StorageService {
   static const _keyAllTimeBestMeters = 'all_time_best_meters';
   static const _keyPaletteId = 'selected_palette_id';
   static const _keyProUnlocked = 'pro_edition_unlocked';
+  static const _keyCurrentTowerLevel = 'current_tower_level';
+  static const _keyBestMetersCurrentLevel = 'best_meters_current_level';
+  static const _keyPlayerName = 'player_leaderboard_name';
+  static const _keyLanguageCode = 'selected_language_code';
+  static const _keySoundEnabled = 'sound_effects_enabled';
 
   SharedPreferences? _prefs;
 
@@ -26,6 +36,15 @@ class StorageService {
   String selectedPaletteId = 'washi_ivory';
   bool proUnlocked = false;
 
+  // Progressione Livelli Infiniti & Classifica
+  int currentTowerLevel = 1;
+  double bestMetersCurrentLevel = 0.0;
+  String playerName = 'Scalatore';
+
+  // Lingua & Audio
+  AppLanguage selectedLanguage = AppLanguage.it;
+  bool soundEnabled = true;
+
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     final todaySeed = DailySeedEngine.getTodaySeed();
@@ -35,6 +54,15 @@ class StorageService {
     allTimeBestMeters = _prefs?.getDouble(_keyAllTimeBestMeters) ?? 0.0;
     proUnlocked = _prefs?.getBool(_keyProUnlocked) ?? false;
     currentStreak = _prefs?.getInt(_keyCurrentStreak) ?? 1;
+
+    currentTowerLevel = _prefs?.getInt(_keyCurrentTowerLevel) ?? 1;
+    bestMetersCurrentLevel =
+        _prefs?.getDouble(_keyBestMetersCurrentLevel) ?? 0.0;
+    playerName = _prefs?.getString(_keyPlayerName) ?? 'Scalatore';
+
+    final savedLang = _prefs?.getString(_keyLanguageCode);
+    selectedLanguage = AppLanguage.fromCode(savedLang);
+    soundEnabled = _prefs?.getBool(_keySoundEnabled) ?? true;
 
     if (lastSeed != todaySeed) {
       // Nuovo giorno! Controlliamo se era ieri per incrementare la Streak
@@ -66,14 +94,42 @@ class StorageService {
     }
   }
 
-  /// Registra il risultato di una scalata e restituisce true se è un nuovo record giornaliero
+  /// Registra il risultato di una scalata e restituisce true se è un nuovo record
   Future<bool> recordRunResult({
+    required GameMode mode,
+    required int playedLevel,
     required double meters,
     required bool isVictory,
     required bool consumeOfficialAttempt,
   }) async {
-    bool isNewDailyRecord = false;
+    bool isNewRecord = false;
 
+    if (meters > allTimeBestMeters) {
+      allTimeBestMeters = meters;
+      await _prefs?.setDouble(_keyAllTimeBestMeters, allTimeBestMeters);
+    }
+
+    if (mode == GameMode.levelProgression) {
+      if (playedLevel == currentTowerLevel) {
+        if (isVictory) {
+          currentTowerLevel += 1;
+          bestMetersCurrentLevel = 0.0;
+          isNewRecord = true;
+          await _prefs?.setInt(_keyCurrentTowerLevel, currentTowerLevel);
+          await _prefs?.setDouble(_keyBestMetersCurrentLevel, 0.0);
+        } else if (meters > bestMetersCurrentLevel) {
+          bestMetersCurrentLevel = meters;
+          isNewRecord = true;
+          await _prefs?.setDouble(
+            _keyBestMetersCurrentLevel,
+            bestMetersCurrentLevel,
+          );
+        }
+      }
+      return isNewRecord;
+    }
+
+    // Modalità Torre del Giorno
     if (consumeOfficialAttempt && officialAttemptsLeft > 0) {
       officialAttemptsLeft -= 1;
       await _prefs?.setInt(_keyOfficialAttemptsLeft, officialAttemptsLeft);
@@ -81,13 +137,8 @@ class StorageService {
 
     if (meters > bestMetersToday) {
       bestMetersToday = meters;
-      isNewDailyRecord = true;
+      isNewRecord = true;
       await _prefs?.setDouble(_keyBestMetersToday, bestMetersToday);
-    }
-
-    if (meters > allTimeBestMeters) {
-      allTimeBestMeters = meters;
-      await _prefs?.setDouble(_keyAllTimeBestMeters, allTimeBestMeters);
     }
 
     if (isVictory && !completedToday) {
@@ -95,13 +146,30 @@ class StorageService {
       await _prefs?.setBool(_keyCompletedToday, true);
     }
 
-    return isNewDailyRecord;
+    return isNewRecord;
   }
 
-  /// Aggiunge 1 tentativo ufficiale extra (es. dopo Rewarded Ad)
+  /// Aggiunge 1 vita extra oggi (es. dopo Rewarded Ad)
   Future<void> grantExtraOfficialAttempt() async {
     officialAttemptsLeft += 1;
     await _prefs?.setInt(_keyOfficialAttemptsLeft, officialAttemptsLeft);
+  }
+
+  Future<void> setPlayerName(String name) async {
+    final cleaned = name.trim();
+    if (cleaned.isEmpty) return;
+    playerName = cleaned;
+    await _prefs?.setString(_keyPlayerName, playerName);
+  }
+
+  Future<void> setLanguage(AppLanguage lang) async {
+    selectedLanguage = lang;
+    await _prefs?.setString(_keyLanguageCode, lang.code);
+  }
+
+  Future<void> setSoundEnabled(bool enabled) async {
+    soundEnabled = enabled;
+    await _prefs?.setBool(_keySoundEnabled, enabled);
   }
 
   Future<void> setPalette(String paletteId) async {

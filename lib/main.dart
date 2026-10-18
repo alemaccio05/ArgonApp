@@ -37,7 +37,7 @@ class InkSlingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'INK SLING: Daily 100m',
+      title: 'INK TOWER: Climb & Stick',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

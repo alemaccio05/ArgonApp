@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
-import '../core/palette_theme.dart';
+import '../core/daily_seed.dart';
 import '../game/components/player_core.dart';
 import '../game/ink_sling_game.dart';
 
-/// HUD superiore compatto e protetto da overflow: mostra metri, progresso verso i 100m,
-/// i 3 lanci disponibili per il salto e i pulsanti per cambiare tema o uscire.
+/// HUD superiore compatto e protetto da overflow: mostra metri, progresso verso la vetta,
+/// i 3 lanci disponibili per il salto e i pulsanti per audio, tema e menu.
 class HudOverlay extends StatelessWidget {
   final InkSlingGame game;
   const HudOverlay({super.key, required this.game});
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<RisographPalette>(
-      valueListenable: game.paletteNotifier,
-      builder: (context, p, _) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        game.paletteNotifier,
+        game.languageNotifier,
+        game.soundNotifier,
+      ]),
+      builder: (context, _) {
+        final p = game.paletteNotifier.value;
+        final s = game.strings;
+        final soundOn = game.soundNotifier.value;
+
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -43,6 +51,11 @@ class HudOverlay extends StatelessWidget {
                         child: ValueListenableBuilder<double>(
                           valueListenable: game.metersNotifier,
                           builder: (_, meters, __) {
+                            final goal = game.currentGoalMeters;
+                            final modeLabel =
+                                game.activeMode == GameMode.levelProgression
+                                    ? '${s.levelShort} ${game.currentLevel}'
+                                    : s.hudDailyBadge;
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
@@ -55,6 +68,26 @@ class HudOverlay extends StatelessWidget {
                                         CrossAxisAlignment.baseline,
                                     textBaseline: TextBaseline.alphabetic,
                                     children: [
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: p.inkPrimary,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          modeLabel,
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w900,
+                                            color: p.paperCard,
+                                          ),
+                                        ),
+                                      ),
                                       Text(
                                         '${meters.toStringAsFixed(1)}m',
                                         style: TextStyle(
@@ -66,7 +99,7 @@ class HudOverlay extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 5),
                                       Text(
-                                        '/ 100m',
+                                        '/ ${goal.toInt()}m',
                                         style: TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w800,
@@ -83,7 +116,7 @@ class HudOverlay extends StatelessWidget {
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(3),
                                     child: LinearProgressIndicator(
-                                      value: (meters / 100.0).clamp(0.0, 1.0),
+                                      value: (meters / goal).clamp(0.0, 1.0),
                                       backgroundColor: p.paperGrid,
                                       valueColor: AlwaysStoppedAnimation<Color>(
                                         p.matchaSafe,
@@ -98,7 +131,7 @@ class HudOverlay extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
 
-                      // 3 Lanci Aerei disponibili + Pulsanti Tema e Menu
+                      // 3 Lanci Aerei disponibili + Pulsanti Audio, Tema e Menu
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -110,7 +143,7 @@ class HudOverlay extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    'LANCI',
+                                    s.hudLaunchesLabel,
                                     style: TextStyle(
                                       fontSize: 8.5,
                                       fontWeight: FontWeight.w900,
@@ -148,35 +181,49 @@ class HudOverlay extends StatelessWidget {
                               );
                             },
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 4),
                           IconButton(
                             visualDensity: VisualDensity.compact,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
+                              minWidth: 30,
+                              minHeight: 30,
                             ),
-                            tooltip: 'Cambia Tema',
-                            onPressed: game.cyclePalette,
+                            onPressed: game.toggleSound,
                             icon: Icon(
-                              Icons.palette_outlined,
-                              color: p.inkPrimary,
-                              size: 20,
+                              soundOn
+                                  ? Icons.volume_up_rounded
+                                  : Icons.volume_off_rounded,
+                              color: soundOn ? p.inkPrimary : p.inkSecondary,
+                              size: 19,
                             ),
                           ),
                           IconButton(
                             visualDensity: VisualDensity.compact,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
+                              minWidth: 30,
+                              minHeight: 30,
                             ),
-                            tooltip: 'Menu Principale',
+                            onPressed: game.cyclePalette,
+                            icon: Icon(
+                              Icons.palette_outlined,
+                              color: p.inkPrimary,
+                              size: 19,
+                            ),
+                          ),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 30,
+                              minHeight: 30,
+                            ),
                             onPressed: game.returnToMainMenu,
                             icon: Icon(
                               Icons.close_rounded,
                               color: p.inkPrimary,
-                              size: 22,
+                              size: 21,
                             ),
                           ),
                         ],

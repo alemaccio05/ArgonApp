@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
-import '../../core/daily_seed.dart';
 import '../ink_sling_game.dart';
 import 'obstacle_block.dart';
 
@@ -16,6 +15,7 @@ class PlayerCore extends PositionComponent
   static const int maxAirCharges = 3;
 
   Vector2 velocity = Vector2.zero();
+  Vector2 prevPosition = Vector2.zero();
   int airCharges = maxAirCharges;
   double shieldTimer = 0.0;
   double _squashImpactTimer = 0.0;
@@ -25,81 +25,225 @@ class PlayerCore extends PositionComponent
   /// Se diverso da null, la palla è "incollata" a questa piattaforma verde
   /// e il giocatore può mirare con tutta calma senza cadere!
   ObstacleBlock? stuckPlatform;
+  ObstacleBlock? _lastDetachedPlatform;
   Vector2 _stuckLocalOffset = Vector2.zero();
+  Vector2 _stuckNormal = Vector2(0, -1);
   double _detachCooldown = 0.0;
+  double _wallBounceCooldown = 0.0;
 
   PlayerCore({required super.position})
-      : super(size: Vector2.all(radius * 2), anchor: Anchor.center);
+      : super(size: Vector2.all(radius * 2), anchor: Anchor.center) {
+    prevPosition = position.clone();
+  }
 
   bool get isStuck => stuckPlatform != null || position.y >= 0.0;
 
-  /// Incolla la palla alla piattaforma verde toccata e ricarica tutti i lanci
-  void stickToPlatform(ObstacleBlock pad) {
-    if (_detachCooldown > 0 || stuckPlatform == pad) return;
+  /// Impedisce di tirare la palla attraverso la piattaforma a cui è incollata
+  /// (o attraverso il pavimento a 0m), deviando il vettore lungo l'esterno!
+  Vector2 sanitizeLaunchVelocity(Vector2 rawVel) {
+    final speed = rawVel.length;
+    if (speed <= 0.001) return rawVel;
 
-    stuckPlatform = pad;
-    velocity.setZero();
-
-    // Posiziona la palla ordinatamente sul bordo più vicino della piattaforma
-    final halfW = pad.size.x / 2;
-    final halfH = pad.size.y / 2;
-    final clampedX = (position.x - pad.position.x).clamp(-halfW + 4, halfW - 4);
-    final isBelow = position.y > pad.position.y + halfH * 0.5;
-
-    _stuckLocalOffset = Vector2(
-      clampedX,
-      isBelow ? (halfH + radius + 1.0) : -(halfH + radius + 1.0),
-    );
-    position = pad.position + _stuckLocalOffset;
-
-    _squashImpactTimer = 0.12;
-    recharge('pad');
-  }
-
-  void launch(Vector2 launchVelocity) {
-    // Stacca la palla dalla piattaforma e avvia un breve cooldown per non riattaccarsi subito
     if (stuckPlatform != null) {
-      stuckPlatform = null;
-      _detachCooldown = 0.14;
+      final pad = stuckPlatform!;
+      final halfW = pad.size.x / 2;
+      final halfH = pad.size.y / 2;
+      final rel = position - pad.position;
+
+      // Controllo rigoroso sui 4 lati della piattaforma per impedire qualsiasi
+      // tiro che punti dentro il corpo solido della piattaforma:
+      if (rel.x.abs() <= halfW + radius * 0.75) {
+        if (rel.y < 0 && rawVel.y > -25.0) {
+          // Appoggiato SOPRA la piattaforma: non può tirare verso il basso
+          final side = rawVel.x.abs() > 1.0
+              ? rawVel.x.sign
+              : (rel.x >= 0 ? 1.0 : -1.0);
+          return Vector2(side, -0.18).normalized() * speed;
+        } else if (rel.y > 0 && rawVel.y < 25.0) {
+          // Appeso SOTTO la piattaforma: non può tirare verso l'alto attraversandola
+          final side = rawVel.x.abs() > 1.0
+              ? rawVel.x.sign
+              : (rel.x >= 0 ? 1.0 : -1.0);
+          return Vector2(side, 0.14).normalized() * speed;
+        }
+      }
+
+      if (rel.y.abs() <= halfH + radius * 0.75) {
+        if (rel.x < -halfW && rawVel.x > -20.0) {
+          // Attaccato al LATO SINISTRO: non può tirare verso destra dentro la piattaforma
+          final vert = rawVel.y.abs() > 1.0 ? rawVel.y.sign : -1.0;
+          return Vector2(-0.18, vert).normalized() * speed;
+        } else if (rel.x > halfW && rawVel.x < 20.0) {
+          // Attaccato al LATO DESTRO: non può tirare verso sinistra dentro la piattaforma
+          final vert = rawVel.y.abs() > 1.0 ? rawVel.y.sign : -1.0;
+          return Vector2(0.18, vert).normalized() * speed;
+        }
+      }
     }
 
-    velocity = launchVelocity;
+    Vector2? surfaceNormal;
+    if (stuckPlatform != null) {
+      surfaceNormal = _stuckNormal;
+    } else if (position.y >= -1.0) {
+      surfaceNormal = Vector2(0, -1);
+    }
+
+    if (surfaceNormal == null) return rawVel;
+
+    final dir = rawVel / speed;
+    // Se il tiro punta dentro la superficie (es. sugli angoli o sul pavimento),
+    // lo proiettiamo lungo la tangente esterna così non può mai attraversarla!
+    if (dir.dot(surfaceNormal) < 0.15) {
+      Vector2 tangent = dir - surfaceNormal * dir.dot(surfaceNormal);
+      if (tangent.length < 0.01) {
+        tangent = Vector2(-surfaceNormal.y, surfaceNormal.x);
+        if (tangent.y > 0) tangent = -tangent;
+      } else {
+        tangent.normalize();
+      }
+      final clampedDir = (tangent + surfaceNormal * 0.18).normalized();
+      return clampedDir * speed;
+    }
+    return rawVel;
+  }
+
+  /// Incolla la palla al 100% del perimetro della piattaforma (sopra, sotto,
+  /// sui lati sinistro/destro e sugli angoli) e ricarica tutti i lanci!
+  /// Restituisce `true` solo quando l'incollaggio avviene effettivamente,
+  /// evitando qualsiasi ripetizione di suoni mentre la palla si stacca.
+  bool stickToPlatform(ObstacleBlock pad) {
+    if (stuckPlatform != null) return false;
+
+    final halfW = pad.size.x / 2;
+    final halfH = pad.size.y / 2;
+    final rel = position - pad.position;
+
+    final closestX = rel.x.clamp(-halfW, halfW);
+    final closestY = rel.y.clamp(-halfH, halfH);
+    final diff = Vector2(rel.x - closestX, rel.y - closestY);
+
+    // Se ci siamo appena staccati da questa piattaforma, ignoriamola SOLO
+    // nei primissimi istanti mentre la palla si sta allontanando all'esterno.
+    // Se invece si muove verso la piattaforma, si blocca subito senza attraversarla!
+    if (_detachCooldown > 0 && pad == _lastDetachedPlatform) {
+      final outDir = diff.length > 0.001 ? diff.normalized() : _stuckNormal;
+      if (velocity.dot(outDir) > 0.0 && diff.length >= radius * 0.9) {
+        return false;
+      }
+    }
+
+    stuckPlatform = pad;
+    _lastDetachedPlatform = pad;
+    velocity.setZero();
+
+    if (diff.length > 0.001) {
+      // Attacco preciso su qualsiasi lato (superiore, inferiore, sinistro, destro) o angolo!
+      _stuckNormal = diff.normalized();
+      _stuckLocalOffset =
+          Vector2(closestX, closestY) + _stuckNormal * (radius + 1.0);
+    } else {
+      // Fallback se il centro era già penetrato nel rettangolo:
+      // usa la posizione precedente per determinare il lato di provenienza reale!
+      final prevRel = prevPosition - pad.position;
+      final prevClosestX = prevRel.x.clamp(-halfW, halfW);
+      final prevClosestY = prevRel.y.clamp(-halfH, halfH);
+      final prevDiff = Vector2(prevRel.x - prevClosestX, prevRel.y - prevClosestY);
+
+      if (prevDiff.length > 0.001) {
+        _stuckNormal = prevDiff.normalized();
+        _stuckLocalOffset =
+            Vector2(prevClosestX, prevClosestY) + _stuckNormal * (radius + 1.0);
+      } else {
+        final distLeft = (rel.x + halfW).abs();
+        final distRight = (halfW - rel.x).abs();
+        final distTop = (rel.y + halfH).abs();
+        final distBottom = (halfH - rel.y).abs();
+        final minDist = [distLeft, distRight, distTop, distBottom].reduce(min);
+
+        if (minDist == distLeft) {
+          _stuckNormal = Vector2(-1, 0);
+          _stuckLocalOffset = Vector2(-(halfW + radius + 1.0), closestY);
+        } else if (minDist == distRight) {
+          _stuckNormal = Vector2(1, 0);
+          _stuckLocalOffset = Vector2(halfW + radius + 1.0, closestY);
+        } else if (minDist == distTop) {
+          _stuckNormal = Vector2(0, -1);
+          _stuckLocalOffset = Vector2(closestX, -(halfH + radius + 1.0));
+        } else {
+          _stuckNormal = Vector2(0, 1);
+          _stuckLocalOffset = Vector2(closestX, halfH + radius + 1.0);
+        }
+      }
+    }
+
+    position = pad.position + _stuckLocalOffset;
+    prevPosition = position.clone();
+    _squashImpactTimer = 0.12;
+    recharge('pad');
+    return true;
+  }
+
+  void launch(Vector2 launchVelocity, {bool silent = false}) {
+    final safeVelocity = sanitizeLaunchVelocity(launchVelocity);
+
+    // Stacca la palla dalla piattaforma e la sposta leggermente oltre la soglia di contatto
+    // per evitare che strusciando sul bordo ripeta il suono di incollaggio!
+    if (stuckPlatform != null) {
+      _lastDetachedPlatform = stuckPlatform;
+      stuckPlatform = null;
+      _detachCooldown = 0.08;
+      position += _stuckNormal * 2.2;
+    }
+
+    prevPosition = position.clone();
+    velocity = safeVelocity;
     airCharges = max(0, airCharges - 1);
-    game.chargesNotifier.value = airCharges;
+    if (!game.isMenuDemo) {
+      game.chargesNotifier.value = airCharges;
+      game.addCameraTrauma(0.18);
+    }
     _squashImpactTimer = 0.085;
-    game.addCameraTrauma(0.18);
     game.spawnInkDrops(
       position.clone(),
       game.palette.playerFill,
       count: 9,
     );
-    game.audioHaptics.onLaunch();
+    if (!silent && !game.isMenuDemo) {
+      game.audioHaptics.onLaunch();
+    }
   }
 
   void recharge(String source) {
     final wasRecharged = airCharges < maxAirCharges;
     airCharges = maxAirCharges;
-    game.chargesNotifier.value = airCharges;
-    game.comboNotifier.value += 1;
+    if (!game.isMenuDemo) {
+      game.chargesNotifier.value = airCharges;
+      game.comboNotifier.value += 1;
+    }
 
-    if (wasRecharged && source == 'seal') {
-      game.spawnFloatingStamp(position + Vector2(0, -24), '+SLANCIO!');
+    if (wasRecharged && source == 'seal' && !game.isMenuDemo) {
+      game.spawnFloatingStamp(
+        position + Vector2(0, -24),
+        game.strings.floatingBoost,
+      );
     }
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-    if (!game.isPlaying) return;
+    if (!game.isPlaying && !game.isMenuDemo) return;
 
     _ringRotation += dt * 1.8;
     if (shieldTimer > 0) shieldTimer -= dt;
     if (_squashImpactTimer > 0) _squashImpactTimer -= dt;
     if (_detachCooldown > 0) _detachCooldown -= dt;
+    if (_wallBounceCooldown > 0) _wallBounceCooldown -= dt;
 
     // Se la palla è incollata a una piattaforma verde, resta ferma lì sopra!
     if (stuckPlatform != null) {
       position = stuckPlatform!.position + _stuckLocalOffset;
+      prevPosition = position.clone();
       velocity.setZero();
       if (_brushTrail.isNotEmpty) {
         _brushTrail.removeAt(0);
@@ -107,20 +251,21 @@ class PlayerCore extends PositionComponent
       return;
     }
 
-    // 1. Gravità e integrazione velocità in volo
+    // 1. Salva la posizione precedente per il Continuous Collision Detection (anti-tunneling)
+    prevPosition = position.clone();
     velocity.y += gravity * dt;
     position += velocity * dt;
 
-    // 2. Rimbalzo controllato sulle pareti laterali (dà anche una piccola spinta verso l'alto)
-    const halfWall = DailySeedEngine.worldWidth / 2 - radius;
+    // 2. Rimbalzo controllato esattamente sul bordo interno delle mura in pietra!
+    final halfWall = game.towerHalfWidth - radius;
     if (position.x < -halfWall) {
       position.x = -halfWall;
-      velocity.x = -velocity.x * 0.72;
+      velocity.x = velocity.x.abs() * 0.72;
       if (velocity.y > 120) velocity.y *= 0.65; // Frena la caduta sui muri
       _onWallBounce();
     } else if (position.x > halfWall) {
       position.x = halfWall;
-      velocity.x = -velocity.x * 0.72;
+      velocity.x = -velocity.x.abs() * 0.72;
       if (velocity.y > 120) velocity.y *= 0.65;
       _onWallBounce();
     }
@@ -130,8 +275,10 @@ class PlayerCore extends PositionComponent
       position.y = 0;
       velocity.setZero();
       airCharges = maxAirCharges;
-      game.chargesNotifier.value = maxAirCharges;
-      game.comboNotifier.value = 0;
+      if (!game.isMenuDemo) {
+        game.chargesNotifier.value = maxAirCharges;
+        game.comboNotifier.value = 0;
+      }
     }
 
     // 4. Scia fluida in volo
@@ -142,20 +289,28 @@ class PlayerCore extends PositionComponent
   }
 
   void _onWallBounce() {
+    if (_wallBounceCooldown > 0) return;
+    _wallBounceCooldown = 0.08;
     _squashImpactTimer = 0.09;
-    game.totalBounces++;
+    if (!game.isMenuDemo) {
+      game.totalBounces++;
+    }
     // Toccare il muro restituisce 1 lancio se eri a secco, così non rimani mai bloccato!
     if (airCharges == 0) {
       airCharges = 1;
-      game.chargesNotifier.value = airCharges;
+      if (!game.isMenuDemo) {
+        game.chargesNotifier.value = airCharges;
+      }
     }
-    game.addCameraTrauma(0.14);
+    if (!game.isMenuDemo) {
+      game.addCameraTrauma(0.14);
+      game.audioHaptics.onWallOrPadBounce(combo: game.comboNotifier.value);
+    }
     game.spawnInkDrops(
       position.clone(),
       game.palette.matchaSafe,
       count: 6,
     );
-    game.audioHaptics.onWallOrPadBounce(combo: game.comboNotifier.value);
   }
 
   @override

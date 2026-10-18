@@ -1,0 +1,4 @@
+MODIFICHE DA FARE:
+1) Sistemare il background
+2) Sistemare i nomi delle tab
+3) Fare la classifica in base che verifichi anche i rimbalzi (per il giornaliero). Per quello con scalata progressiva dei livelli valutare con priorità il livello e poi la percentuale ed infine i rimbalzi
