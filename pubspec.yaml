@@ -1,0 +1,22 @@
+name: ink_sling_daily
+description: "INK SLING: Daily 100m - Arcade physics daily climber in Japanese Risograph print style."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flame: '>=1.14.0 <2.0.0'
+  shared_preferences: '>=2.2.0 <3.0.0'
+  share_plus: '>=7.0.0 <11.0.0'
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: '>=3.0.0 <6.0.0'
+
+flutter:
+  uses-material-design: true
