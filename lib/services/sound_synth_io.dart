@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/services.dart';
 
 // --- Definizioni FFI per Windows (winmm.dll) ---
 typedef _PlaySoundNative = Int32 Function(
@@ -61,8 +62,8 @@ typedef _AAudioStreamWriteDart = int Function(
 );
 
 /// Sintetizzatore procedurale di effetti sonori a 44.1kHz 16-bit in memoria.
-/// - Su Android (es. Pixel 3a): riproduce i buffer PCM in tempo reale tramite `libaaudio.so`
-///   in un Isolate dedicato a bassa latenza.
+/// - Su Android: riproduce i buffer WAV tramite `SoundPool` nativo (`STREAM_MUSIC` / `USAGE_MEDIA`)
+///   su `MethodChannel`, con fallback immediato all'Isolate FFI `libaaudio.so` (stereo + flush).
 /// - Su Windows: riproduce i buffer WAV tramite `winmm.dll` (`PlaySoundW`).
 class NativeSoundSynth {
   static const int _sampleRate = 44100;
@@ -71,11 +72,15 @@ class NativeSoundSynth {
   static const int _sndMemory = 0x0004;
   static const int _flags = _sndAsync | _sndNoDefault | _sndMemory;
 
+  static const MethodChannel _androidAudioChannel =
+      MethodChannel('com.example.ink_sling_daily/audio');
+
   _PlaySoundDart? _playSoundWin;
   SendPort? _androidAudioPort;
+  bool _androidSoundPoolReady = false;
   bool _initialized = false;
 
-  // Buffer PCM 16-bit (usati su Android AAudio)
+  // Buffer PCM 16-bit
   late final Int16List _aimTickPcm;
   late final Int16List _launchPcm;
   final List<Int16List> _padStickPcms = [];
@@ -101,13 +106,15 @@ class NativeSoundSynth {
     if (_initialized) return;
     _initialized = true;
 
-    // 1. Genera i 9 timbri sonori ben distinti tra loro
+    // 1. Genera i 9 timbri sonori ben distinti tra loro con guadagno ottimizzato
+    //    sia per speaker smartphone (Android) sia per desktop (Windows).
     // A) Tick di mira: tocco legnoso breve e acuto (Marimba tick)
     _aimTickPcm = _synthSweepPcm(
-      durationSec: 0.024,
+      durationSec: 0.026,
       startFreq: 1120,
       endFreq: 740,
-      volume: 0.20,
+      volume: 0.56,
+      triangleMix: 0.25,
     );
 
     // B) Lancio fionda: "whoosh" elastico ascendente
@@ -115,7 +122,7 @@ class NativeSoundSynth {
       durationSec: 0.135,
       startFreq: 165,
       endFreq: 690,
-      volume: 0.38,
+      volume: 0.78,
       triangleMix: 0.55,
     );
 
@@ -127,7 +134,7 @@ class NativeSoundSynth {
         _synthArpeggioPcm(
           notesHz: [280.0 * mult, 420.0 * mult],
           noteDurationSec: 0.042,
-          volume: 0.28,
+          volume: 0.72,
         ),
       );
       _sealPcms.add(
@@ -139,47 +146,49 @@ class NativeSoundSynth {
             1046.50 * mult * 0.75,
           ],
           noteDurationSec: 0.045,
-          volume: 0.38,
+          volume: 0.80,
         ),
       );
     }
 
-    // E) Rimbalzo sul muro in pietra: colpo grave e profondo ("thud" sordo)
+    // E) Rimbalzo sul muro in pietra: colpo grave e profondo ("thud" con armoniche udibili su telefono)
     _wallBouncePcm = _synthSweepPcm(
       durationSec: 0.095,
-      startFreq: 145,
-      endFreq: 52,
-      volume: 0.44,
-      noiseMix: 0.12,
+      startFreq: 185,
+      endFreq: 65,
+      volume: 0.85,
+      triangleMix: 0.45,
+      noiseMix: 0.14,
     );
 
     // F) Rimbalzo su Bumper Pinball: "boing" squillante a campana elastica
     _bumperPcm = _synthArpeggioPcm(
       notesHz: [440.0, 880.0, 659.25, 1174.66],
       noteDurationSec: 0.038,
-      volume: 0.42,
+      volume: 0.82,
     );
 
     // G) Rottura Scudo / Crollo piattaforma: accordo discendente frizzante
     _shieldPcm = _synthArpeggioPcm(
       notesHz: [880.0, 622.25, 440.0, 311.13],
       noteDurationSec: 0.048,
-      volume: 0.38,
+      volume: 0.78,
     );
 
     // H) Vittoria: fanfara trionfale a 5 note
     _victoryPcm = _synthArpeggioPcm(
       notesHz: [523.25, 659.25, 783.99, 987.77, 1046.50],
       noteDurationSec: 0.085,
-      volume: 0.45,
+      volume: 0.86,
     );
 
     // I) Sconfitta / Impatto: discesa grave con spruzzo d'inchiostro
     _crashPcm = _synthSweepPcm(
       durationSec: 0.28,
-      startFreq: 250,
-      endFreq: 46,
-      volume: 0.44,
+      startFreq: 260,
+      endFreq: 55,
+      volume: 0.85,
+      triangleMix: 0.35,
       noiseMix: 0.35,
     );
 
@@ -206,7 +215,40 @@ class NativeSoundSynth {
         _playSoundWin = null;
       }
     } else if (Platform.isAndroid) {
-      _startAndroidAAudioIsolate();
+      _initAndroidAudio();
+    }
+  }
+
+  Future<void> _initAndroidAudio() async {
+    // Avvia anche il worker AAudio di fallback (utile durante i primi millisecondi o hot-restart)
+    unawaited(_startAndroidAAudioIsolate());
+
+    // Prepara i WAV e li registra nel SoundPool nativo Android tramite MethodChannel
+    try {
+      final wavMap = <String, Uint8List>{
+        'aimTick': _encodeWav(_aimTickPcm),
+        'launch': _encodeWav(_launchPcm),
+        'wallBounce': _encodeWav(_wallBouncePcm),
+        'bumper': _encodeWav(_bumperPcm),
+        'shield': _encodeWav(_shieldPcm),
+        'victory': _encodeWav(_victoryPcm),
+        'crash': _encodeWav(_crashPcm),
+      };
+      for (int i = 0; i < _padStickPcms.length; i++) {
+        wavMap['padStick_$i'] = _encodeWav(_padStickPcms[i]);
+      }
+      for (int i = 0; i < _sealPcms.length; i++) {
+        wavMap['seal_$i'] = _encodeWav(_sealPcms[i]);
+      }
+
+      final ok = await _androidAudioChannel.invokeMethod<bool>('initWavs', wavMap);
+      if (ok == true) {
+        // Piccola attesa per completare il caricamento asincrono dei sample nel SoundPool
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+        _androidSoundPoolReady = true;
+      }
+    } catch (_) {
+      _androidSoundPoolReady = false;
     }
   }
 
@@ -224,43 +266,52 @@ class NativeSoundSynth {
   void stopAll() {
     if (Platform.isWindows && _playSoundWin != null) {
       _playSoundWin!(nullptr, 0, 0);
-    } else if (_androidAudioPort != null) {
-      _androidAudioPort!.send('stop');
+    } else if (Platform.isAndroid) {
+      if (_androidSoundPoolReady) {
+        unawaited(_androidAudioChannel.invokeMethod<void>('stopAll'));
+      }
+      _androidAudioPort?.send('stop');
     }
   }
 
-  void _play(Int16List pcm, Pointer<Uint8>? winWav) {
+  void _play(String key, Int16List pcm, Pointer<Uint8>? winWav) {
     if (!_initialized) init();
     if (Platform.isWindows && _playSoundWin != null && winWav != null) {
       _playSoundWin!(winWav, 0, _flags);
-    } else if (_androidAudioPort != null) {
-      _androidAudioPort!.send(pcm);
+    } else if (Platform.isAndroid) {
+      if (_androidSoundPoolReady) {
+        unawaited(
+          _androidAudioChannel.invokeMethod<void>('play', {'key': key}),
+        );
+      } else if (_androidAudioPort != null) {
+        _androidAudioPort!.send(pcm);
+      }
     }
   }
 
-  void playAimTick() => _play(_aimTickPcm, _aimTickWav);
-  void playLaunch() => _play(_launchPcm, _launchWav);
+  void playAimTick() => _play('aimTick', _aimTickPcm, _aimTickWav);
+  void playLaunch() => _play('launch', _launchPcm, _launchWav);
 
   void playPadStick(int combo) {
     if (!_initialized) init();
     final idx = combo.clamp(0, _padStickPcms.length - 1);
     final wav = idx < _padStickWavs.length ? _padStickWavs[idx] : null;
-    _play(_padStickPcms[idx], wav);
+    _play('padStick_$idx', _padStickPcms[idx], wav);
   }
 
-  void playWallBounce() => _play(_wallBouncePcm, _wallBounceWav);
-  void playBumper() => _play(_bumperPcm, _bumperWav);
+  void playWallBounce() => _play('wallBounce', _wallBouncePcm, _wallBounceWav);
+  void playBumper() => _play('bumper', _bumperPcm, _bumperWav);
 
   void playSeal(int combo) {
     if (!_initialized) init();
     final idx = combo.clamp(0, _sealPcms.length - 1);
     final wav = idx < _sealWavs.length ? _sealWavs[idx] : null;
-    _play(_sealPcms[idx], wav);
+    _play('seal_$idx', _sealPcms[idx], wav);
   }
 
-  void playShieldBreak() => _play(_shieldPcm, _shieldWav);
-  void playVictory() => _play(_victoryPcm, _victoryWav);
-  void playCrash() => _play(_crashPcm, _crashWav);
+  void playShieldBreak() => _play('shield', _shieldPcm, _shieldWav);
+  void playVictory() => _play('victory', _victoryPcm, _victoryWav);
+  void playCrash() => _play('crash', _crashPcm, _crashWav);
 
   Pointer<Uint8> _allocWav(Uint8List wavBytes) {
     final ptr = malloc.allocate<Uint8>(wavBytes.length);
@@ -373,8 +424,7 @@ class NativeSoundSynth {
   }
 }
 
-/// Worker Isolate Android che riproduce con latenza zero i campioni PCM 16-bit
-/// tramite la libreria di sistema NDK `libaaudio.so`.
+/// Worker Isolate Android di fallback tramite `libaaudio.so` (Stereo 2ch + Usage Media + Silence Flush).
 Future<void> _androidAudioWorker(SendPort mainSendPort) async {
   final port = ReceivePort();
   mainSendPort.send(port.sendPort);
@@ -401,6 +451,12 @@ Future<void> _androidAudioWorker(SendPort mainSendPort) async {
   final setPerfMode = aaudio.lookupFunction<
       _AAudioBuilderSetIntNative,
       _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setPerformanceMode');
+  final setUsage = aaudio.lookupFunction<
+      _AAudioBuilderSetIntNative,
+      _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setUsage');
+  final setContentType = aaudio.lookupFunction<
+      _AAudioBuilderSetIntNative,
+      _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setContentType');
   final openStream = aaudio.lookupFunction<
       _AAudioBuilderOpenStreamNative,
       _AAudioBuilderOpenStreamDart>('AAudioStreamBuilder_openStream');
@@ -424,9 +480,11 @@ Future<void> _androidAudioWorker(SendPort mainSendPort) async {
       if (createBuilder(builderPtr) != 0) return nullptr;
       final builder = builderPtr.value;
       setFormat(builder, 1); // AAUDIO_FORMAT_PCM_I16 = 1
-      setChannels(builder, 1); // Mono
+      setChannels(builder, 2); // Stereo (2 canali interleaved per massima compatibilità hardware)
       setSampleRate(builder, 44100);
-      setPerfMode(builder, 12); // AAUDIO_PERFORMANCE_MODE_LOW_LATENCY = 12
+      setUsage(builder, 1); // AAUDIO_USAGE_MEDIA = 1
+      setContentType(builder, 2); // AAUDIO_CONTENT_TYPE_MUSIC = 2
+      setPerfMode(builder, 10); // AAUDIO_PERFORMANCE_MODE_NONE = 10 (usa mixer resampler Android)
       final res = openStream(builder, streamPtr);
       deleteBuilder(builder);
       if (res != 0) return nullptr;
@@ -439,9 +497,11 @@ Future<void> _androidAudioWorker(SendPort mainSendPort) async {
     }
   }
 
-  Pointer<Void> stream = openAAudioStream();
+  Pointer<Void> stream = nullptr;
   const int chunkFrames = 512;
-  final Pointer<Int16> chunkBuf = calloc<Int16>(chunkFrames);
+  const int silenceFlushFrames = 2048;
+  // 2 canali stereo (L, R) per frame
+  final Pointer<Int16> chunkBuf = calloc<Int16>(chunkFrames * 2);
 
   Int16List? activeSamples;
   int sampleCursor = 0;
@@ -457,16 +517,24 @@ Future<void> _androidAudioWorker(SendPort mainSendPort) async {
           activeSamples = null;
           break;
         }
+      } else if (sampleCursor == 0) {
+        requestStart(stream);
       }
+
       final samples = activeSamples!;
-      final remaining = samples.length - sampleCursor;
+      final totalWithFlush = samples.length + silenceFlushFrames;
+      final remaining = totalWithFlush - sampleCursor;
       if (remaining <= 0) {
         activeSamples = null;
         break;
       }
+
       final count = remaining < chunkFrames ? remaining : chunkFrames;
       for (int i = 0; i < count; i++) {
-        chunkBuf[i] = samples[sampleCursor + i];
+        final idx = sampleCursor + i;
+        final s = idx < samples.length ? samples[idx] : 0;
+        chunkBuf[i * 2] = s;
+        chunkBuf[i * 2 + 1] = s;
       }
       sampleCursor += count;
 
@@ -475,7 +543,6 @@ Future<void> _androidAudioWorker(SendPort mainSendPort) async {
         closeStream(stream);
         stream = openAAudioStream();
       }
-      // Cede brevemente alla coda eventi per accettare istantaneamente un nuovo suono o 'stop'
       await Future<void>.delayed(Duration.zero);
     }
     loopRunning = false;
@@ -492,3 +559,4 @@ Future<void> _androidAudioWorker(SendPort mainSendPort) async {
     }
   }
 }
+

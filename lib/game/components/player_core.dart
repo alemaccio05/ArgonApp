@@ -262,12 +262,12 @@ class PlayerCore extends PositionComponent
       position.x = -halfWall;
       velocity.x = velocity.x.abs() * 0.72;
       if (velocity.y > 120) velocity.y *= 0.65; // Frena la caduta sui muri
-      _onWallBounce();
+      _onWallBounce(isLeftWall: true);
     } else if (position.x > halfWall) {
       position.x = halfWall;
       velocity.x = -velocity.x.abs() * 0.72;
       if (velocity.y > 120) velocity.y *= 0.65;
-      _onWallBounce();
+      _onWallBounce(isLeftWall: false);
     }
 
     // 3. Base di partenza a 0.0m (incolla/ferma la palla a terra)
@@ -288,13 +288,23 @@ class PlayerCore extends PositionComponent
     }
   }
 
-  void _onWallBounce() {
+  void _onWallBounce({required bool isLeftWall}) {
     if (_wallBounceCooldown > 0) return;
     _wallBounceCooldown = 0.08;
     _squashImpactTimer = 0.09;
     if (!game.isMenuDemo) {
       game.totalBounces++;
     }
+    // Macchia d'inchiostro permanente ("Ink Stamp") impressa sulla parete della torre!
+    final wallEdgeX = isLeftWall
+        ? -game.towerHalfWidth + 3.5
+        : game.towerHalfWidth - 3.5;
+    game.addInkStamp(
+      position: Vector2(wallEdgeX, position.y),
+      isWall: true,
+      isLeftWall: isLeftWall,
+      color: game.palette.playerFill,
+    );
     // Toccare il muro restituisce 1 lancio se eri a secco, così non rimani mai bloccato!
     if (airCharges == 0) {
       airCharges = 1;

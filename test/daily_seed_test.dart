@@ -38,26 +38,72 @@ void main() {
     expect(DailySeedEngine.getLevelGoalMeters(30), equals(70.0));
   });
 
-  test('Daily and Global Leaderboards include current user and sort properly', () {
+  test('Daily and Global Leaderboards sort by meters/level/percent/bounces and use realistic bounce counts', () {
+    expect(DailySeedEngine.getWeeklySeed(), greaterThan(2025000));
+
+    // Un'altezza di 81m su una torre da 90m (Liv. 42) richiede almeno 50+ rimbalzi realistici (mai 11!)
+    final bouncesAt90m = DailySeedEngine.computeRealisticRivalBounces(
+      metersClimbed: 81.0,
+      difficultyLevel: 42,
+      rivalIndex: 0,
+    );
+    expect(bouncesAt90m, greaterThanOrEqualTo(50));
+
     final daily = DailySeedEngine.getDailyLeaderboard(
       playerName: 'Tester',
       playerBestMetersToday: 92.5,
+      playerBouncesToday: 44,
       completedToday: false,
     );
-    expect(daily.any((e) => e.isCurrentUser && e.name == 'Tester'), isTrue);
+    expect(daily.any((e) => e.isCurrentUser && e.name == 'Tester' && e.bounces == 44), isTrue);
+    for (int i = 0; i < daily.length - 1; i++) {
+      final a = daily[i];
+      final b = daily[i + 1];
+      final validOrder = a.bestMeters > b.bestMeters ||
+          (a.bestMeters == b.bestMeters && a.bounces <= b.bounces);
+      expect(validOrder, isTrue);
+    }
 
-    final global = DailySeedEngine.getGlobalLeaderboard(
+    final globalLow = DailySeedEngine.getGlobalLeaderboard(
       playerName: 'Tester',
-      playerLevel: 10,
-      playerBestMeters: 45.0,
+      playerLevel: 1,
+      playerBestMeters: 5.0,
+      playerBounces: 8,
     );
-    expect(global.any((e) => e.isCurrentUser && e.level == 10), isTrue);
+    final lowestRivalAtStart = globalLow
+        .where((e) => !e.isCurrentUser)
+        .reduce((a, b) => a.level <= b.level ? a : b);
+
+    // Quando il giocatore supera il rivale, il rivale sale di 1 livello
+    final globalOvertake = DailySeedEngine.getGlobalLeaderboard(
+      playerName: 'Tester',
+      playerLevel: lowestRivalAtStart.level + 1,
+      playerBestMeters: 10.0,
+      playerBounces: 8,
+    );
+    final sameRivalAfter = globalOvertake.firstWhere(
+      (e) => !e.isCurrentUser && e.name == lowestRivalAtStart.name,
+    );
+    expect(sameRivalAfter.level, equals(lowestRivalAtStart.level + 1));
+
+    for (int i = 0; i < globalOvertake.length - 1; i++) {
+      final a = globalOvertake[i];
+      final b = globalOvertake[i + 1];
+      final validOrder = a.level > b.level ||
+          (a.level == b.level && a.progressPercent > b.progressPercent) ||
+          (a.level == b.level &&
+              a.progressPercent == b.progressPercent &&
+              a.bounces <= b.bounces);
+      expect(validOrder, isTrue);
+    }
   });
 
-  test('Multi-language support works across all 6 popular languages', () {
+  test('Multi-language support works across all 6 popular languages with clean tab labels', () {
     for (final lang in AppLanguage.values) {
       final s = AppStrings(lang);
       expect(s.subtitleClimbStick, isNotEmpty);
+      expect(s.modeLevelsTab.contains('(1, 2, 3'), isFalse);
+      expect(s.modeDailyTab(657).contains('#657'), isFalse);
       expect(s.leaderboardDailyBtn(3), contains('#3'));
       expect(s.leaderboardLevelsBtn(2), contains('#2'));
     }

@@ -16,6 +16,32 @@ import 'components/ink_flood_wave.dart';
 import 'components/obstacle_block.dart';
 import 'components/player_core.dart';
 
+/// Macchia d'inchiostro permanente ("Ink Stamp") lasciata ad ogni rimbalzo sul muro
+/// o atterraggio su piattaforma mentre si scala la torre.
+class InkStamp {
+  final Vector2 position;
+  final double radius;
+  final bool isWall;
+  final bool isLeftWall;
+  final Color color;
+  final Offset dropOffset1;
+  final Offset dropOffset2;
+  final double dropRadius1;
+  final double dropRadius2;
+
+  const InkStamp({
+    required this.position,
+    required this.radius,
+    required this.isWall,
+    required this.isLeftWall,
+    required this.color,
+    required this.dropOffset1,
+    required this.dropOffset2,
+    required this.dropRadius1,
+    required this.dropRadius2,
+  });
+}
+
 /// Il motore principale di INK TOWER: Climb & Stick.
 class InkSlingGame extends FlameGame with DragCallbacks {
   final StorageService storage;
@@ -77,6 +103,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   final List<double> communityHotspotMeters = [];
   final List<Offset> _paperGrainDots = [];
   final List<ObstacleBlock> _demoPlatforms = [];
+  final List<InkStamp> _inkStamps = [];
 
   // Camera Shake & Hit-Stop
   double _shakeTrauma = 0.0;
@@ -201,11 +228,13 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     required double goalMeters,
     required int difficultyLevel,
     bool isDemoTower = false,
+    bool isDailyTower = false,
   }) {
     world.removeAll(world.children);
     flightPath.clear();
     communityHotspotMeters.clear();
     _demoPlatforms.clear();
+    _inkStamps.clear();
 
     final rng = Random(seed);
 
@@ -217,23 +246,28 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     double currentMeter = 3.8;
     int stepIndex = 0;
 
-    final levelFactor = (difficultyLevel - 1).clamp(0, 40);
-    final subLevelInTier = (difficultyLevel - 1) % 10; // 0..9 dentro il blocco di 10 livelli
-    final hazardStartMeter = max(4.2, 10.0 - levelFactor * 0.35);
-
-    // Probabilità progressiva di piattaforme speciali e densità di ostacoli
-    final crumblingChance = difficultyLevel < 3
-        ? 0.0
-        : (0.16 + levelFactor * 0.018 + subLevelInTier * 0.012).clamp(0.16, 0.48);
-    final movingPadChance = difficultyLevel < 4
-        ? 0.0
-        : (0.15 + levelFactor * 0.016 + subLevelInTier * 0.012).clamp(0.15, 0.42);
-    final hazardSpawnChance = (0.58 + levelFactor * 0.025 + subLevelInTier * 0.02)
-        .clamp(0.58, 0.92);
-
     while (currentMeter < goalMeters - 2.5) {
+      // Nella Torre di Oggi (100m) la difficoltà cresce gradualmente con l'altezza
+      // (da Liv. 1 nei primi metri fino a Liv. 7 in cima), mantenendo coerenza col percorso!
+      final effectiveDifficulty = isDailyTower
+          ? (1 + (currentMeter / 15.0).floor()).clamp(1, 7)
+          : difficultyLevel;
+      final levelFactor = (effectiveDifficulty - 1).clamp(0, 40);
+      final subLevelInTier = (effectiveDifficulty - 1) % 10;
+      final hazardStartMeter = max(4.5, 10.0 - levelFactor * 0.35);
+
+      // Probabilità progressiva di piattaforme speciali e densità di ostacoli
+      final crumblingChance = effectiveDifficulty < 3
+          ? 0.0
+          : (0.16 + levelFactor * 0.018 + subLevelInTier * 0.012).clamp(0.16, 0.46);
+      final movingPadChance = effectiveDifficulty < 4
+          ? 0.0
+          : (0.15 + levelFactor * 0.016 + subLevelInTier * 0.012).clamp(0.15, 0.40);
+      final hazardSpawnChance = (0.55 + levelFactor * 0.025 + subLevelInTier * 0.02)
+          .clamp(0.55, 0.90);
+
       final yPos = -currentMeter * DailySeedEngine.metersToPixels;
-      final isEarlySection = currentMeter < 12.0 && difficultyLevel <= 2;
+      final isEarlySection = currentMeter < 12.0 && effectiveDifficulty <= 2;
 
       // 1. Piattaforma principale su ogni gradino (alternando sinistra, destra, centro)
       final sideChoice = stepIndex % 3;
@@ -253,11 +287,11 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       // Piattaforme fragili a tempo (dal Liv. 3) e Piattaforme mobili (dal Liv. 4)
       final canBeSpecialPad = !isDemoTower && currentMeter > 11.0 && stepIndex > 1;
       final isCrumblingPad = canBeSpecialPad &&
-          difficultyLevel >= 3 &&
+          effectiveDifficulty >= 3 &&
           rng.nextDouble() < crumblingChance;
       final isMovingPad = canBeSpecialPad &&
           !isCrumblingPad &&
-          difficultyLevel >= 4 &&
+          effectiveDifficulty >= 4 &&
           rng.nextDouble() < movingPadChance;
 
       final pad = ObstacleBlock(
@@ -276,11 +310,11 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       // 2. Gemma Scudo o Respingente Elastico (Bumper Pin sbloccato dal Liv. 2)
       if (stepIndex % 2 == 1) {
         final gemX = -padX * 0.7;
-        final bumperChance = difficultyLevel < 2
+        final bumperChance = effectiveDifficulty < 2
             ? 0.0
             : (0.28 + subLevelInTier * 0.03).clamp(0.28, 0.55);
         final spawnBumperInstead = !isDemoTower &&
-            difficultyLevel >= 2 &&
+            effectiveDifficulty >= 2 &&
             currentMeter > 10.0 &&
             rng.nextDouble() < bumperChance;
         world.add(
@@ -300,19 +334,14 @@ class InkSlingGame extends FlameGame with DragCallbacks {
           rng.nextDouble() < hazardSpawnChance) {
         final speedBonus = levelFactor * 3.5 + subLevelInTier * 3.0;
 
-        // Costruiamo il pool di ostacoli sbloccati per il livello corrente:
-        // 0 = Barriera laterale (fissa al Liv. 1, anche mobile dal Liv. 2)
-        // 1 = Barriera mobile centrale veloce (dal Liv. 2)
-        // 2 = Pattuglia Verticale (dal Liv. 5)
-        // 3 = Varco Laser a Impulsi (dal Liv. 6)
         final unlockedHazards = <int>[0];
-        if (difficultyLevel >= 2 && currentMeter > 12.0) {
+        if (effectiveDifficulty >= 2 && currentMeter > 12.0) {
           unlockedHazards.add(1);
         }
-        if (difficultyLevel >= 5 && currentMeter > 14.0) {
+        if (effectiveDifficulty >= 5 && currentMeter > 14.0) {
           unlockedHazards.add(2);
         }
-        if (difficultyLevel >= 6 && currentMeter > 16.0) {
+        if (effectiveDifficulty >= 6 && currentMeter > 16.0) {
           unlockedHazards.add(3);
         }
 
@@ -320,10 +349,9 @@ class InkSlingGame extends FlameGame with DragCallbacks {
             unlockedHazards[rng.nextInt(unlockedHazards.length)];
 
         if (hazardType == 0) {
-          // Barriera rossa sul lato opposto (fissa al Liv. 1, mobile dal Liv. 2+)
           final hazardX = padX < 0 ? 92.0 : -92.0;
-          final shouldMove = difficultyLevel >= 2 &&
-              (currentMeter > 16.0 || difficultyLevel >= 4) &&
+          final shouldMove = effectiveDifficulty >= 2 &&
+              (currentMeter > 16.0 || effectiveDifficulty >= 4) &&
               rng.nextBool();
           world.add(
             ObstacleBlock(
@@ -334,7 +362,6 @@ class InkSlingGame extends FlameGame with DragCallbacks {
             ),
           );
         } else if (hazardType == 1) {
-          // Barriera mobile veloce centrale
           world.add(
             ObstacleBlock(
               position: Vector2(0, yPos - 95),
@@ -347,7 +374,6 @@ class InkSlingGame extends FlameGame with DragCallbacks {
             communityHotspotMeters.add(currentMeter + 2);
           }
         } else if (hazardType == 2) {
-          // Pattuglia Verticale: lama rossa che sale e scende!
           final patrolX = padX < 0 ? 75.0 : -75.0;
           world.add(
             ObstacleBlock(
@@ -358,7 +384,6 @@ class InkSlingGame extends FlameGame with DragCallbacks {
             ),
           );
         } else if (hazardType == 3) {
-          // Varco Laser a Impulsi: si accende e spegne ritmicamente!
           final laserX = padX > 0 ? -70.0 : 70.0;
           world.add(
             ObstacleBlock(
@@ -398,7 +423,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       _buildTowerWithSeed(
         seed: DailySeedEngine.getTodaySeed(),
         goalMeters: currentGoalMeters,
-        difficultyLevel: 8,
+        difficultyLevel: 5,
+        isDailyTower: true,
       );
     }
 
@@ -433,27 +459,62 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     audioHaptics.onLaunch();
   }
 
-  /// Continua la scalata dal metro dell'impatto con una piattaforma verde di salvataggio e Scudo
+  /// Continua la scalata dal metro dell'impatto creando una "Zona Franca" priva di trappole
+  /// o rimbalzi ravvicinati, con piattaforma verde di salvataggio e Scudo attivo!
   void reviveWithShield() {
     if (reviveUsed) return;
     reviveUsed = true;
     isPlaying = true;
 
     final reviveY = -maxMetersReached * DailySeedEngine.metersToPixels;
-    // Crea una piattaforma verde sicura proprio sotto il giocatore per farlo ripartire incollato!
+
+    // 1. Bonifica l'area attorno al punto di rinascita:
+    //    - Rimuove tutte le trappole rosse e i bumper nel corridoio [reviveY - 185, reviveY + 115]
+    //      così il giocatore non rinasce mai con una trappola in bocca.
+    //    - Rimuove le piattaforme esistenti troppo vicine [reviveY - 110, reviveY + 90]
+    //      così la sfera non rischia mai di incastrarsi rimbalzando tra due piattaforme.
+    final blocksToRemove = <ObstacleBlock>[];
+    for (final block in world.children.whereType<ObstacleBlock>()) {
+      final minY = min(block.position.y, block.originY);
+      final maxY = max(block.position.y, block.originY);
+
+      final isHazardOrBumper = block.type == BlockType.vermilionHazard ||
+          block.type == BlockType.verticalPatrolHazard ||
+          block.type == BlockType.pulsingLaserHazard ||
+          block.type == BlockType.bumperPin;
+
+      final isPlatform = block.type == BlockType.matchaPad ||
+          block.type == BlockType.crumblingPad;
+
+      if (isHazardOrBumper) {
+        if (maxY >= reviveY - 185.0 && minY <= reviveY + 115.0) {
+          blocksToRemove.add(block);
+        }
+      } else if (isPlatform) {
+        if (maxY >= reviveY - 110.0 && minY <= reviveY + 90.0) {
+          blocksToRemove.add(block);
+        }
+      }
+    }
+    for (final b in blocksToRemove) {
+      b.removeFromParent();
+    }
+
+    // 2. Crea la piattaforma verde di salvataggio con spazio libero sopra e sotto
     final rescuePad = ObstacleBlock(
       position: Vector2(0, reviveY + 20),
-      size: Vector2(130, 18),
+      size: Vector2(126, 18),
       type: BlockType.matchaPad,
     );
     world.add(rescuePad);
 
     player.position = Vector2(0, reviveY);
     player.stickToPlatform(rescuePad);
-    player.shieldTimer = 3.0;
+    player.shieldTimer = 4.5;
     chargesNotifier.value = PlayerCore.maxAirCharges;
 
-    inkFlood.y = player.y + 8.0 * DailySeedEngine.metersToPixels;
+    inkFlood.y = player.y + 9.5 * DailySeedEngine.metersToPixels;
+    camera.viewfinder.position = Vector2(0, reviveY - 110);
 
     overlays.remove('GameOver');
     overlays.add('Hud');
@@ -489,6 +550,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       isVictory: victory,
       consumeOfficialAttempt:
           activeMode == GameMode.dailyTower && isOfficialRun && !reviveUsed,
+      bounces: totalBounces,
     );
     leveledUpInLastRun =
         activeMode == GameMode.levelProgression &&
@@ -516,6 +578,42 @@ class InkSlingGame extends FlameGame with DragCallbacks {
 
   void spawnFloatingStamp(Vector2 worldPos, String text) {
     world.add(FloatingStampComponent(position: worldPos, label: text));
+  }
+
+  /// Aggiunge un'impronta permanente d'inchiostro ("Ink Stamp") sulla parete o sulla carta della torre
+  void addInkStamp({
+    required Vector2 position,
+    required bool isWall,
+    bool isLeftWall = false,
+    required Color color,
+  }) {
+    if (_inkStamps.length >= 180) {
+      _inkStamps.removeAt(0);
+    }
+    final inwardDir = isWall ? (isLeftWall ? 1.0 : -1.0) : (_fxRng.nextBool() ? 1.0 : -1.0);
+    final drop1 = Offset(
+      inwardDir * (5.0 + _fxRng.nextDouble() * 8.0),
+      (_fxRng.nextDouble() - 0.5) * 14.0,
+    );
+    final drop2 = Offset(
+      inwardDir * (3.0 + _fxRng.nextDouble() * 9.0),
+      (_fxRng.nextDouble() - 0.5) * 16.0,
+    );
+    _inkStamps.add(
+      InkStamp(
+        position: position.clone(),
+        radius: isWall
+            ? 6.5 + _fxRng.nextDouble() * 2.5
+            : 5.5 + _fxRng.nextDouble() * 2.5,
+        isWall: isWall,
+        isLeftWall: isLeftWall,
+        color: color,
+        dropOffset1: drop1,
+        dropOffset2: drop2,
+        dropRadius1: 1.8 + _fxRng.nextDouble() * 1.4,
+        dropRadius2: 1.4 + _fxRng.nextDouble() * 1.2,
+      ),
+    );
   }
 
   void spawnInkDrops(Vector2 pos, Color color, {int count = 16}) {
@@ -605,35 +703,48 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       inkFlood.position.y = 140;
       camera.viewfinder.position = Vector2(0, -180);
       _demoStepCounter = 0;
+      _inkStamps.clear();
       return;
     }
 
-    if (player.isStuck || player.velocity.y > 180.0) {
+    // Nel menu demo la palla salta in un arco parabolico calcolato verso la superficie
+    // superiore della prossima piattaforma più in alto, così sale continuamente senza mai bloccarsi!
+    if (player.isStuck || player.velocity.y > 120.0) {
       _demoJumpTimer -= dt;
-      if (_demoJumpTimer <= 0) {
-        _demoJumpTimer = 0.42;
+      if (_demoJumpTimer <= 0 || (!player.isStuck && player.velocity.y > 120.0)) {
+        _demoJumpTimer = 0.36;
         _demoStepCounter++;
 
-        // Cerca la prossima piattaforma verde sopra la palla per mirare in modo intelligente
         ObstacleBlock? nextPad;
-        double bestDist = double.infinity;
+        double bestDy = double.infinity;
         for (final pad in _demoPlatforms) {
           final dy = player.position.y - pad.position.y;
-          if (dy > 80 && dy < 320 && dy < bestDist) {
-            bestDist = dy;
+          if (dy > 45.0 && dy < 340.0 && dy < bestDy) {
+            bestDy = dy;
             nextPad = pad;
           }
         }
 
         double vx;
-        const double vy = -690.0;
+        double vy;
         if (nextPad != null) {
-          final dx = nextPad.position.x - player.position.x;
-          vx = (dx * 2.1).clamp(-340.0, 340.0);
+          final targetX = nextPad.position.x;
+          final targetTopY =
+              nextPad.position.y - (nextPad.size.y / 2 + PlayerCore.radius);
+          final apexY = targetTopY - 54.0;
+          final riseH = max(145.0, player.position.y - apexY);
+          vy = -sqrt(2.0 * PlayerCore.gravity * riseH);
+          final tUp = -vy / PlayerCore.gravity;
+          final dropH = max(18.0, targetTopY - apexY);
+          final tDown = sqrt(2.0 * dropH / PlayerCore.gravity);
+          final totalTime = max(0.25, tUp + tDown);
+          vx = ((targetX - player.position.x) / totalTime).clamp(-380.0, 380.0);
         } else {
-          vx = (_demoStepCounter.isEven ? 240.0 : -240.0);
+          vy = -720.0;
+          vx = (_demoStepCounter.isEven ? 210.0 : -210.0);
         }
 
+        player.airCharges = PlayerCore.maxAirCharges;
         player.launch(Vector2(vx, vy), silent: true);
       }
     }
@@ -719,6 +830,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   /// - Esterno ombreggiato fuori dalle mura
   /// - Texture carta Risograph all'interno del pozzo della torre
   /// - Finestre ad arco gotico/antico ogni 15m con raggi di luce soffusa
+  /// - Macchie d'Inchiostro Permanenti ("Ink Stamps") lasciate durante la scalata
   /// - Pavimento in blocchi di pietra alla base (0m)
   void _renderPaperBackgroundAndGrid(Canvas canvas) {
     final camPos = camera.viewfinder.position;
@@ -773,7 +885,40 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       );
     }
 
-    // 5. Base in pietra della torre a 0m
+    // 5. Macchie d'Inchiostro Permanenti ("Ink Stamps") impresse sulla carta e sulle pareti
+    for (final stamp in _inkStamps) {
+      final sy = screenCenter.y + (stamp.position.y - camY);
+      if (sy < -32 || sy > size.y + 32) continue;
+      final sx = screenCenter.x + (stamp.position.x - camPos.x);
+      final center = Offset(sx, sy);
+
+      final fillPaint = Paint()
+        ..color = stamp.color.withAlpha((0.30 * 255).round())
+        ..style = PaintingStyle.fill;
+      final ringPaint = Paint()
+        ..color = stamp.color.withAlpha((0.56 * 255).round())
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4;
+
+      if (stamp.isWall) {
+        final rect = Rect.fromCenter(
+          center: center,
+          width: stamp.radius * 1.3,
+          height: stamp.radius * 2.2,
+        );
+        canvas.drawOval(rect, fillPaint);
+        canvas.drawOval(rect, ringPaint);
+      } else {
+        canvas.drawCircle(center, stamp.radius, fillPaint);
+        canvas.drawCircle(center, stamp.radius, ringPaint);
+      }
+
+      // Micro-gocce satellite serigrafiche attorno all'impronta principale
+      canvas.drawCircle(center + stamp.dropOffset1, stamp.dropRadius1, fillPaint);
+      canvas.drawCircle(center + stamp.dropOffset2, stamp.dropRadius2, fillPaint);
+    }
+
+    // 6. Base in pietra della torre a 0m
     final floorScreenY = screenCenter.y + (0.0 - camY) + 14.0;
     if (floorScreenY > -40 && floorScreenY < size.y + 80) {
       canvas.drawRect(

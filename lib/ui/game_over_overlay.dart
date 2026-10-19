@@ -43,11 +43,13 @@ class GameOverOverlay extends StatelessWidget {
                 playerName: game.storage.playerName,
                 playerLevel: game.storage.currentTowerLevel,
                 playerBestMeters: game.storage.bestMetersCurrentLevel,
+                playerBounces: game.storage.bestBouncesCurrentLevel,
               )
             : DailySeedEngine.getDailyLeaderboard(
                 playerName: game.storage.playerName,
                 playerBestMetersToday: game.storage.bestMetersToday,
                 completedToday: game.storage.completedToday,
+                playerBouncesToday: game.storage.bestBouncesToday,
               );
         final userRank =
             leaderboard.firstWhere((e) => e.isCurrentUser).rank;
@@ -436,7 +438,8 @@ class GameOverOverlay extends StatelessWidget {
                                 );
                               }
                               try {
-                                await Share.share(receiptText);
+                                await SharePlus.instance
+                                    .share(ShareParams(text: receiptText));
                               } catch (_) {}
                             },
                             icon:

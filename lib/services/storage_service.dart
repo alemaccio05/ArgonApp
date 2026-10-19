@@ -3,17 +3,18 @@ import '../core/app_strings.dart';
 import '../core/daily_seed.dart';
 
 /// Gestisce il salvataggio locale veloce di:
-/// - Progressione infinita dei livelli (Livello 1, 2, 3...) e record sul livello attuale
+/// - Progressione infinita dei livelli (Livello 1, 2, 3...), record metri e rimbalzi sul livello attuale
 /// - Nome giocatore per la Classifica
 /// - Lingua selezionata (rilevata automaticamente dal dispositivo al primo avvio)
 /// - Stato Audio ON/OFF
-/// - Record giornaliero sul seed di oggi
+/// - Record giornaliero (metri e rimbalzi) sul seed di oggi (24h)
 /// - Tentativi ("Vite") rimasti oggi
 /// - Streak di giorni consecutivi giocati
 /// - Palette Risograph selezionata
 class StorageService {
   static const _keyLastPlayedSeed = 'last_played_seed';
   static const _keyBestMetersToday = 'best_meters_today';
+  static const _keyBestBouncesToday = 'best_bounces_today';
   static const _keyCompletedToday = 'completed_today';
   static const _keyOfficialAttemptsLeft = 'official_attempts_left';
   static const _keyCurrentStreak = 'current_streak';
@@ -22,6 +23,7 @@ class StorageService {
   static const _keyProUnlocked = 'pro_edition_unlocked';
   static const _keyCurrentTowerLevel = 'current_tower_level';
   static const _keyBestMetersCurrentLevel = 'best_meters_current_level';
+  static const _keyBestBouncesCurrentLevel = 'best_bounces_current_level';
   static const _keyPlayerName = 'player_leaderboard_name';
   static const _keyLanguageCode = 'selected_language_code';
   static const _keySoundEnabled = 'sound_effects_enabled';
@@ -29,6 +31,7 @@ class StorageService {
   SharedPreferences? _prefs;
 
   double bestMetersToday = 0.0;
+  int bestBouncesToday = 0;
   bool completedToday = false;
   int officialAttemptsLeft = DailySeedEngine.maxOfficialAttemptsPerDay;
   int currentStreak = 1;
@@ -39,6 +42,7 @@ class StorageService {
   // Progressione Livelli Infiniti & Classifica
   int currentTowerLevel = 1;
   double bestMetersCurrentLevel = 0.0;
+  int bestBouncesCurrentLevel = 0;
   String playerName = 'Scalatore';
 
   // Lingua & Audio
@@ -58,6 +62,8 @@ class StorageService {
     currentTowerLevel = _prefs?.getInt(_keyCurrentTowerLevel) ?? 1;
     bestMetersCurrentLevel =
         _prefs?.getDouble(_keyBestMetersCurrentLevel) ?? 0.0;
+    bestBouncesCurrentLevel =
+        _prefs?.getInt(_keyBestBouncesCurrentLevel) ?? 0;
     playerName = _prefs?.getString(_keyPlayerName) ?? 'Scalatore';
 
     final savedLang = _prefs?.getString(_keyLanguageCode);
@@ -65,7 +71,7 @@ class StorageService {
     soundEnabled = _prefs?.getBool(_keySoundEnabled) ?? true;
 
     if (lastSeed != todaySeed) {
-      // Nuovo giorno! Controlliamo se era ieri per incrementare la Streak
+      // Nuovo giorno (24h)! Controlliamo se era ieri per incrementare la Streak
       final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
       final yesterdaySeed =
           yesterday.year * 10000 + yesterday.month * 100 + yesterday.day;
@@ -77,32 +83,37 @@ class StorageService {
       }
 
       bestMetersToday = 0.0;
+      bestBouncesToday = 0;
       completedToday = false;
       officialAttemptsLeft = DailySeedEngine.maxOfficialAttemptsPerDay;
 
       await _prefs?.setInt(_keyLastPlayedSeed, todaySeed);
       await _prefs?.setDouble(_keyBestMetersToday, 0.0);
+      await _prefs?.setInt(_keyBestBouncesToday, 0);
       await _prefs?.setBool(_keyCompletedToday, false);
       await _prefs?.setInt(
           _keyOfficialAttemptsLeft, DailySeedEngine.maxOfficialAttemptsPerDay);
       await _prefs?.setInt(_keyCurrentStreak, currentStreak);
     } else {
       bestMetersToday = _prefs?.getDouble(_keyBestMetersToday) ?? 0.0;
+      bestBouncesToday = _prefs?.getInt(_keyBestBouncesToday) ?? 0;
       completedToday = _prefs?.getBool(_keyCompletedToday) ?? false;
       officialAttemptsLeft = _prefs?.getInt(_keyOfficialAttemptsLeft) ??
           DailySeedEngine.maxOfficialAttemptsPerDay;
     }
   }
 
-  /// Registra il risultato di una scalata e restituisce true se è un nuovo record
+  /// Registra il risultato di una scalata (inclusi i rimbalzi) e restituisce true se è un nuovo record
   Future<bool> recordRunResult({
     required GameMode mode,
     required int playedLevel,
     required double meters,
     required bool isVictory,
     required bool consumeOfficialAttempt,
+    int bounces = 0,
   }) async {
     bool isNewRecord = false;
+    final safeBounces = bounces < 1 ? 1 : bounces;
 
     if (meters > allTimeBestMeters) {
       allTimeBestMeters = meters;
@@ -114,31 +125,59 @@ class StorageService {
         if (isVictory) {
           currentTowerLevel += 1;
           bestMetersCurrentLevel = 0.0;
+          bestBouncesCurrentLevel = safeBounces;
           isNewRecord = true;
           await _prefs?.setInt(_keyCurrentTowerLevel, currentTowerLevel);
           await _prefs?.setDouble(_keyBestMetersCurrentLevel, 0.0);
-        } else if (meters > bestMetersCurrentLevel) {
-          bestMetersCurrentLevel = meters;
-          isNewRecord = true;
-          await _prefs?.setDouble(
-            _keyBestMetersCurrentLevel,
-            bestMetersCurrentLevel,
+          await _prefs?.setInt(
+            _keyBestBouncesCurrentLevel,
+            bestBouncesCurrentLevel,
           );
+        } else {
+          final isHigherMeters = meters > bestMetersCurrentLevel + 0.05;
+          final isSameMetersFewerBounces =
+              (meters - bestMetersCurrentLevel).abs() <= 0.05 &&
+              meters > 0 &&
+              (bestBouncesCurrentLevel == 0 ||
+                  safeBounces < bestBouncesCurrentLevel);
+
+          if (isHigherMeters || isSameMetersFewerBounces) {
+            bestMetersCurrentLevel = meters;
+            bestBouncesCurrentLevel = safeBounces;
+            isNewRecord = true;
+            await _prefs?.setDouble(
+              _keyBestMetersCurrentLevel,
+              bestMetersCurrentLevel,
+            );
+            await _prefs?.setInt(
+              _keyBestBouncesCurrentLevel,
+              bestBouncesCurrentLevel,
+            );
+          }
         }
       }
       return isNewRecord;
     }
 
-    // Modalità Torre del Giorno
+    // Modalità Torre del Giorno (24h)
     if (consumeOfficialAttempt && officialAttemptsLeft > 0) {
       officialAttemptsLeft -= 1;
       await _prefs?.setInt(_keyOfficialAttemptsLeft, officialAttemptsLeft);
     }
 
-    if (meters > bestMetersToday) {
-      bestMetersToday = meters;
+    final effectiveMeters = isVictory ? DailySeedEngine.goalMeters : meters;
+    final isHigherDaily = effectiveMeters > bestMetersToday + 0.05;
+    final isSameDailyFewerBounces =
+        (effectiveMeters - bestMetersToday).abs() <= 0.05 &&
+        effectiveMeters > 0 &&
+        (bestBouncesToday == 0 || safeBounces < bestBouncesToday);
+
+    if (isHigherDaily || isSameDailyFewerBounces) {
+      bestMetersToday = effectiveMeters;
+      bestBouncesToday = safeBounces;
       isNewRecord = true;
       await _prefs?.setDouble(_keyBestMetersToday, bestMetersToday);
+      await _prefs?.setInt(_keyBestBouncesToday, bestBouncesToday);
     }
 
     if (isVictory && !completedToday) {

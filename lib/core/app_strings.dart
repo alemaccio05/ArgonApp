@@ -119,21 +119,21 @@ class AppStrings {
       );
 
   String get modeLevelsTab => _t(
-        it: 'SCALATA LIVELLI (1, 2, 3...)',
-        en: 'LEVEL CLIMB (1, 2, 3...)',
-        es: 'NIVELES (1, 2, 3...)',
-        fr: 'NIVEAUX (1, 2, 3...)',
-        de: 'LEVEL-AUFSTIEG (1, 2, 3...)',
-        pt: 'NÍVEIS (1, 2, 3...)',
+        it: 'SCALATA LIVELLI',
+        en: 'LEVEL CLIMB',
+        es: 'ESCALADA NIVELES',
+        fr: 'ESCALADE NIVEAUX',
+        de: 'LEVEL-AUFSTIEG',
+        pt: 'ESCALADA NÍVEIS',
       );
 
-  String modeDailyTab(int issue) => _t(
-        it: 'TORRE DI OGGI (#$issue)',
-        en: 'TODAY\'S TOWER (#$issue)',
-        es: 'TORRE DE HOY (#$issue)',
-        fr: 'TOUR DU JOUR (#$issue)',
-        de: 'TAGESTURM (#$issue)',
-        pt: 'TORRE DE HOJE (#$issue)',
+  String modeDailyTab([int? issue]) => _t(
+        it: 'TORRE DI OGGI',
+        en: 'TODAY\'S TOWER',
+        es: 'TORRE DE HOY',
+        fr: 'TOUR DU JOUR',
+        de: 'TAGESTURM',
+        pt: 'TORRE DE HOJE',
       );
 
   String topRankBadgeLevels(int rank, int level) => _t(
@@ -145,13 +145,13 @@ class AppStrings {
         pt: '🏆 RANKING #$rank • NÍV. $level',
       );
 
-  String topRankBadgeDaily(int rank, int issue) => _t(
-        it: '🏆 OGGI #$rank • TORRE #$issue',
-        en: '🏆 TODAY #$rank • TOWER #$issue',
-        es: '🏆 HOY #$rank • TORRE #$issue',
-        fr: '🏆 JOUR #$rank • TOUR #$issue',
-        de: '🏆 HEUTE #$rank • TURM #$issue',
-        pt: '🏆 HOJE #$rank • TORRE #$issue',
+  String topRankBadgeDaily(int rank, [int? issue]) => _t(
+        it: '🏆 OGGI #$rank • TORRE DI OGGI',
+        en: '🏆 TODAY #$rank • TODAY\'S TOWER',
+        es: '🏆 HOY #$rank • TORRE DE HOY',
+        fr: '🏆 JOUR #$rank • TOUR DU JOUR',
+        de: '🏆 HEUTE #$rank • TAGESTURM',
+        pt: '🏆 HOJE #$rank • TORRE DE HOJE',
       );
 
   String get maxLevelLabel => _t(
@@ -337,31 +337,40 @@ class AppStrings {
         pt: 'RANKING ESCALADORES (NÍVEIS)',
       );
 
-  String leaderboardDailyTitle(int issue) => _t(
-        it: 'CLASSIFICA TORRE DI OGGI (#$issue)',
-        en: 'TODAY\'S TOWER LEADERBOARD (#$issue)',
-        es: 'CLASIFICACIÓN TORRE DE HOY (#$issue)',
-        fr: 'CLASSEMENT TOUR DU JOUR (#$issue)',
-        de: 'TAGESTURM-RANGLISTE (#$issue)',
-        pt: 'RANKING TORRE DE HOJE (#$issue)',
+  String leaderboardDailyTitle([int? issue]) => _t(
+        it: 'CLASSIFICA TORRE DI OGGI',
+        en: 'TODAY\'S TOWER LEADERBOARD',
+        es: 'CLASIFICACIÓN TORRE DE HOY',
+        fr: 'CLASSEMENT TOUR DU JOUR',
+        de: 'TAGESTURM-RANGLISTE',
+        pt: 'RANKING TORRE DE HOJE',
       );
 
   String get leaderboardLevelsSub => _t(
-        it: 'I livelli sono identici per tutti: chi raggiunge il livello più alto domina la torre!',
-        en: 'Levels are identical for everyone: reach the highest level to rule the tower!',
-        es: 'Los niveles son idénticos para todos: ¡llega al nivel más alto de la torre!',
-        fr: 'Les niveaux sont identiques pour tous : atteignez le plus haut niveau !',
-        de: 'Alle Level sind für jeden gleich: Erreiche das höchste Level im Turm!',
-        pt: 'Os níveis são idênticos para todos: alcance o nível mais alto da torre!',
+        it: 'Ordine: Livello • % Completamento • Minor numero di rimbalzi',
+        en: 'Ranked by: Level • % Completion • Fewest bounces',
+        es: 'Orden: Nivel • % Completado • Menos rebotes',
+        fr: 'Ordre : Niveau • % Progression • Moins de rebonds',
+        de: 'Wertung: Level • % Fortschritt • Wenigste Abpraller',
+        pt: 'Ordem: Nível • % Conclusão • Menos rebotes',
       );
 
   String get leaderboardDailySub => _t(
-        it: 'Classifica sulla Torre di Oggi (100m): confronta il tuo record quotidiano!',
-        en: 'Today\'s 100m Tower ranking: compare your daily best climb!',
-        es: 'Clasificación en la Torre de Hoy (100m): ¡compara tu récord diario!',
-        fr: 'Classement sur la Tour du Jour (100m) : comparez votre record quotidien !',
-        de: 'Rangliste für den heutigen 100m-Turm: Vergleiche deinen Tagesrekord!',
-        pt: 'Ranking na Torre de Hoje (100m): compare seu recorde diário!',
+        it: 'Classifica 24h sulla Torre di Oggi (100m) • A parità di metri vince chi fa meno rimbalzi!',
+        en: '24h Today\'s Tower (100m) ranking • Fewest bounces wins on tied height!',
+        es: 'Ranking 24h en la Torre de Hoy (100m) • ¡A igual altura gana quien haga menos rebotes!',
+        fr: 'Classement 24h Tour du Jour (100m) • À hauteur égale, moins de rebonds l\'emporte !',
+        de: '24h-Rangliste Tagesturm (100m) • Bei gleicher Höhe gewinnen weniger Abpraller!',
+        pt: 'Ranking 24h na Torre de Hoje (100m) • Na mesma altura, vence quem tiver menos rebotes!',
+      );
+
+  String get bouncesShort => _t(
+        it: 'rimb.',
+        en: 'bnc',
+        es: 'reb.',
+        fr: 'reb.',
+        de: 'Abpr.',
+        pt: 'reb.',
       );
 
   String get nicknameHint => _t(

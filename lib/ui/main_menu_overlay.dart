@@ -162,7 +162,6 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
     final storage = widget.game.storage;
     final s = widget.game.strings;
     final isDaily = _selectedMode == GameMode.dailyTower;
-    final issue = DailySeedEngine.getIssueNumber();
     final nameController = TextEditingController(text: storage.playerName);
 
     showDialog(
@@ -175,11 +174,13 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                     playerName: storage.playerName,
                     playerBestMetersToday: storage.bestMetersToday,
                     completedToday: storage.completedToday,
+                    playerBouncesToday: storage.bestBouncesToday,
                   )
                 : DailySeedEngine.getGlobalLeaderboard(
                     playerName: storage.playerName,
                     playerLevel: storage.currentTowerLevel,
                     playerBestMeters: storage.bestMetersCurrentLevel,
+                    playerBounces: storage.bestBouncesCurrentLevel,
                   );
 
             return Dialog(
@@ -222,7 +223,7 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 isDaily
-                                    ? s.leaderboardDailyTitle(issue)
+                                    ? s.leaderboardDailyTitle()
                                     : s.leaderboardLevelsTitle,
                                 style: TextStyle(
                                   color: p.inkPrimary,
@@ -334,8 +335,10 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                                     : (item.rank == 3 ? '🥉' : '#${item.rank}'));
 
                             final scoreBadgeText = isDaily
-                                ? '${item.bestMeters.toStringAsFixed(1)}m / 100m'
-                                : '${s.levelShort} ${item.level} • ${item.bestMeters.toStringAsFixed(0)}m';
+                                ? (item.bestMeters > 0
+                                    ? '${item.bestMeters.toStringAsFixed(1)}m • ${item.bounces} ${s.bouncesShort}'
+                                    : '0.0m / 100m')
+                                : '${s.levelShort} ${item.level} • ${item.progressPercent}% • ${item.bounces} ${s.bouncesShort}';
 
                             return Container(
                               padding: const EdgeInsets.symmetric(
@@ -450,11 +453,13 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
           playerName: storage.playerName,
           playerLevel: storage.currentTowerLevel,
           playerBestMeters: storage.bestMetersCurrentLevel,
+          playerBounces: storage.bestBouncesCurrentLevel,
         );
         final dailyLeaderboard = DailySeedEngine.getDailyLeaderboard(
           playerName: storage.playerName,
           playerBestMetersToday: storage.bestMetersToday,
           completedToday: storage.completedToday,
+          playerBouncesToday: storage.bestBouncesToday,
         );
 
         final userLevelsRank =

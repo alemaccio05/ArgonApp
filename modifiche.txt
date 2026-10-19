@@ -1,4 +1,4 @@
 MODIFICHE DA FARE:
-1) Sistemare il background
-2) Sistemare i nomi delle tab
-3) Fare la classifica in base che verifichi anche i rimbalzi (per il giornaliero). Per quello con scalata progressiva dei livelli valutare con priorità il livello e poi la percentuale ed infine i rimbalzi
+1) Quando il giocatore utilizza la seconda chance, generando la piattaforma sull'altezza in cui è morto, rischia di incastrarsi con il rimbalzo oppure di beccarsi una trappola in bocca.
+2) La classifica dei bot rendila realistica: il bot primo in classifica si troverebbe a scalare una torre di 90 m (sta al quarantaduesimo livello) ed è riuscito a farla in 11 rimbalzi. Cosa quasi impossibile. Falli sembrare pure un po' più scarsi del giocatore per fargli scalare la classifica più facilmente. Potremmo anche mettere che ogni 7 giorni cambiamo gli utenti della progressione dei livelli. Fai attenzione alla coerenza della difficoltà del livello anche per la giornaliera.
+3) Potresti darmi qualche idea su l'icona e un'interfaccia carina del menù?

@@ -52,6 +52,8 @@ class ObstacleBlock extends PositionComponent
     _sealPulse = phaseOffset;
   }
 
+  double get originY => _originY;
+
   bool get isLaserActive {
     if (type != BlockType.pulsingLaserHazard) return false;
     // Ciclo di 2.5s: 1.45s spento/preavviso, 1.05s raggio laser attivo
@@ -133,6 +135,16 @@ class ObstacleBlock extends PositionComponent
       return;
     }
 
+    // Nel menu demo di sottofondo, la palla attraversa dal basso le piattaforme verdi mentre sale
+    // e si incolla morbidamente sulla faccia superiore mentre scende dall'apice dell'arco,
+    // così scala la torre senza mai bloccarsi sotto una piattaforma!
+    if (game.isMenuDemo &&
+        (type == BlockType.matchaPad || type == BlockType.crumblingPad)) {
+      if (p.velocity.y < -10.0 || p.prevPosition.y > position.y - size.y * 0.25) {
+        return;
+      }
+    }
+
     final halfW = size.x / 2;
     final halfH = size.y / 2;
     const hitRadius = PlayerCore.radius + 1.0;
@@ -211,6 +223,11 @@ class ObstacleBlock extends PositionComponent
         }
       }
       _pressOffset = 5.0;
+      game.addInkStamp(
+        position: position.clone(),
+        isWall: false,
+        color: palette.ochreSeal,
+      );
       game.spawnInkDrops(position.clone(), palette.ochreSeal, count: 14);
       if (!game.isMenuDemo) {
         game.totalBounces++;
@@ -253,6 +270,12 @@ class ObstacleBlock extends PositionComponent
       // Esegue effetti e suono SOLO se la palla si è effettivamente incollata ora!
       if (!p.stickToPlatform(this)) return;
       _pressOffset = 3.5;
+      // Lascia un'impronta permanente d'inchiostro ("Ink Stamp") sulla carta della torre!
+      game.addInkStamp(
+        position: p.position.clone(),
+        isWall: false,
+        color: palette.matchaSafe,
+      );
       game.spawnInkDrops(p.position.clone(), palette.matchaSafe, count: 8);
       if (!game.isMenuDemo) {
         game.totalBounces++;
