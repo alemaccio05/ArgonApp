@@ -12,11 +12,17 @@ import 'ui/main_menu_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+  // Blocca orientamento verticale e imposta modalità immersiva in modo resiliente
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
+      .catchError((_) {});
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)
+      .catchError((_) {});
 
   final storage = StorageService();
-  await storage.init();
+  try {
+    await storage.init().timeout(const Duration(milliseconds: 1200));
+  } catch (_) {}
 
   final audioHaptics = AudioHapticsService();
   final monetization = MonetizationService();

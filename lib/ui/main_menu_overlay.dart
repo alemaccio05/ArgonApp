@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import '../core/app_strings.dart';
+import '../core/ball_skins.dart';
 import '../core/daily_seed.dart';
 import '../core/palette_theme.dart';
+import '../core/profile_icons.dart';
 import '../game/ink_sling_game.dart';
+import 'ball_skins_overlay.dart';
+import 'profile_overlay.dart';
 
 /// Menu Principale di INK TOWER: Climb & Stick, con:
 /// - Sottofondo animato di una palla che scala la torre in pietra Risograph
@@ -169,18 +173,24 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
+            final userAvatarEmoji = ProfileIconsCatalog.getById(
+              storage.selectedProfileIconId,
+            ).emoji;
             final entries = isDaily
                 ? DailySeedEngine.getDailyLeaderboard(
                     playerName: storage.playerName,
                     playerBestMetersToday: storage.bestMetersToday,
                     completedToday: storage.completedToday,
                     playerBouncesToday: storage.bestBouncesToday,
+                    playerAvatarEmoji: userAvatarEmoji,
                   )
                 : DailySeedEngine.getGlobalLeaderboard(
                     playerName: storage.playerName,
                     playerLevel: storage.currentTowerLevel,
                     playerBestMeters: storage.bestMetersCurrentLevel,
                     playerBounces: storage.bestBouncesCurrentLevel,
+                    totalLevelsPlayed: storage.totalLevelsPlayed,
+                    playerAvatarEmoji: userAvatarEmoji,
                   );
 
             return Dialog(
@@ -373,8 +383,8 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                                   Expanded(
                                     child: Text(
                                       item.isCurrentUser
-                                          ? '${item.name} (${s.youTag})'
-                                          : item.name,
+                                          ? '${item.avatarEmoji} ${item.name} (${s.youTag})'
+                                          : '${item.avatarEmoji} ${item.name}',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
@@ -449,17 +459,26 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
         final issue = DailySeedEngine.getIssueNumber();
         final dateStr = DailySeedEngine.getFormattedDate();
 
+        final userAvatarEmoji = ProfileIconsCatalog.getById(
+          storage.selectedProfileIconId,
+        ).emoji;
+        final equippedBallSkin = BallSkinsCatalog.getById(
+          storage.selectedBallSkinId,
+        );
         final levelsLeaderboard = DailySeedEngine.getGlobalLeaderboard(
           playerName: storage.playerName,
           playerLevel: storage.currentTowerLevel,
           playerBestMeters: storage.bestMetersCurrentLevel,
           playerBounces: storage.bestBouncesCurrentLevel,
+          totalLevelsPlayed: storage.totalLevelsPlayed,
+          playerAvatarEmoji: userAvatarEmoji,
         );
         final dailyLeaderboard = DailySeedEngine.getDailyLeaderboard(
           playerName: storage.playerName,
           playerBestMetersToday: storage.bestMetersToday,
           completedToday: storage.completedToday,
           playerBouncesToday: storage.bestBouncesToday,
+          playerAvatarEmoji: userAvatarEmoji,
         );
 
         final userLevelsRank =
@@ -709,7 +728,213 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
+
+                    // Card Profilo Giocatore (Avatar, Nome, Statistiche veloci)
+                    GestureDetector(
+                      onTap: () async {
+                        await ProfileDialog.show(context, widget.game);
+                        setState(() {});
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: p.paperBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: p.inkPrimary, width: 1.8),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: p.paperCard,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: p.matchaSafe, width: 2),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  ProfileIconsCatalog.getById(
+                                    storage.selectedProfileIconId,
+                                  ).iconData,
+                                  size: 20,
+                                  color: p.inkPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            storage.playerName,
+                                            style: TextStyle(
+                                              color: p.inkPrimary,
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5,
+                                          vertical: 1.5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: p.inkPrimary,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          ProfileIconsCatalog
+                                              .getPlayerHonorTitle(
+                                            storage,
+                                            s,
+                                          ),
+                                          style: TextStyle(
+                                            color: p.paperCard,
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${storage.totalBouncesAllTime} ${s.totalBouncesStat.toLowerCase()} • ${s.streakDays(storage.currentStreak)}',
+                                    style: TextStyle(
+                                      color: p.inkSecondary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: p.inkSecondary,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Card Selezione Skin Sfera
+                    GestureDetector(
+                      onTap: () async {
+                        await BallSkinsDialog.show(context, widget.game);
+                        setState(() {});
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: p.paperBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: p.inkPrimary, width: 1.8),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: p.paperCard,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: p.ochreSeal, width: 2),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  equippedBallSkin.emoji,
+                                  style: const TextStyle(fontSize: 19),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            s.skinsTitle,
+                                            style: TextStyle(
+                                              color: p.inkPrimary,
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 1.5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: p.ochreSeal,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          equippedBallSkin.getName(s),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    equippedBallSkin.getDescription(s),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: p.inkSecondary,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.palette_outlined,
+                              color: p.ochreSeal,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
                     // Selettore Modalità: SCALATA LIVELLI vs TORRE DI OGGI
                     Container(
@@ -929,7 +1154,7 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                               child: _buildStatColumn(
                                 label: s.recordTodayLabel(dateStr),
                                 value: storage.completedToday
-                                    ? '100m 🏆'
+                                    ? '100m 🏆 (${storage.bestBouncesToday}⚡)'
                                     : '${storage.bestMetersToday.toStringAsFixed(1)}m',
                                 p: p,
                               ),
@@ -1020,7 +1245,11 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                         child: Text(
                           _selectedMode == GameMode.levelProgression
                               ? s.playLevelBtn(_selectedLevel, levelGoal)
-                              : s.playDailyBtn(storage.officialAttemptsLeft),
+                              : (storage.completedToday &&
+                                      storage.officialAttemptsLeft > 0
+                                  ? s.playDailyImproveBtn(
+                                      storage.officialAttemptsLeft)
+                                  : s.playDailyBtn(storage.officialAttemptsLeft)),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w900,
@@ -1050,17 +1279,15 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                         size: 18,
                         color: p.ochreSeal,
                       ),
-                      label: Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            isDaily
-                                ? s.leaderboardDailyBtn(activeRank)
-                                : s.leaderboardLevelsBtn(activeRank),
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w900,
-                            ),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          isDaily
+                              ? s.leaderboardDailyBtn(activeRank)
+                              : s.leaderboardLevelsBtn(activeRank),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
@@ -1094,15 +1321,13 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                           }
                         },
                         icon: const Icon(Icons.play_circle_outline, size: 18),
-                        label: Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              s.unlockExtraLifeBtn,
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                              ),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            s.unlockExtraLifeBtn,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),

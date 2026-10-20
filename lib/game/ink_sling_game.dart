@@ -551,6 +551,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       consumeOfficialAttempt:
           activeMode == GameMode.dailyTower && isOfficialRun && !reviveUsed,
       bounces: totalBounces,
+      isOfficialAttempt:
+          activeMode == GameMode.dailyTower ? isOfficialRun : true,
     );
     leveledUpInLastRun =
         activeMode == GameMode.levelProgression &&

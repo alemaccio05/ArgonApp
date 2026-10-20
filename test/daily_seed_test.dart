@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ink_sling_daily/core/app_strings.dart';
+import 'package:ink_sling_daily/core/ball_skins.dart';
 import 'package:ink_sling_daily/core/daily_seed.dart';
 import 'package:ink_sling_daily/core/palette_theme.dart';
+import 'package:ink_sling_daily/core/profile_icons.dart';
+import 'package:ink_sling_daily/services/storage_service.dart';
 
 void main() {
   test('DailySeedEngine generates deterministic seeds and valid receipt', () {
@@ -64,31 +67,34 @@ void main() {
       expect(validOrder, isTrue);
     }
 
-    final globalLow = DailySeedEngine.getGlobalLeaderboard(
+    // Quando il giocatore supera i bot della classifica (es. Livello 15 con 10 partite giocate),
+    // conquista stabilmente il 1° posto (#1) senza subire rubber-banding sleale
+    final globalWon = DailySeedEngine.getGlobalLeaderboard(
+      playerName: 'Tester',
+      playerLevel: 15,
+      playerBestMeters: 10.0,
+      playerBounces: 6,
+      totalLevelsPlayed: 10,
+    );
+    expect(globalWon.first.isCurrentUser, isTrue);
+    expect(globalWon.first.rank, equals(1));
+
+    // In 10 partite giocate, l'incremento dei bot è compreso tra 1 e 3 livelli
+    final globalStart = DailySeedEngine.getGlobalLeaderboard(
       playerName: 'Tester',
       playerLevel: 1,
-      playerBestMeters: 5.0,
-      playerBounces: 8,
+      playerBestMeters: 0.0,
+      totalLevelsPlayed: 0,
     );
-    final lowestRivalAtStart = globalLow
-        .where((e) => !e.isCurrentUser)
-        .reduce((a, b) => a.level <= b.level ? a : b);
+    final topBotStart = globalStart.firstWhere((e) => !e.isCurrentUser);
+    final topBotAfter10 = globalWon.firstWhere((e) => !e.isCurrentUser && e.name == topBotStart.name);
+    final diff = topBotAfter10.level - topBotStart.level;
+    expect(diff, greaterThanOrEqualTo(1));
+    expect(diff, lessThanOrEqualTo(3));
 
-    // Quando il giocatore supera il rivale, il rivale sale di 1 livello
-    final globalOvertake = DailySeedEngine.getGlobalLeaderboard(
-      playerName: 'Tester',
-      playerLevel: lowestRivalAtStart.level + 1,
-      playerBestMeters: 10.0,
-      playerBounces: 8,
-    );
-    final sameRivalAfter = globalOvertake.firstWhere(
-      (e) => !e.isCurrentUser && e.name == lowestRivalAtStart.name,
-    );
-    expect(sameRivalAfter.level, equals(lowestRivalAtStart.level + 1));
-
-    for (int i = 0; i < globalOvertake.length - 1; i++) {
-      final a = globalOvertake[i];
-      final b = globalOvertake[i + 1];
+    for (int i = 0; i < globalWon.length - 1; i++) {
+      final a = globalWon[i];
+      final b = globalWon[i + 1];
       final validOrder = a.level > b.level ||
           (a.level == b.level && a.progressPercent > b.progressPercent) ||
           (a.level == b.level &&
@@ -120,5 +126,104 @@ void main() {
       0.5,
     );
     expect(mid.paperBg, isNotNull);
+  });
+
+  test('Daily leaderboard allows climbing by optimizing bounces upon completing 100m', () {
+    // 1a scalata: completata con 60 rimbalzi -> piazzamento iniziale (dietro ai top bot a 100m)
+    final run1 = DailySeedEngine.getDailyLeaderboard(
+      playerName: 'Player1',
+      playerBestMetersToday: 100.0,
+      playerBouncesToday: 60,
+      completedToday: true,
+    );
+    final rank1 = run1.firstWhere((e) => e.isCurrentUser).rank;
+    expect(rank1, greaterThanOrEqualTo(2)); // Almeno 1 bot ha fatto meno di 60 rimbalzi
+
+    // 2a scalata (usando un'altra vita): completata con 46 rimbalzi -> scala posizioni
+    final run2 = DailySeedEngine.getDailyLeaderboard(
+      playerName: 'Player1',
+      playerBestMetersToday: 100.0,
+      playerBouncesToday: 46,
+      completedToday: true,
+    );
+    final rank2 = run2.firstWhere((e) => e.isCurrentUser).rank;
+    expect(rank2, lessThan(rank1)); // Ha scalato la classifica!
+
+    // 3a scalata perfetta: completata con 32 rimbalzi -> conquista il 1° posto (#1)
+    final run3 = DailySeedEngine.getDailyLeaderboard(
+      playerName: 'Player1',
+      playerBestMetersToday: 100.0,
+      playerBouncesToday: 32,
+      completedToday: true,
+    );
+    final rank3 = run3.firstWhere((e) => e.isCurrentUser).rank;
+    expect(rank3, equals(1)); // Primo posto conquistato con meno rimbalzi!
+  });
+
+  test('ProfileIconsCatalog has 12 unlockable icons with valid criteria', () {
+    expect(ProfileIconsCatalog.allIcons.length, equals(12));
+
+    final storage = StorageService();
+    storage.currentTowerLevel = 15;
+    storage.dailyTop3Count = 3;
+    storage.dailyFirstPlaceCount = 1;
+    storage.totalBouncesAllTime = 600;
+
+    final defaultIcon = ProfileIconsCatalog.getById('ink_drop');
+    expect(defaultIcon.isUnlocked(storage), isTrue);
+
+    final lvl15Icon = ProfileIconsCatalog.getById('bamboo_guard');
+    expect(lvl15Icon.isUnlocked(storage), isTrue);
+
+    final lvl30Icon = ProfileIconsCatalog.getById('dragon_spirit');
+    expect(lvl30Icon.isUnlocked(storage), isFalse);
+
+    final top3Icon = ProfileIconsCatalog.getById('elite_silver');
+    expect(top3Icon.isUnlocked(storage), isTrue);
+
+    final firstPlaceIcon = ProfileIconsCatalog.getById('gold_crown');
+    expect(firstPlaceIcon.isUnlocked(storage), isTrue);
+
+    const s = AppStrings(AppLanguage.it);
+    final title = ProfileIconsCatalog.getPlayerHonorTitle(storage, s);
+    expect(title, contains('Campione del Giorno'));
+  });
+
+  test('BallSkinsCatalog has 10 unlockable skins with valid progression criteria', () {
+    expect(BallSkinsCatalog.allSkins.length, equals(10));
+
+    final storage = StorageService();
+    storage.currentTowerLevel = 15;
+    storage.dailyTop3Count = 3;
+    storage.dailyFirstPlaceCount = 1;
+    storage.totalBouncesAllTime = 800;
+
+    // 1. Classic Ink (default) è sempre sbloccata
+    final classic = BallSkinsCatalog.getById('classic_ink');
+    expect(classic.isUnlocked(storage), isTrue);
+
+    // 2. Matcha Zen (livello 3) sbloccata
+    final matcha = BallSkinsCatalog.getById('matcha_zen');
+    expect(matcha.isUnlocked(storage), isTrue);
+
+    // 3. Origami (livello 15) sbloccata
+    final origami = BallSkinsCatalog.getById('paper_origami');
+    expect(origami.isUnlocked(storage), isTrue);
+
+    // 4. Drago (livello 25) ancora bloccata
+    final dragon = BallSkinsCatalog.getById('dragon_ember');
+    expect(dragon.isUnlocked(storage), isFalse);
+
+    // 5. Daily Silver (3x Top 3) sbloccata
+    final silver = BallSkinsCatalog.getById('daily_silver');
+    expect(silver.isUnlocked(storage), isTrue);
+
+    // 6. Daily Gold (1x 1° Posto) sbloccata
+    final gold = BallSkinsCatalog.getById('daily_gold');
+    expect(gold.isUnlocked(storage), isTrue);
+
+    // 7. Thunder Spark (750 rimbalzi) sbloccata
+    final thunder = BallSkinsCatalog.getById('thunder_spark');
+    expect(thunder.isUnlocked(storage), isTrue);
   });
 }

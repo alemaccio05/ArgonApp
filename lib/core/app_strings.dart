@@ -292,6 +292,24 @@ class AppStrings {
     );
   }
 
+  String playDailyImproveBtn(int lives) => _t(
+        it: 'MIGLIORA RECORD GIORNALIERO ($lives VITE)',
+        en: 'IMPROVE DAILY RECORD ($lives LIVES)',
+        es: 'MEJORAR RÉCORD DIARIO ($lives VIDAS)',
+        fr: 'AMÉLIORER LE RECORD DU JOUR ($lives VIES)',
+        de: 'TAGESTURM-REKORD VERBESSERN ($lives LEBEN)',
+        pt: 'MELHORAR RECORDE DIÁRIO ($lives VIDAS)',
+      );
+
+  String improveDailyRecordBtn(int lives) => _t(
+        it: 'MIGLIORA RECORD ($lives VITE RIMASTE)',
+        en: 'IMPROVE RECORD ($lives LIVES LEFT)',
+        es: 'MEJORAR RÉCORD ($lives VIDAS RESTANTES)',
+        fr: 'AMÉLIORER LE RECORD ($lives VIES RESTANTES)',
+        de: 'REKORD VERBESSERN ($lives LEBEN ÜBRIG)',
+        pt: 'MELHORAR RECORDE ($lives VIDAS RESTANTES)',
+      );
+
   String leaderboardLevelsBtn(int rank) => _t(
         it: 'CLASSIFICA LIVELLI (SEI #$rank)',
         en: 'LEVELS LEADERBOARD (YOU ARE #$rank)',
@@ -687,5 +705,679 @@ class AppStrings {
         fr: 'Peux-tu grimper la tour du jour ?',
         de: 'Schaffst du den heutigen Turm?',
         pt: 'Consegue escalar a torre de hoje?',
+      );
+
+  // --- PROFILO GIOCATORE & ICONE SBLOCCABILI ---
+  String get profileTitle => _t(
+        it: 'PROFILO GIOCATORE',
+        en: 'PLAYER PROFILE',
+        es: 'PERFIL DEL JUGADOR',
+        fr: 'PROFIL DU JOUEUR',
+        de: 'SPIELERPROFIL',
+        pt: 'PERFIL DO JOGADOR',
+      );
+
+  String get editNameTooltip => _t(
+        it: 'Modifica Nome',
+        en: 'Edit Name',
+        es: 'Editar Nombre',
+        fr: 'Modifier le Nom',
+        de: 'Name bearbeiten',
+        pt: 'Editar Nome',
+      );
+
+  String get saveNameBtn => _t(
+        it: 'SALVA',
+        en: 'SAVE',
+        es: 'GUARDAR',
+        fr: 'ENREGISTRER',
+        de: 'SPEICHERN',
+        pt: 'SALVAR',
+      );
+
+  String get statsHeader => _t(
+        it: 'STATISTICHE DELLA SCALATA',
+        en: 'CLIMBING STATISTICS',
+        es: 'ESTADÍSTICAS DE ESCALADA',
+        fr: 'STATISTIQUES DE GRIMPE',
+        de: 'KLETTER-STATISTIKEN',
+        pt: 'ESTATÍSTICAS DA ESCALADA',
+      );
+
+  String get iconsHeader => _t(
+        it: 'ICONE PROFILO & AVATAR',
+        en: 'PROFILE ICONS & AVATARS',
+        es: 'ICONOS DE PERFIL Y AVATARES',
+        fr: 'ICÔNES DE PROFIL & AVATARS',
+        de: 'PROFILSYMBOLE & AVATARE',
+        pt: 'ÍCONES DE PERFIL E AVATARES',
+      );
+
+  String get tabStats => _t(
+        it: 'STATISTICHE',
+        en: 'STATS',
+        es: 'ESTADÍSTICAS',
+        fr: 'STATS',
+        de: 'STATISTIK',
+        pt: 'ESTATÍSTICAS',
+      );
+
+  String get tabIcons => _t(
+        it: 'ICONE',
+        en: 'ICONS',
+        es: 'ICONOS',
+        fr: 'ICÔNES',
+        de: 'SYMBOLE',
+        pt: 'ÍCONES',
+      );
+
+  String get tabSkins => _t(
+        it: 'SKIN SFERA',
+        en: 'BALL SKINS',
+        es: 'SKINS BOLA',
+        fr: 'SKINS BALLE',
+        de: 'BALL-SKINS',
+        pt: 'SKINS BOLA',
+      );
+
+  String get equippedBadge => _t(
+        it: 'IN USO',
+        en: 'EQUIPPED',
+        es: 'EN USO',
+        fr: 'ÉQUIPÉ',
+        de: 'AKTIV',
+        pt: 'EM USO',
+      );
+
+  String get equipBtn => _t(
+        it: 'USA',
+        en: 'EQUIP',
+        es: 'USAR',
+        fr: 'UTILISER',
+        de: 'WÄHLEN',
+        pt: 'USAR',
+      );
+
+  String get unlockedLabel => _t(
+        it: 'SBLOCCATO',
+        en: 'UNLOCKED',
+        es: 'DESBLOQUEADO',
+        fr: 'DÉBLOQUÉ',
+        de: 'FREIGESCHALTET',
+        pt: 'DESBLOQUEADO',
+      );
+
+  String get totalBouncesStat => _t(
+        it: 'Rimbalzi Totali',
+        en: 'Total Bounces',
+        es: 'Rebotes Totales',
+        fr: 'Rebonds Totaux',
+        de: 'Gesamtsprünge',
+        pt: 'Pulos Totais',
+      );
+
+  String get dayStreakStat => _t(
+        it: 'Streak Giorni',
+        en: 'Day Streak',
+        es: 'Racha de Días',
+        fr: 'Série de Jours',
+        de: 'Tage-Streak',
+        pt: 'Sequência de Dias',
+      );
+
+  String get levelFirstPlaceStat => _t(
+        it: '#1 Scalata Livelli',
+        en: '#1 Levels Leaderboard',
+        es: '#1 Clasif. Niveles',
+        fr: '#1 Classement Niveaux',
+        de: '#1 Level-Rangliste',
+        pt: '#1 Ranking Níveis',
+      );
+
+  String get dailyFirstPlaceStat => _t(
+        it: '#1 Torre del Giorno',
+        en: '#1 Daily Tower',
+        es: '#1 Torre del Día',
+        fr: '#1 Tour du Jour',
+        de: '#1 Tagesturm',
+        pt: '#1 Torre do Dia',
+      );
+
+  String get dailyTop3Stat => _t(
+        it: 'Podi Top 3 Giornalieri',
+        en: 'Daily Top 3 Podiums',
+        es: 'Podios Top 3 Diarios',
+        fr: 'Podiums Top 3 du Jour',
+        de: 'Tägliche Top-3-Podestplätze',
+        pt: 'Pódios Top 3 Diários',
+      );
+
+  String get totalDailyWonStat => _t(
+        it: 'Torri Giornaliere Vinte',
+        en: 'Daily Towers Completed',
+        es: 'Torres Diarias Ganadas',
+        fr: 'Tours du Jour Réussies',
+        de: 'Tagestürme Bezwingt',
+        pt: 'Torres Diárias Concluídas',
+      );
+
+  String get highestLevelStat => _t(
+        it: 'Livello Più Alto',
+        en: 'Highest Level',
+        es: 'Nivel Más Alto',
+        fr: 'Plus Haut Niveau',
+        de: 'Höchstes Level',
+        pt: 'Nível Mais Alto',
+      );
+
+  String get totalMetersStat => _t(
+        it: 'Metri Totali Scalati',
+        en: 'Total Meters Climbed',
+        es: 'Metros Totales Escalados',
+        fr: 'Mètres Totaux Grimpés',
+        de: 'Gekletterte Meter Gesamt',
+        pt: 'Metros Totais Escalados',
+      );
+
+  String get totalRunsStat => _t(
+        it: 'Partite Totali',
+        en: 'Total Runs',
+        es: 'Partidas Totales',
+        fr: 'Parties Totales',
+        de: 'Gesamte Runden',
+        pt: 'Partidas Totais',
+      );
+
+  // Nomi Icone Profilo
+  String get iconInkDropName => _t(
+        it: 'Goccia Zen',
+        en: 'Zen Drop',
+        es: 'Gota Zen',
+        fr: 'Goutte Zen',
+        de: 'Zen-Tropfen',
+        pt: 'Gota Zen',
+      );
+
+  String get iconSpiritOrbName => _t(
+        it: 'Sfera Celeste',
+        en: 'Spirit Orb',
+        es: 'Orbe Celestial',
+        fr: 'Orbe Céleste',
+        de: 'Himmelskugel',
+        pt: 'Esfera Celestial',
+      );
+
+  String get iconZenBrushName => _t(
+        it: 'Pennello Maestro',
+        en: 'Master Brush',
+        es: 'Pincel Maestro',
+        fr: 'Pinceau Maître',
+        de: 'Meisterpinsel',
+        pt: 'Pincel Mestre',
+      );
+
+  String get iconMatchaLeafName => _t(
+        it: 'Foglia Matcha',
+        en: 'Matcha Leaf',
+        es: 'Hoja Matcha',
+        fr: 'Feuille Matcha',
+        de: 'Matchablatt',
+        pt: 'Folha Matcha',
+      );
+
+  String get iconShinobiSealName => _t(
+        it: 'Sigillo Shinobi',
+        en: 'Shinobi Seal',
+        es: 'Sello Shinobi',
+        fr: 'Sceau Shinobi',
+        de: 'Shinobi-Siegel',
+        pt: 'Selo Shinobi',
+      );
+
+  String get iconBambooGuardName => _t(
+        it: 'Guardiano Bambù',
+        en: 'Bamboo Guard',
+        es: 'Guardián Bambú',
+        fr: 'Gardien Bambou',
+        de: 'Bambuswächter',
+        pt: 'Guardião Bambu',
+      );
+
+  String get iconPaperCraneName => _t(
+        it: 'Gru Origami',
+        en: 'Paper Crane',
+        es: 'Grulla Origami',
+        fr: 'Grue Origami',
+        de: 'Origami-Kranich',
+        pt: 'Tsuru Origami',
+      );
+
+  String get iconDragonSpiritName => _t(
+        it: 'Spirito Dragone',
+        en: 'Dragon Spirit',
+        es: 'Espíritu Dragón',
+        fr: 'Esprit Dragon',
+        de: 'Drachengeist',
+        pt: 'Espírito Dragão',
+      );
+
+  String get iconDailyPodiumName => _t(
+        it: 'Podio del Giorno',
+        en: 'Daily Podium',
+        es: 'Podio del Día',
+        fr: 'Podium du Jour',
+        de: 'Tages-Podest',
+        pt: 'Pódio do Dia',
+      );
+
+  String get iconEliteSilverName => _t(
+        it: 'Argento d\'Élite',
+        en: 'Elite Silver',
+        es: 'Plata Élite',
+        fr: 'Argent d\'Élite',
+        de: 'Elite-Silber',
+        pt: 'Prata de Elite',
+      );
+
+  String get iconGoldCrownName => _t(
+        it: 'Corona Campione',
+        en: 'Champion Crown',
+        es: 'Corona Campeón',
+        fr: 'Couronne Champion',
+        de: 'Meisterkrone',
+        pt: 'Coroa Campeão',
+      );
+
+  String get iconBounceMasterName => _t(
+        it: 'Maestro Rimbalzi',
+        en: 'Bounce Master',
+        es: 'Maestro Rebote',
+        fr: 'Maître Rebonds',
+        de: 'Sprungmeister',
+        pt: 'Mestre dos Pulos',
+      );
+
+  // Requisiti di Sblocco Icone
+  String get iconDefaultReq => _t(
+        it: 'Disponibile dall\'inizio',
+        en: 'Available from the start',
+        es: 'Disponible desde el inicio',
+        fr: 'Disponible dès le début',
+        de: 'Von Beginn an verfügbar',
+        pt: 'Disponível desde o início',
+      );
+
+  String iconReachLevelReq(int lvl) => _t(
+        it: 'Raggiungi il Livello $lvl',
+        en: 'Reach Level $lvl',
+        es: 'Alcanza el Nivel $lvl',
+        fr: 'Atteins le Niveau $lvl',
+        de: 'Erreiche Level $lvl',
+        pt: 'Alcance o Nível $lvl',
+      );
+
+  String iconTop3Req(int times) => _t(
+        it: times == 1
+            ? 'Entra nella Top 3 Giornaliera'
+            : 'Entra $times volte nella Top 3 Giornaliera',
+        en: times == 1
+            ? 'Finish in Daily Top 3'
+            : 'Finish in Daily Top 3 ($times times)',
+        es: times == 1
+            ? 'Llega al Top 3 Diario'
+            : 'Llega al Top 3 Diario ($times veces)',
+        fr: times == 1
+            ? 'Termine dans le Top 3 du Jour'
+            : 'Termine dans le Top 3 du Jour ($times fois)',
+        de: times == 1
+            ? 'Erreiche die tägliche Top 3'
+            : 'Erreiche $times Mal die tägliche Top 3',
+        pt: times == 1
+            ? 'Chegue ao Top 3 Diário'
+            : 'Chegue ao Top 3 Diário ($times vezes)',
+      );
+
+  String iconDailyFirstReq(int times) => _t(
+        it: times == 1
+            ? 'Conquista il 1° Posto Giornaliero'
+            : 'Conquista il 1° Posto Giornaliero ($times volte)',
+        en: times == 1
+            ? 'Win 1st Place in Daily Tower'
+            : 'Win 1st Place in Daily Tower ($times times)',
+        es: times == 1
+            ? 'Gana el 1.º Lugar en la Torre Diaria'
+            : 'Gana el 1.º Lugar en la Torre Diaria ($times veces)',
+        fr: times == 1
+            ? 'Décroche la 1ère Place du Jour'
+            : 'Décroche la 1ère Place du Jour ($times fois)',
+        de: times == 1
+            ? 'Erobere Platz 1 im Tagesturm'
+            : 'Erobere Platz 1 im Tagesturm ($times Mal)',
+        pt: times == 1
+            ? 'Conquiste o 1º Lugar na Torre Diária'
+            : 'Conquiste o 1º Lugar na Torre Diária ($times vezes)',
+      );
+
+  String iconBouncesReq(int count) => _t(
+        it: 'Esegui $count rimbalzi totali',
+        en: 'Perform $count total bounces',
+        es: 'Realiza $count rebotes totales',
+        fr: 'Effectue $count rebonds au total',
+        de: 'Mache insgesamt $count Sprünge',
+        pt: 'Faça $count pulos no total',
+      );
+
+  // Titoli Onorifici
+  String get titleDailyChampion => _t(
+        it: 'Campione del Giorno 👑',
+        en: 'Daily Champion 👑',
+        es: 'Campeón del Día 👑',
+        fr: 'Champion du Jour 👑',
+        de: 'Tages-Champion 👑',
+        pt: 'Campeão do Dia 👑',
+      );
+
+  String get titleLegend => _t(
+        it: 'Leggenda Risograph 🐉',
+        en: 'Risograph Legend 🐉',
+        es: 'Leyenda Risograph 🐉',
+        fr: 'Légende Risograph 🐉',
+        de: 'Risograph-Legende 🐉',
+        pt: 'Lenda Risograph 🐉',
+      );
+
+  String get titleBounceMaster => _t(
+        it: 'Maestro del Rimbalzo ⚡',
+        en: 'Bounce Master ⚡',
+        es: 'Maestro del Salto ⚡',
+        fr: 'Maître du Rebond ⚡',
+        de: 'Meisterspringer ⚡',
+        pt: 'Mestre do Pulo ⚡',
+      );
+
+  String get titleRisographSentinel => _t(
+        it: 'Sentinella della Torre 🛡️',
+        en: 'Tower Sentinel 🛡️',
+        es: 'Centinela de la Torre 🛡️',
+        fr: 'Sentinelle de la Tour 🛡️',
+        de: 'Turmwächter 🛡️',
+        pt: 'Sentinela da Torre 🛡️',
+      );
+
+  String get titleRisingClimber => _t(
+        it: 'Scalatore Promettente 🍃',
+        en: 'Rising Climber 🍃',
+        es: 'Escalador Prometedor 🍃',
+        fr: 'Grimpeur Prometteur 🍃',
+        de: 'Aufstrebender Kletterer 🍃',
+        pt: 'Escalador Promissor 🍃',
+      );
+
+  String get titleInkNovice => _t(
+        it: 'Scalatore d\'Inchiostro 💧',
+        en: 'Ink Climber 💧',
+        es: 'Escalador de Tinta 💧',
+        fr: 'Grimpeur d\'Encre 💧',
+        de: 'Tuschekletterer 💧',
+        pt: 'Escalador de Tinta 💧',
+      );
+
+  // --- SKIN DELLA SFERA ---
+  String get skinsTitle => _t(
+        it: 'SKIN DELLA SFERA',
+        en: 'BALL SKINS',
+        es: 'SKINS DE LA BOLA',
+        fr: 'SKINS DE LA BALLE',
+        de: 'BALL-SKINS',
+        pt: 'SKINS DA BOLA',
+      );
+
+  String get skinsHeader => _t(
+        it: 'PERSONALIZZA LA TUA SFERA',
+        en: 'CUSTOMIZE YOUR BALL',
+        es: 'PERSONALIZA TU BOLA',
+        fr: 'PERSONNALISE TA BALLE',
+        de: 'PASSE DEINEN BALL AN',
+        pt: 'PERSONALIZE SUA BOLA',
+      );
+
+  String get openStudioBtn => _t(
+        it: 'Studio Animato 🎨',
+        en: 'Animated Studio 🎨',
+        es: 'Estudio Animado 🎨',
+        fr: 'Studio Animé 🎨',
+        de: 'Animationsstudio 🎨',
+        pt: 'Estúdio Animado 🎨',
+      );
+
+  String skinReachLevelReq(int lvl) => _t(
+        it: 'Raggiungi il Livello $lvl',
+        en: 'Reach Level $lvl',
+        es: 'Alcanza el Nivel $lvl',
+        fr: 'Atteins le Niveau $lvl',
+        de: 'Erreiche Level $lvl',
+        pt: 'Alcance o Nível $lvl',
+      );
+
+  String skinTop3Req(int times) => _t(
+        it: times == 1
+            ? 'Entra nella Top 3 Giornaliera'
+            : 'Entra $times volte nella Top 3 Giornaliera',
+        en: times == 1
+            ? 'Finish in Daily Top 3'
+            : 'Finish in Daily Top 3 ($times times)',
+        es: times == 1
+            ? 'Llega al Top 3 Diario'
+            : 'Llega al Top 3 Diario ($times veces)',
+        fr: times == 1
+            ? 'Termine dans le Top 3 du Jour'
+            : 'Termine dans le Top 3 du Jour ($times fois)',
+        de: times == 1
+            ? 'Erreiche die tägliche Top 3'
+            : 'Erreiche $times Mal die tägliche Top 3',
+        pt: times == 1
+            ? 'Chegue ao Top 3 Diário'
+            : 'Chegue ao Top 3 Diário ($times vezes)',
+      );
+
+  String skinDailyFirstReq(int times) => _t(
+        it: times == 1
+            ? 'Conquista il 1° Posto Giornaliero'
+            : 'Conquista il 1° Posto Giornaliero ($times volte)',
+        en: times == 1
+            ? 'Win 1st Place in Daily Tower'
+            : 'Win 1st Place in Daily Tower ($times times)',
+        es: times == 1
+            ? 'Gana el 1.º Lugar en la Torre Diaria'
+            : 'Gana el 1.º Lugar en la Torre Diaria ($times veces)',
+        fr: times == 1
+            ? 'Décroche la 1ère Place du Jour'
+            : 'Décroche la 1ère Place du Jour ($times fois)',
+        de: times == 1
+            ? 'Erobere Platz 1 im Tagesturm'
+            : 'Erobere Platz 1 im Tagesturm ($times Mal)',
+        pt: times == 1
+            ? 'Conquiste o 1º Lugar na Torre Diária'
+            : 'Conquiste o 1º Lugar na Torre Diária ($times vezes)',
+      );
+
+  String skinBouncesReq(int count) => _t(
+        it: 'Esegui $count rimbalzi totali',
+        en: 'Perform $count total bounces',
+        es: 'Realiza $count rebotes totales',
+        fr: 'Effectue $count rebonds au total',
+        de: 'Mache insgesamt $count Sprünge',
+        pt: 'Faça $count pulos no total',
+      );
+
+  // Nomi e Descrizioni Skin Sfera
+  String get skinClassicInkName => _t(
+        it: 'Inchiostro Tradizionale',
+        en: 'Traditional Ink',
+        es: 'Tinta Tradicional',
+        fr: 'Encre Traditionnelle',
+        de: 'Traditionelle Tusche',
+        pt: 'Tinta Tradicional',
+      );
+  String get skinClassicInkDesc => _t(
+        it: 'L\'essenza pura dell\'inchiostro Risograph.',
+        en: 'The pure essence of Risograph ink.',
+        es: 'La esencia pura de la tinta Risograph.',
+        fr: 'L\'essence pure de l\'encre Risograph.',
+        de: 'Die reine Essenz der Risograph-Tusche.',
+        pt: 'A essência pura da tinta Risograph.',
+      );
+
+  String get skinMatchaZenName => _t(
+        it: 'Foglia Matcha',
+        en: 'Matcha Leaf',
+        es: 'Hoja Matcha',
+        fr: 'Feuille Matcha',
+        de: 'Matchablatt',
+        pt: 'Folha Matcha',
+      );
+  String get skinMatchaZenDesc => _t(
+        it: 'Concentrazione e armonia con la natura.',
+        en: 'Focus and harmony with nature.',
+        es: 'Concentración y armonía con la naturaleza.',
+        fr: 'Concentration et harmonie avec la nature.',
+        de: 'Fokus und Harmonie mit der Natur.',
+        pt: 'Foco e harmonia com a natureza.',
+      );
+
+  String get skinShinobiStarName => _t(
+        it: 'Stella Shinobi',
+        en: 'Shinobi Star',
+        es: 'Estrella Shinobi',
+        fr: 'Étoile Shinobi',
+        de: 'Shinobi-Stern',
+        pt: 'Estrela Shinobi',
+      );
+  String get skinShinobiStarDesc => _t(
+        it: 'Taglia l\'aria come uno shuriken letale.',
+        en: 'Cuts the air like a lethal shuriken.',
+        es: 'Corta el aire como un shuriken letal.',
+        fr: 'Fend l\'air comme un shuriken mortel.',
+        de: 'Schneidet die Luft wie ein tödliches Shuriken.',
+        pt: 'Corta o ar como uma shuriken letal.',
+      );
+
+  String get skinPaperOrigamiName => _t(
+        it: 'Papiro Origami',
+        en: 'Origami Scroll',
+        es: 'Papiro Origami',
+        fr: 'Papyrus Origami',
+        de: 'Origami-Papyrus',
+        pt: 'Papiro Origami',
+      );
+  String get skinPaperOrigamiDesc => _t(
+        it: 'Pieghature geometriche d\'arte millenaria.',
+        en: 'Geometric folds of thousand-year art.',
+        es: 'Pliegues geométricos de arte milenario.',
+        fr: 'Plis géométriques d\'un art millénaire.',
+        de: 'Geometrische Falten jahrtausendealter Kunst.',
+        pt: 'Dobras geométricas de arte milenar.',
+      );
+
+  String get skinDragonEmberName => _t(
+        it: 'Braci del Dragone',
+        en: 'Dragon Ember',
+        es: 'Brasas del Dragón',
+        fr: 'Braises du Dragon',
+        de: 'Drachenglut',
+        pt: 'Brasas do Dragão',
+      );
+  String get skinDragonEmberDesc => _t(
+        it: 'Fiamme cremisi ardenti ad ogni salto.',
+        en: 'Blazing crimson flames with every bounce.',
+        es: 'Llamas carmesí ardientes en cada salto.',
+        fr: 'Flammes cramoisies ardentes à chaque saut.',
+        de: 'Lodernde karmesinrote Flammen bei jedem Sprung.',
+        pt: 'Chamas carmesim ardentes a cada pulo.',
+      );
+
+  String get skinCelestialVoidName => _t(
+        it: 'Cosmo Celeste',
+        en: 'Celestial Void',
+        es: 'Cosmos Celestial',
+        fr: 'Cosmos Céleste',
+        de: 'Himmlischer Kosmos',
+        pt: 'Cosmo Celestial',
+      );
+  String get skinCelestialVoidDesc => _t(
+        it: 'Mistero della mezzaluna e stelle lontane.',
+        en: 'Mystery of the crescent moon and distant stars.',
+        es: 'Misterio de la media luna y estrellas lejanas.',
+        fr: 'Mystère du croissant de lune et étoiles lointaines.',
+        de: 'Geheimnis des Halbmonds und ferner Sterne.',
+        pt: 'Mistério da meia-lua e estrelas distantes.',
+      );
+
+  String get skinDailyBronzeName => _t(
+        it: 'Risonanza Bronzea',
+        en: 'Bronze Resonance',
+        es: 'Resonancia Broncínea',
+        fr: 'Résonance de Bronze',
+        de: 'Bronze-Resonanz',
+        pt: 'Ressonância de Bronze',
+      );
+  String get skinDailyBronzeDesc => _t(
+        it: 'Simbolo di chi ha calcato il podio giornaliero.',
+        en: 'Symbol of those who stepped on the daily podium.',
+        es: 'Símbolo de quienes subieron al podio diario.',
+        fr: 'Symbole de ceux qui ont foulé le podium du jour.',
+        de: 'Symbol für diejenigen, die das tägliche Podest betreten haben.',
+        pt: 'Símbolo de quem pisou no pódio diário.',
+      );
+
+  String get skinDailySilverName => _t(
+        it: 'Prisma d\'Argento',
+        en: 'Silver Prism',
+        es: 'Prisma de Plata',
+        fr: 'Prisme d\'Argent',
+        de: 'Silber-Prisma',
+        pt: 'Prisma de Prata',
+      );
+  String get skinDailySilverDesc => _t(
+        it: 'Armatura metallica forgiata nelle sfide di vertice.',
+        en: 'Metallic armor forged in top-tier challenges.',
+        es: 'Armadura metálica forjada en desafíos de élite.',
+        fr: 'Armure métallique forgée dans les défis d\'élite.',
+        de: 'Metallische Rüstung, geschmiedet in Spitzenherausforderungen.',
+        pt: 'Armadura metálica forjada em desafios de elite.',
+      );
+
+  String get skinDailyGoldName => _t(
+        it: 'Aureo del Campione',
+        en: 'Champion Gold',
+        es: 'Oro del Campeón',
+        fr: 'Or du Champion',
+        de: 'Meistergold',
+        pt: 'Ouro do Campeão',
+      );
+  String get skinDailyGoldDesc => _t(
+        it: 'Corona e splendore del dominatore della Torre.',
+        en: 'Crown and glory of the ruler of the Tower.',
+        es: 'Corona y gloria del conquistador de la Torre.',
+        fr: 'Couronne et gloire du conquérant de la Tour.',
+        de: 'Krone und Glanz des Turmbeherrschers.',
+        pt: 'Coroa e glória do conquistador da Torre.',
+      );
+
+  String get skinThunderSparkName => _t(
+        it: 'Fulmine del Tuono',
+        en: 'Thunder Spark',
+        es: 'Chispa del Trueno',
+        fr: 'Éclair du Tonnerre',
+        de: 'Donnerfunke',
+        pt: 'Faísca do Trovão',
+      );
+  String get skinThunderSparkDesc => _t(
+        it: 'Carica elettrificante per i maestri del rimbalzo.',
+        en: 'Electrifying charge for masters of the bounce.',
+        es: 'Carga electrizante para los maestros del rebote.',
+        fr: 'Charge électrisante pour les maîtres du rebond.',
+        de: 'Elektrisierende Ladung für Meister des Sprungs.',
+        pt: 'Carga eletrizante para os mestres do pulo.',
       );
 }

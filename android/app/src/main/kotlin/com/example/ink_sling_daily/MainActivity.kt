@@ -50,17 +50,19 @@ class MainActivity : FlutterActivity() {
                     "initWavs" -> {
                         val args = call.arguments as? Map<*, *>
                         if (args != null) {
-                            for ((k, v) in args) {
-                                val key = k as? String ?: continue
-                                val bytes = v as? ByteArray ?: continue
-                                try {
-                                    val file = File(cacheDir, "sfx_$key.wav")
-                                    file.writeBytes(bytes)
-                                    val id = pool.load(file.absolutePath, 1)
-                                    soundIds[key] = id
-                                } catch (_: Exception) {
+                            Thread {
+                                for ((k, v) in args) {
+                                    val key = k as? String ?: continue
+                                    val bytes = v as? ByteArray ?: continue
+                                    try {
+                                        val file = File(cacheDir, "sfx_$key.wav")
+                                        file.writeBytes(bytes)
+                                        val id = pool.load(file.absolutePath, 1)
+                                        soundIds[key] = id
+                                    } catch (_: Exception) {
+                                    }
                                 }
-                            }
+                            }.start()
                         }
                         result.success(true)
                     }
@@ -98,4 +100,3 @@ class MainActivity : FlutterActivity() {
         super.onDestroy()
     }
 }
-

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import '../../core/ball_skins.dart';
 import '../ink_sling_game.dart';
 import 'obstacle_block.dart';
 
@@ -327,13 +328,17 @@ class PlayerCore extends PositionComponent
   void render(Canvas canvas) {
     final p = game.palette;
     final center = Offset(size.x / 2, size.y / 2);
+    final skin = BallSkinsCatalog.getById(game.storage.selectedBallSkinId);
+    final coreColor = skin.getCoreColor(p);
+    final strokeColor = skin.getStrokeColor(p);
+    final trailColor = skin.getTrailColor(p);
 
-    // 1. Scia fluida
+    // 1. Scia fluida personalizzata in base alla Skin
     for (int i = 0; i < _brushTrail.length; i++) {
       final trailOffset = _brushTrail[i] - position;
       final t = (i + 1) / _brushTrail.length;
       final strokePaint = Paint()
-        ..color = p.playerFill.withAlpha((t * 0.26 * 255).round())
+        ..color = trailColor.withAlpha((t * 0.28 * 255).round())
         ..style = PaintingStyle.fill;
       canvas.drawCircle(
         center + Offset(trailOffset.x, trailOffset.y),
@@ -435,8 +440,11 @@ class PlayerCore extends PositionComponent
     canvas.drawCircle(
       Offset.zero,
       radius,
-      Paint()..color = p.playerFill,
+      Paint()..color = coreColor,
     );
+
+    // Decorazione ed emblema specifico della Skin equipaggiata
+    skin.renderCustomSkin(canvas, radius, p, _ringRotation);
 
     // Riflesso superiore
     canvas.drawCircle(
@@ -450,7 +458,7 @@ class PlayerCore extends PositionComponent
       Offset.zero,
       radius,
       Paint()
-        ..color = p.playerStroke
+        ..color = strokeColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.8,
     );

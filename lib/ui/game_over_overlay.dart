@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../core/daily_seed.dart';
 import '../core/palette_theme.dart';
+import '../core/profile_icons.dart';
 import '../game/ink_sling_game.dart';
 
 /// Schermata di Fine Partita (Vittoria o Sconfitta) dal design accattivante,
@@ -38,18 +39,23 @@ class GameOverOverlay extends StatelessWidget {
           targetMeters: targetMeters,
         );
 
+        final userAvatarEmoji =
+            ProfileIconsCatalog.getById(game.storage.selectedProfileIconId).emoji;
         final leaderboard = isLevelMode
             ? DailySeedEngine.getGlobalLeaderboard(
                 playerName: game.storage.playerName,
                 playerLevel: game.storage.currentTowerLevel,
                 playerBestMeters: game.storage.bestMetersCurrentLevel,
                 playerBounces: game.storage.bestBouncesCurrentLevel,
+                totalLevelsPlayed: game.storage.totalLevelsPlayed,
+                playerAvatarEmoji: userAvatarEmoji,
               )
             : DailySeedEngine.getDailyLeaderboard(
                 playerName: game.storage.playerName,
                 playerBestMetersToday: game.storage.bestMetersToday,
                 completedToday: game.storage.completedToday,
                 playerBouncesToday: game.storage.bestBouncesToday,
+                playerAvatarEmoji: userAvatarEmoji,
               );
         final userRank =
             leaderboard.firstWhere((e) => e.isCurrentUser).rank;
@@ -390,15 +396,13 @@ class GameOverOverlay extends StatelessWidget {
                             }
                           },
                           icon: const Icon(Icons.shield_outlined, size: 18),
-                          label: Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                s.reviveWithShieldBtn(meters.toStringAsFixed(0)),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 12,
-                                ),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              s.reviveWithShieldBtn(meters.toStringAsFixed(0)),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
                               ),
                             ),
                           ),
@@ -444,14 +448,12 @@ class GameOverOverlay extends StatelessWidget {
                             },
                             icon:
                                 const Icon(Icons.ios_share_rounded, size: 16),
-                            label: Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  s.shareBtn,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                  ),
+                            label: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                s.shareBtn,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
                                 ),
                               ),
                             ),
@@ -494,7 +496,12 @@ class GameOverOverlay extends StatelessWidget {
                               child: Text(
                                 game.isVictory && isLevelMode
                                     ? s.nextLevelBtn(game.currentLevel + 1)
-                                    : s.retryNowBtn,
+                                    : (game.isVictory &&
+                                            !isLevelMode &&
+                                            game.storage.officialAttemptsLeft > 0
+                                        ? s.improveDailyRecordBtn(
+                                            game.storage.officialAttemptsLeft)
+                                        : s.retryNowBtn),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w900,
                                 ),

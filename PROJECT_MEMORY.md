@@ -1,6 +1,6 @@
 # PROJECT MEMORY — INK TOWER: Climb & Stick (`ArgonApp`)
 
-> **Ultimo aggiornamento:** 19 Ottobre 2026  
+> **Ultimo aggiornamento:** 20 Ottobre 2026  
 > **Nome Ufficiale In-Game:** **INK TOWER: Climb & Stick** (Package: `ink_sling_daily`)  
 > **Motore:** Flutter 3.44.x + Flame (`>=1.14.0 <2.0.0`) • Dart 3.12.x  
 > **Toolchain Android:** Android Gradle Plugin 9.0.1 (Built-in Kotlin nativo, Gradle Kotlin DSL `.kts`)  
@@ -74,7 +74,7 @@ L'app adotta un'architettura a doppio canale che massimizza sia la ritenzione qu
 ### Sintetizzatore Audio Nativo (`NativeSoundSynth` + `SoundPool` Android)
 * Nessuna dipendenza da asset audio esterni o file pesanti: l'audio è **sintetizzato a runtime a 44.1kHz PCM/WAV** a latenza ultra-bassa tramite `sound_synth_io.dart` (con fallback su `sound_synth_stub.dart` su web).
 * **Architettura Audio Multipiattaforma:**
-  * **Android (`MainActivity.kt` + `sound_synth_io.dart`):** I buffer WAV generati in memoria vengono caricati nel `SoundPool` nativo Android (`AudioAttributes.USAGE_MEDIA` + `CONTENT_TYPE_MUSIC`, 12 stream polifonici simultanei e `volumeControlStream = AudioManager.STREAM_MUSIC`) tramite il `MethodChannel('com.example.ink_sling_daily/audio')`, affiancato dal worker FFI `libaaudio.so` stereo con flush di silenzio come fallback istantaneo.
+  * **Android (`MainActivity.kt` + `sound_synth_io.dart`):** I buffer WAV generati in memoria vengono caricati nel `SoundPool` nativo Android (`AudioAttributes.USAGE_MEDIA` + `CONTENT_TYPE_MUSIC`, 12 stream polifonici simultanei e `volumeControlStream = AudioManager.STREAM_MUSIC`) tramite il `MethodChannel('com.example.ink_sling_daily/audio')` con I/O asincrono su background thread.
   * **Windows (`sound_synth_io.dart`):** Riproduzione diretta in memoria nativa tramite `winmm.dll` (`PlaySoundW`).
 * Include sound design procedurale con armoniche ottimizzate anche per speaker di smartphone per:
   * Tick tattile di mira
@@ -105,9 +105,9 @@ lib/
 │   ├── daily_seed.dart                    # Seed deterministico per Livelli (1..N) e Giornaliero (YYYYMMDD), classifiche dinamiche e scontrino share
 │   └── palette_theme.dart                 # 3 Temi Risograph (Sabbia, Notte, Salvia) e RisographPalette.lerp fluido
 ├── services/
-│   ├── storage_service.dart               # Persistenza SharedPreferences (livello corrente, record metri/rimbalzi, vite, nome, lingua, audio, palette)
+│   ├── storage_service.dart               # Persistenza SharedPreferences (livello corrente, partite giocate, record metri/rimbalzi, vite, nome, lingua, audio, palette)
 │   ├── audio_haptics_service.dart         # Bridge per feedback aptici e gestione eventi sonori con controllo ON/OFF
-│   ├── sound_synth_io.dart                # Sintetizzatore PCM/WAV 44.1kHz procedurale nativo (SoundPool Android + AAudio + winmm Windows)
+│   ├── sound_synth_io.dart                # Sintetizzatore PCM/WAV 44.1kHz procedurale nativo (SoundPool Android + winmm Windows)
 │   ├── sound_synth_stub.dart              # Stub del sintetizzatore audio per ambienti non-I/O (Web)
 │   └── monetization_service.dart          # Gestione flussi Rewarded Ad (Revive Scudo / +1 Vita Giornaliera)
 ├── game/
@@ -141,15 +141,42 @@ lib/
 4. **Classifiche Competitive Realistiche (`DailySeedEngine`):**
    * **Rimbalzi Fisicamente Coerenti (`computeRealisticRivalBounces`):** Il numero di rimbalzi degli sfidanti è calcolato in proporzione diretta ai metri effettivamente scalati e alla difficoltà della torre (~0.56–0.76 rimbalzi per metro, es. 55–68 rimbalzi per 90m), rendendoli realistici e leggermente meno efficienti del giocatore.
    * **Classifica Torre di Oggi (Rotazione 24h & Difficoltà Progressiva):** I partecipanti ruotano ogni 24 ore (`getTodaySeed()`) con altezze battibili (`15m–79m`), mentre in partita la Torre di Oggi (100m) scala gradualmente la propria difficoltà dal Livello 1 nei primi metri fino al Livello 7 in vetta.
-   * **Classifica Scalata Livelli (Rotazione 7 Giorni & Rivali Accessibili):** Gli sfidanti ruotano ogni 7 giorni (`getWeeklySeed()`), partono da livelli accessibili (`Liv. 1..12`) e aumentano il proprio livello (`+1`) esclusivamente quando il giocatore riesce a superarli.
-5. **Adattamento Geometrico Dinamico (`towerHalfWidth`) & Regole Anti-Overflow:**
-   * La larghezza interna delle mura si adatta dinamicamente allo schermo (`min(worldWidth / 2, (size.x / 2) - 16.0)`).
+   * **Classifica Scalata Livelli (Progressione Naturale Bot & Possibilità Reale di 1° Posto #1):** Gli sfidanti ruotano ogni 7 giorni (`getWeeklySeed()`) e partono da livelli realistici (`Liv. 1..12`). I bot avanzano in base alle partite complessive giocate dal giocatore (`totalLevelsPlayed`, sia vinte che perse), con una cadenza naturale di 1 livello ogni 4..8 partite (circa 1-2 livelli, massimo 3, ogni 10 partite). È stato completamente eliminato qualsiasi rubber-banding forzato: quando il giocatore supera i bot della torre, **conquista stabilmente il 1° posto (`#1 🥇`)**!
+   * **Conservazione Vite per Scalata Classifica:** Il completamento della torre (100m) con la 1ª o 2ª vita NON azzera le vite ufficiali rimaste, consentendo al giocatore di tentare nuove scalate per ottimizzare i rimbalzi e raggiungere il 1° posto (#1).
+5. **Sistema Profilo Giocatore & Avatar (`ProfileDialog`, `ProfileIconsCatalog`):**
+   * **Card Profilo & Dialog Risograph:** Accessibile con 1 tap dal menu principale. Include modifica inline del nickname, visualizzazione del titolo onorifico dinamico (`getPlayerHonorTitle`) e 3 tab tematiche:
+     * *Tab 1 (Statistiche):* Rimbalzi totali, streak giorni, # volte 1° nei livelli, # volte 1° nella torre giornaliera, piazzamenti top 3, torri giornaliere completate, livello massimo e metri totali.
+     * *Tab 2 (Icone Profilo):* Griglia di 12 avatar collezionabili con condizioni di sblocco (livello, piazzamenti giornalieri, traguardi rimbalzi).
+     * *Tab 3 (Skin Sfera):* Selettore rapido con stato e collegamento allo Studio Animato.
+6. **Sistema Skin Sfera & Personalizzazione (`BallSkinsCatalog`, `BallSkinsDialog`):**
+   * **10 Skin Sbloccabili Tematiche:**
+     1. *Inchiostro Classico* (Default)
+     2. *Matcha Zen* (Livello 3)
+     3. *Stella Shinobi* (Livello 8)
+     4. *Origami di Carta* (Livello 15)
+     5. *Braci del Drago* (Livello 25)
+     6. *Vuoto Celeste* (Livello 35)
+     7. *Bronzo Quotidiano* (Top 3 Giornaliera 1x)
+     8. *Argento Quotidiano* (Top 3 Giornaliera 3x)
+     9. *Oro Quotidiano* (1° Posto Giornaliero 1x)
+     10. *Fulmine Risograph* (750 rimbalzi totali)
+   * **Studio Animato (`BallSkinsDialog`):** Anteprima interattiva della sfera con fisica di squash & stretch, riflessi concentrici, rotazione e indicatore di avanzamento requisiti.
+   * **Rendering di Gioco Dinamico (`PlayerCore`):** Il componente della sfera di gioco renderizza in tempo reale i colori del nucleo, del bordo, della scia fluida e gli stemmi procedurali propri della skin equipaggiata.
+7. **Adattamento Geometrico Dinamico (`towerHalfWidth`) & Regole Anti-Overflow:**
+   * La larghezza interna delle mura si adatta dinamicamente allo schermo (`min(worldWidth / 2, max(100.0, (size.x / 2) - 16.0))`).
    * Tutti i bottoni ed elementi orizzontali usano `Expanded`, `Flexible`, `FittedBox(fit: BoxFit.scaleDown)` e `TextOverflow.ellipsis`, con `.withAlpha((opacity * 255).round())` per la gestione dell'opacità.
 
 ---
 
-## 7. Stato Build System & Dipendenze
+## 7. Stato Build System, Dipendenze & Risoluzione Avvio APK Standalone
 
+* **Risoluzione Blocco Avvio / Schermo Nero / Loop su Build APK:**
+  * **Disabilitazione Impeller su Android (`EnableImpeller = false`):** Nel manifest Android è stato forzato il motore di rendering Skia OpenGL ES per scongiurare schermate nere e blocchi dello swapchain Vulkan tipici di Impeller su GPU Mali/Adreno in Flutter 3.44.
+  * **Rimozione `android:taskAffinity=""` e Blocco Orientamento Manifest:** Rimossa l'anomalia `android:taskAffinity=""` sul launcher Android (causa di loop di riavvio activity dal launcher del telefono) e aggiunto `android:screenOrientation="portrait"` direttamente nell'activity.
+  * **Avvio Resiliente & Non-Bloccante (`main.dart`):** `runApp` viene eseguito immediatamente; `storage.init()` è protetto con timeout/try-catch e `SystemChrome` viene applicato senza bloccare il primo frame di rendering del motore Flutter.
+  * **Audio Nativo Android Sicuro (`SoundPool` Nativo):** Rimossa la dipendenza dall'isolate FFI AAudio (`libaaudio.so`), lasciando la gestione audio interamente al `SoundPool` nativo di `MainActivity.kt` con caricamento WAV asincrono su thread in background per non bloccare mai l'UI thread.
+  * **Correzione Widget ParentData (`Flexible` nidificato):** Rimosso il `Flexible` superfluo all'interno di `OutlinedButton.icon` ed `ElevatedButton.icon` che causava asserzioni fatali sul frame iniziale dell'overlay.
+  * **Configurazione Gradle Release Pulita:** Disabilitata minificazione aggressiva R8 non necessaria (`isMinifyEnabled = false`, `isShrinkResources = false`) in `build.gradle.kts`.
 * **Compatibilità Android Gradle Plugin 9.0+ & Built-in Kotlin:**
   * Risolto l'avviso di obsolescenza KGP (Kotlin Gradle Plugin) di Flutter 3.44+.
   * Dipendenza `share_plus` aggiornata a `^13.3.1` (`SharePlus.instance.share(ShareParams(text: receiptText))`).
@@ -164,5 +191,3 @@ lib/
 * **Esportazione Immagine Grafica (PNG/Story):** Avvolgere la card della mini-mappa in `GameOverOverlay` con un `RepaintBoundary` per consentire la condivisione dello screenshot grafico della card per Instagram e TikTok Stories oltre al testo.
 * **Classifiche Cloud Google Play Games:** Collegare `games_services` per sincronizzare la classifica con Google Play Giochi / Game Center.
 * **AdMob ID Produzione:** Inserire gli ID reali dei blocchi pubblicitari Rewarded in `monetization_service.dart` e nel manifest Android.
-
-

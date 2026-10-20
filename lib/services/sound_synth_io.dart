@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
@@ -19,51 +18,9 @@ typedef _PlaySoundDart = int Function(
   int fdwSound,
 );
 
-// --- Definizioni FFI per Android NDK (libaaudio.so) ---
-typedef _AAudioCreateBuilderNative = Int32 Function(
-  Pointer<Pointer<Void>> builder,
-);
-typedef _AAudioCreateBuilderDart = int Function(
-  Pointer<Pointer<Void>> builder,
-);
-
-typedef _AAudioBuilderSetIntNative = Void Function(
-  Pointer<Void> builder,
-  Int32 value,
-);
-typedef _AAudioBuilderSetIntDart = void Function(
-  Pointer<Void> builder,
-  int value,
-);
-
-typedef _AAudioBuilderOpenStreamNative = Int32 Function(
-  Pointer<Void> builder,
-  Pointer<Pointer<Void>> stream,
-);
-typedef _AAudioBuilderOpenStreamDart = int Function(
-  Pointer<Void> builder,
-  Pointer<Pointer<Void>> stream,
-);
-
-typedef _AAudioStreamActionNative = Int32 Function(Pointer<Void> stream);
-typedef _AAudioStreamActionDart = int Function(Pointer<Void> stream);
-
-typedef _AAudioStreamWriteNative = Int32 Function(
-  Pointer<Void> stream,
-  Pointer<Int16> buffer,
-  Int32 numFrames,
-  Int64 timeoutNanoseconds,
-);
-typedef _AAudioStreamWriteDart = int Function(
-  Pointer<Void> stream,
-  Pointer<Int16> buffer,
-  int numFrames,
-  int timeoutNanoseconds,
-);
-
 /// Sintetizzatore procedurale di effetti sonori a 44.1kHz 16-bit in memoria.
 /// - Su Android: riproduce i buffer WAV tramite `SoundPool` nativo (`STREAM_MUSIC` / `USAGE_MEDIA`)
-///   su `MethodChannel`, con fallback immediato all'Isolate FFI `libaaudio.so` (stereo + flush).
+///   su `MethodChannel` (`MainActivity.kt`).
 /// - Su Windows: riproduce i buffer WAV tramite `winmm.dll` (`PlaySoundW`).
 class NativeSoundSynth {
   static const int _sampleRate = 44100;
@@ -76,7 +33,6 @@ class NativeSoundSynth {
       MethodChannel('com.example.ink_sling_daily/audio');
 
   _PlaySoundDart? _playSoundWin;
-  SendPort? _androidAudioPort;
   bool _androidSoundPoolReady = false;
   bool _initialized = false;
 
@@ -220,9 +176,6 @@ class NativeSoundSynth {
   }
 
   Future<void> _initAndroidAudio() async {
-    // Avvia anche il worker AAudio di fallback (utile durante i primi millisecondi o hot-restart)
-    unawaited(_startAndroidAAudioIsolate());
-
     // Prepara i WAV e li registra nel SoundPool nativo Android tramite MethodChannel
     try {
       final wavMap = <String, Uint8List>{
@@ -243,8 +196,6 @@ class NativeSoundSynth {
 
       final ok = await _androidAudioChannel.invokeMethod<bool>('initWavs', wavMap);
       if (ok == true) {
-        // Piccola attesa per completare il caricamento asincrono dei sample nel SoundPool
-        await Future<void>.delayed(const Duration(milliseconds: 60));
         _androidSoundPoolReady = true;
       }
     } catch (_) {
@@ -252,25 +203,11 @@ class NativeSoundSynth {
     }
   }
 
-  Future<void> _startAndroidAAudioIsolate() async {
-    try {
-      final receivePort = ReceivePort();
-      await Isolate.spawn(_androidAudioWorker, receivePort.sendPort);
-      final port = await receivePort.first;
-      if (port is SendPort) {
-        _androidAudioPort = port;
-      }
-    } catch (_) {}
-  }
-
   void stopAll() {
     if (Platform.isWindows && _playSoundWin != null) {
       _playSoundWin!(nullptr, 0, 0);
-    } else if (Platform.isAndroid) {
-      if (_androidSoundPoolReady) {
-        unawaited(_androidAudioChannel.invokeMethod<void>('stopAll'));
-      }
-      _androidAudioPort?.send('stop');
+    } else if (Platform.isAndroid && _androidSoundPoolReady) {
+      unawaited(_androidAudioChannel.invokeMethod<void>('stopAll'));
     }
   }
 
@@ -278,14 +215,10 @@ class NativeSoundSynth {
     if (!_initialized) init();
     if (Platform.isWindows && _playSoundWin != null && winWav != null) {
       _playSoundWin!(winWav, 0, _flags);
-    } else if (Platform.isAndroid) {
-      if (_androidSoundPoolReady) {
-        unawaited(
-          _androidAudioChannel.invokeMethod<void>('play', {'key': key}),
-        );
-      } else if (_androidAudioPort != null) {
-        _androidAudioPort!.send(pcm);
-      }
+    } else if (Platform.isAndroid && _androidSoundPoolReady) {
+      unawaited(
+        _androidAudioChannel.invokeMethod<void>('play', {'key': key}),
+      );
     }
   }
 
@@ -423,140 +356,3 @@ class NativeSoundSynth {
     return bytes.buffer.asUint8List();
   }
 }
-
-/// Worker Isolate Android di fallback tramite `libaaudio.so` (Stereo 2ch + Usage Media + Silence Flush).
-Future<void> _androidAudioWorker(SendPort mainSendPort) async {
-  final port = ReceivePort();
-  mainSendPort.send(port.sendPort);
-
-  DynamicLibrary aaudio;
-  try {
-    aaudio = DynamicLibrary.open('libaaudio.so');
-  } catch (_) {
-    return;
-  }
-
-  final createBuilder = aaudio.lookupFunction<
-      _AAudioCreateBuilderNative,
-      _AAudioCreateBuilderDart>('AAudio_createStreamBuilder');
-  final setFormat = aaudio.lookupFunction<
-      _AAudioBuilderSetIntNative,
-      _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setFormat');
-  final setChannels = aaudio.lookupFunction<
-      _AAudioBuilderSetIntNative,
-      _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setChannelCount');
-  final setSampleRate = aaudio.lookupFunction<
-      _AAudioBuilderSetIntNative,
-      _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setSampleRate');
-  final setPerfMode = aaudio.lookupFunction<
-      _AAudioBuilderSetIntNative,
-      _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setPerformanceMode');
-  final setUsage = aaudio.lookupFunction<
-      _AAudioBuilderSetIntNative,
-      _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setUsage');
-  final setContentType = aaudio.lookupFunction<
-      _AAudioBuilderSetIntNative,
-      _AAudioBuilderSetIntDart>('AAudioStreamBuilder_setContentType');
-  final openStream = aaudio.lookupFunction<
-      _AAudioBuilderOpenStreamNative,
-      _AAudioBuilderOpenStreamDart>('AAudioStreamBuilder_openStream');
-  final deleteBuilder = aaudio.lookupFunction<
-      _AAudioStreamActionNative,
-      _AAudioStreamActionDart>('AAudioStreamBuilder_delete');
-  final requestStart = aaudio.lookupFunction<
-      _AAudioStreamActionNative,
-      _AAudioStreamActionDart>('AAudioStream_requestStart');
-  final writeStream = aaudio.lookupFunction<
-      _AAudioStreamWriteNative,
-      _AAudioStreamWriteDart>('AAudioStream_write');
-  final closeStream = aaudio.lookupFunction<
-      _AAudioStreamActionNative,
-      _AAudioStreamActionDart>('AAudioStream_close');
-
-  Pointer<Void> openAAudioStream() {
-    final builderPtr = calloc<Pointer<Void>>();
-    final streamPtr = calloc<Pointer<Void>>();
-    try {
-      if (createBuilder(builderPtr) != 0) return nullptr;
-      final builder = builderPtr.value;
-      setFormat(builder, 1); // AAUDIO_FORMAT_PCM_I16 = 1
-      setChannels(builder, 2); // Stereo (2 canali interleaved per massima compatibilità hardware)
-      setSampleRate(builder, 44100);
-      setUsage(builder, 1); // AAUDIO_USAGE_MEDIA = 1
-      setContentType(builder, 2); // AAUDIO_CONTENT_TYPE_MUSIC = 2
-      setPerfMode(builder, 10); // AAUDIO_PERFORMANCE_MODE_NONE = 10 (usa mixer resampler Android)
-      final res = openStream(builder, streamPtr);
-      deleteBuilder(builder);
-      if (res != 0) return nullptr;
-      final stream = streamPtr.value;
-      requestStart(stream);
-      return stream;
-    } finally {
-      calloc.free(builderPtr);
-      calloc.free(streamPtr);
-    }
-  }
-
-  Pointer<Void> stream = nullptr;
-  const int chunkFrames = 512;
-  const int silenceFlushFrames = 2048;
-  // 2 canali stereo (L, R) per frame
-  final Pointer<Int16> chunkBuf = calloc<Int16>(chunkFrames * 2);
-
-  Int16List? activeSamples;
-  int sampleCursor = 0;
-  bool loopRunning = false;
-
-  Future<void> pumpAudio() async {
-    if (loopRunning) return;
-    loopRunning = true;
-    while (activeSamples != null) {
-      if (stream == nullptr) {
-        stream = openAAudioStream();
-        if (stream == nullptr) {
-          activeSamples = null;
-          break;
-        }
-      } else if (sampleCursor == 0) {
-        requestStart(stream);
-      }
-
-      final samples = activeSamples!;
-      final totalWithFlush = samples.length + silenceFlushFrames;
-      final remaining = totalWithFlush - sampleCursor;
-      if (remaining <= 0) {
-        activeSamples = null;
-        break;
-      }
-
-      final count = remaining < chunkFrames ? remaining : chunkFrames;
-      for (int i = 0; i < count; i++) {
-        final idx = sampleCursor + i;
-        final s = idx < samples.length ? samples[idx] : 0;
-        chunkBuf[i * 2] = s;
-        chunkBuf[i * 2 + 1] = s;
-      }
-      sampleCursor += count;
-
-      final written = writeStream(stream, chunkBuf, count, 100000000);
-      if (written < 0) {
-        closeStream(stream);
-        stream = openAAudioStream();
-      }
-      await Future<void>.delayed(Duration.zero);
-    }
-    loopRunning = false;
-  }
-
-  await for (final msg in port) {
-    if (msg == 'stop') {
-      activeSamples = null;
-      sampleCursor = 0;
-    } else if (msg is Int16List) {
-      activeSamples = msg;
-      sampleCursor = 0;
-      unawaited(pumpAudio());
-    }
-  }
-}
-

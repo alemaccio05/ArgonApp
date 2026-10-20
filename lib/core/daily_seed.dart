@@ -11,6 +11,7 @@ class LeaderboardEntry {
   final int progressPercent;
   final int bounces;
   final bool isCurrentUser;
+  final String avatarEmoji;
 
   const LeaderboardEntry({
     required this.rank,
@@ -20,6 +21,7 @@ class LeaderboardEntry {
     this.progressPercent = 0,
     this.bounces = 0,
     this.isCurrentUser = false,
+    this.avatarEmoji = '💧',
   });
 }
 
@@ -183,15 +185,17 @@ class DailySeedEngine {
 
   /// Genera la classifica della progressione livelli.
   /// - Gli sfidanti cambiano automaticamente ogni 7 giorni (`getWeeklySeed()`).
-  /// - I livelli iniziali degli sfidanti sono accessibili (Liv. 1..14) e i loro rimbalzi sono
-  ///   proporzionati ai metri scalati e un po' più alti del normale, così il giocatore può superarli con soddisfazione.
+  /// - I bot avanzano al proprio ritmo naturale in base alle partite giocate dal giocatore (`totalLevelsPlayed` vinti o persi):
+  ///   ogni 4-8 partite un bot può avanzare di 1 livello (circa 1-3 livelli ogni 10 partite).
+  /// - Non esiste più alcun rubber-banding sleale: se il giocatore supera il bot in vetta, CONQUISTA IL 1° POSTO (#1)!
   /// - Valuta con priorità: 1) Livello -> 2) Percentuale -> 3) Minor numero di rimbalzi.
-  /// - Il livello di uno sfidante aumenta SOLO quando il giocatore riesce a superarlo.
   static List<LeaderboardEntry> getGlobalLeaderboard({
     required String playerName,
     required int playerLevel,
     required double playerBestMeters,
     int playerBounces = 0,
+    int totalLevelsPlayed = 0,
+    String playerAvatarEmoji = '💧',
   }) {
     final playerGoal = getLevelGoalMeters(playerLevel);
     final playerPct =
@@ -213,51 +217,34 @@ class DailySeedEngine {
       indices[j] = tmp;
     }
 
-    // Livelli base accessibili (dal Liv. 12 giù fino al Liv. 1) con percentuali moderate
-    // per permettere al giocatore di scalare la classifica con facilità e gratificazione!
+    // Livelli base accessibili degli sfidanti all'inizio (dal Liv. 12 giù fino al Liv. 1)
     const baseLevels = [12, 10, 9, 7, 6, 5, 4, 3, 3, 2, 1, 1];
     const basePcts = [74, 68, 64, 60, 56, 52, 48, 44, 38, 34, 28, 22];
-    const maxBoosts = [999, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1];
-
-    bool isOvertaken(int rLevel, int rPct, int rBounces) {
-      if (playerLevel != rLevel) return playerLevel > rLevel;
-      if (playerPct != rPct) return playerPct > rPct;
-      if (playerPct == 0 || effectivePlayerBounces == 0) return false;
-      return effectivePlayerBounces < rBounces;
-    }
 
     final all = <LeaderboardEntry>[];
     for (int i = 0; i < 12; i++) {
       final rName = _dailyChallengerPool[indices[i]];
-      int rLevel = baseLevels[i];
-      int rPct = (basePcts[i] + (rng.nextInt(7) - 3)).clamp(18, 82);
-      final maxBoost = maxBoosts[i];
 
-      double rGoal = getLevelGoalMeters(rLevel);
-      double rMeters =
+      // Cadenza naturale di ogni bot: avanza di 1 livello ogni 4..8 partite giocate dal giocatore (sia vinte che perse).
+      // In un blocco di 1-10 partite, i bot incrementano di poco (es. 1 livello, massimo 2-3).
+      final botCadence = 4 + ((i * 3 + weekSeed) % 5); // tra 4 e 8 partite per livello
+      final levelIncrement = (totalLevelsPlayed / botCadence).floor();
+      final rLevel = baseLevels[i] + levelIncrement;
+
+      // La percentuale varia morbidamente con le partite giocate
+      final pctVariation = ((totalLevelsPlayed * (i + 3) + i * 11 + weekSeed) % 21) - 10;
+      final rPct = (basePcts[i] + pctVariation).clamp(15, 88);
+
+      final rGoal = getLevelGoalMeters(rLevel);
+      final rMeters =
           double.parse(((rPct / 100.0) * rGoal).toStringAsFixed(1));
-      int rBounces = computeRealisticRivalBounces(
+      final rBounces = computeRealisticRivalBounces(
         metersClimbed: rMeters,
         difficultyLevel: rLevel,
-        rivalIndex: i,
+        rivalIndex: i + levelIncrement,
       );
 
-      int boostsUsed = 0;
-      while (boostsUsed < maxBoost && isOvertaken(rLevel, rPct, rBounces)) {
-        rLevel += 1;
-        boostsUsed += 1;
-        // Sul nuovo livello lo sfidante si ferma a una percentuale bassa/media (22%..52%)
-        // così il giocatore può risuperarlo facilmente!
-        rPct = 22 + ((i * 9 + boostsUsed * 13 + weekSeed) % 31);
-        rGoal = getLevelGoalMeters(rLevel);
-        rMeters = double.parse(((rPct / 100.0) * rGoal).toStringAsFixed(1));
-        rBounces = computeRealisticRivalBounces(
-          metersClimbed: rMeters,
-          difficultyLevel: rLevel,
-          rivalIndex: i + boostsUsed,
-        );
-      }
-
+      const botAvatars = ['⚪', '🍃', '🥷', '🎋', '🕊️', '🐉', '⚡', '🖌️', '💧', '🥈', '🥉', '👑'];
       all.add(
         LeaderboardEntry(
           rank: 0,
@@ -266,6 +253,7 @@ class DailySeedEngine {
           bestMeters: rMeters,
           progressPercent: rPct,
           bounces: rBounces,
+          avatarEmoji: botAvatars[i % botAvatars.length],
         ),
       );
     }
@@ -279,10 +267,11 @@ class DailySeedEngine {
         progressPercent: playerPct,
         bounces: effectivePlayerBounces,
         isCurrentUser: true,
+        avatarEmoji: playerAvatarEmoji,
       ),
     );
 
-    // Ordine rigoroso: 1) Livello (decrescente) -> 2) Percentuale (decrescente) -> 3) Rimbalzi (crescente)
+    // Ordine rigoroso: 1) Livello (decrescente) -> 2) Percentuale (decrescente) -> 3) Minor numero di rimbalzi (crescente)
     all.sort((a, b) {
       final lvlCmp = b.level.compareTo(a.level);
       if (lvlCmp != 0) return lvlCmp;
@@ -308,6 +297,7 @@ class DailySeedEngine {
           progressPercent: all[i].progressPercent,
           bounces: all[i].bounces,
           isCurrentUser: all[i].isCurrentUser,
+          avatarEmoji: all[i].avatarEmoji,
         ),
     ];
   }
@@ -321,6 +311,7 @@ class DailySeedEngine {
     required double playerBestMetersToday,
     required bool completedToday,
     int playerBouncesToday = 0,
+    String playerAvatarEmoji = '💧',
   }) {
     final seed = getTodaySeed();
     final rng = Random(seed ^ 0x7A3B91);
@@ -339,29 +330,47 @@ class DailySeedEngine {
 
     final all = <LeaderboardEntry>[];
     for (int i = 0; i < dailyNames.length; i++) {
-      // Nella Torre di Oggi (100m a difficoltà crescente) gli sfidanti si fermano
-      // ad altezze battibili (tra ~16m e ~78m), con rimbalzi realistici (es. ~48-55 rimbalzi per 75m).
-      final meters = double.parse(
-        (76.5 - i * 5.2 - rng.nextDouble() * 3.2)
-            .clamp(14.5, 79.5)
-            .toStringAsFixed(1),
-      );
+      // Nella Torre di Oggi (100m a difficoltà crescente):
+      // - I primi 2 sfidanti della giornata hanno completato la scalata (100m) con un ottimo numero di rimbalzi:
+      //   Rival 0: ~39-44 rimbalzi (punteggio di vertice)
+      //   Rival 1: ~48-53 rimbalzi (ottimo punteggio)
+      // - Gli altri sfidanti si posizionano ad altezze realistiche tra 16m e 92m.
+      // In questo modo il giocatore può completare la torre e poi usare i tentativi restanti
+      // per ottimizzare i rimbalzi e scalare la vetta della classifica (#1)!
+      double meters;
+      int bounces;
+      if (i == 0) {
+        meters = 100.0;
+        bounces = 39 + rng.nextInt(6);
+      } else if (i == 1) {
+        meters = 100.0;
+        bounces = 48 + rng.nextInt(6);
+      } else {
+        meters = double.parse(
+          (92.0 - (i - 2) * 6.5 - rng.nextDouble() * 3.8)
+              .clamp(15.0, 93.5)
+              .toStringAsFixed(1),
+        );
+        final effectiveDifficultyAtHeight =
+            (1 + (meters / 15.0).floor()).clamp(1, 7);
+        bounces = computeRealisticRivalBounces(
+          metersClimbed: meters,
+          difficultyLevel: effectiveDifficultyAtHeight,
+          rivalIndex: i + 2,
+        );
+      }
       final pct = meters.round().clamp(0, 100);
-      final effectiveDifficultyAtHeight = (1 + (meters / 15.0).floor()).clamp(1, 7);
-      final bounces = computeRealisticRivalBounces(
-        metersClimbed: meters,
-        difficultyLevel: effectiveDifficultyAtHeight,
-        rivalIndex: i + 2,
-      );
 
+      const botAvatars = ['⚪', '🍃', '🥷', '🎋', '🕊️', '🐉', '⚡', '🖌️', '💧', '🥈', '🥉', '👑'];
       all.add(
         LeaderboardEntry(
           rank: 0,
           name: dailyNames[i],
-          level: 0,
+          level: meters >= 100.0 ? 1 : 0,
           bestMeters: meters,
           progressPercent: pct,
           bounces: bounces,
+          avatarEmoji: botAvatars[i % botAvatars.length],
         ),
       );
     }
@@ -383,6 +392,7 @@ class DailySeedEngine {
         progressPercent: effectivePct,
         bounces: effectiveBounces,
         isCurrentUser: true,
+        avatarEmoji: playerAvatarEmoji,
       ),
     );
 
@@ -406,6 +416,7 @@ class DailySeedEngine {
           progressPercent: all[i].progressPercent,
           bounces: all[i].bounces,
           isCurrentUser: all[i].isCurrentUser,
+          avatarEmoji: all[i].avatarEmoji,
         ),
     ];
   }
