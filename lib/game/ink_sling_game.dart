@@ -6,6 +6,7 @@ import 'package:flame/particles.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_strings.dart';
+import '../core/ball_skins.dart';
 import '../core/daily_seed.dart';
 import '../core/palette_theme.dart';
 import '../services/audio_haptics_service.dart';
@@ -48,8 +49,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   final AudioHapticsService audioHaptics;
   final MonetizationService monetization;
 
-  late PlayerCore player;
-  late InkFloodWave inkFlood;
+  late PlayerCore player = PlayerCore(position: Vector2(0, -20));
+  late InkFloodWave inkFlood = InkFloodWave(startY: 115);
 
   // Transizione fluida tra i temi (600ms con curva easeInOutCubic)
   late RisographPalette _fromPalette;
@@ -212,6 +213,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       difficultyLevel: 2,
       isDemoTower: true,
     );
+
+    player.isDead = false;
   }
 
   /// Costruisce una torre deterministica regolando la difficoltà attraverso i nuovi ostacoli
@@ -449,6 +452,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     maxMetersReached = 0.0;
     runTimeSeconds = 0.0;
     totalBounces = 0;
+    player.isDead = false;
     metersNotifier.value = 0.0;
     chargesNotifier.value = PlayerCore.maxAirCharges;
     comboNotifier.value = 0;
@@ -465,6 +469,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     if (reviveUsed) return;
     reviveUsed = true;
     isPlaying = true;
+    player.isDead = false;
 
     final reviveY = -maxMetersReached * DailySeedEngine.metersToPixels;
 
@@ -531,15 +536,24 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     if (victory) {
       maxMetersReached = currentGoalMeters;
       metersNotifier.value = currentGoalMeters;
+      triggerHitStop(0.055);
+      addCameraTrauma(0.75);
+      spawnInkDrops(
+        player.position.clone(),
+        palette.ochreSeal,
+        count: 30,
+      );
+    } else {
+      player.isDead = true;
+      triggerHitStop(0.08);
+      addCameraTrauma(0.85);
+      final skin = BallSkinsCatalog.getById(storage.selectedBallSkinId);
+      spawnInkDeathExplosion(
+        player.position.clone(),
+        skin.getCoreColor(palette),
+        palette.vermilionHazard,
+      );
     }
-
-    triggerHitStop(0.055);
-    addCameraTrauma(0.75);
-    spawnInkDrops(
-      player.position.clone(),
-      victory ? palette.ochreSeal : palette.vermilionHazard,
-      count: 30,
-    );
     audioHaptics.onCrashOrVictory(victory: victory);
 
     final prevMaxLevel = storage.currentTowerLevel;
@@ -558,6 +572,16 @@ class InkSlingGame extends FlameGame with DragCallbacks {
         activeMode == GameMode.levelProgression &&
         victory &&
         storage.currentTowerLevel > prevMaxLevel;
+
+    monetization.recordRunCompleted();
+
+    if (!victory) {
+      // Lascia almeno 1.1 secondi per godersi l'effetto visivo dell'esplosione d'inchiostro
+      // e il camera shake prima di mostrare la schermata di sconfitta
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
+    }
+
+    if (isMenuDemo) return;
 
     overlays.remove('Hud');
     overlays.add('GameOver');
@@ -635,6 +659,67 @@ class InkSlingGame extends FlameGame with DragCallbacks {
               child: CircleParticle(
                 radius: 2.5 + _fxRng.nextDouble() * 3.0,
                 paint: Paint()..color = color,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Esplosione drammatica e soddisfacente della palla:
+  /// - 3 macchie d'inchiostro permanenti impresse sulla carta della torre
+  /// - Pioggia radiale di 65 gocce d'inchiostro con gravità, attrito e sfumature dual-tone
+  void spawnInkDeathExplosion(
+    Vector2 pos,
+    Color primaryColor,
+    Color secondaryColor,
+  ) {
+    addInkStamp(
+      position: pos,
+      isWall: false,
+      color: primaryColor,
+    );
+    addInkStamp(
+      position: pos +
+          Vector2((_fxRng.nextDouble() - 0.5) * 22.0,
+              (_fxRng.nextDouble() - 0.5) * 22.0),
+      isWall: false,
+      color: secondaryColor,
+    );
+    addInkStamp(
+      position: pos +
+          Vector2((_fxRng.nextDouble() - 0.5) * 32.0,
+              (_fxRng.nextDouble() - 0.5) * 32.0),
+      isWall: false,
+      color: primaryColor.withAlpha((0.65 * 255).round()),
+    );
+
+    world.add(
+      ParticleSystemComponent(
+        position: pos,
+        particle: Particle.generate(
+          count: 65,
+          lifespan: 0.68,
+          generator: (i) {
+            final angle = _fxRng.nextDouble() * pi * 2;
+            final isHeavyBlob = i % 7 == 0;
+            final isSecondary = i % 3 == 0;
+            final speed = isHeavyBlob
+                ? 140.0 + _fxRng.nextDouble() * 340.0
+                : 60.0 + _fxRng.nextDouble() * 480.0;
+            final vel = Vector2(cos(angle), sin(angle)) * speed;
+            final dropRadius = isHeavyBlob
+                ? 6.0 + _fxRng.nextDouble() * 4.5
+                : 2.0 + _fxRng.nextDouble() * 3.5;
+            final particleColor = isSecondary ? secondaryColor : primaryColor;
+
+            return AcceleratedParticle(
+              speed: vel,
+              acceleration: -vel * 1.5 + Vector2(0, 360.0),
+              child: CircleParticle(
+                radius: dropRadius,
+                paint: Paint()..color = particleColor,
               ),
             );
           },

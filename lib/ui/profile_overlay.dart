@@ -188,7 +188,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                                     ElevatedButton(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: p.matchaSafe,
-                                        foregroundColor: Colors.white,
+                                        foregroundColor: p.onMatchaSafe,
                                         elevation: 0,
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 10,
@@ -681,8 +681,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
                   ),
                   child: Text(
                     s.equippedBadge,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: p.onMatchaSafe,
                       fontSize: 8.5,
                       fontWeight: FontWeight.w900,
                     ),
@@ -800,7 +800,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: p.ochreSeal,
-                    foregroundColor: Colors.white,
+                    foregroundColor: p.onOchreSeal,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     shape: RoundedRectangleBorder(

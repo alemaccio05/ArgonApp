@@ -718,8 +718,8 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                                 ? '${s.levelShort}\n$_selectedLevel'
                                 : '100\n${s.metersUnit}',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: p.onMatchaSafe,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w900,
                               height: 1.1,
@@ -902,8 +902,8 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                                         ),
                                         child: Text(
                                           equippedBallSkin.getName(s),
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: p.onOchreSeal,
                                             fontSize: 8.5,
                                             fontWeight: FontWeight.w900,
                                           ),

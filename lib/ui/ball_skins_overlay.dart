@@ -191,8 +191,8 @@ class _BallSkinsDialogState extends State<BallSkinsDialog>
                                   ),
                                   child: Text(
                                     s.equippedBadge,
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: p.onMatchaSafe,
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w900,
                                     ),
@@ -204,7 +204,7 @@ class _BallSkinsDialogState extends State<BallSkinsDialog>
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: p.playerFill,
-                                      foregroundColor: Colors.white,
+                                      foregroundColor: p.onPlayerFill,
                                       elevation: 0,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,

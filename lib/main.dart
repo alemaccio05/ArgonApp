@@ -47,9 +47,10 @@ class InkSlingApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF4EFE6),
+        scaffoldBackgroundColor: const Color(0xFF1E1E24),
       ),
       home: Scaffold(
+        backgroundColor: const Color(0xFF1E1E24),
         body: GameWidget<InkSlingGame>(
           game: game,
           overlayBuilderMap: {

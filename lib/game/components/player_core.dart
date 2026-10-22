@@ -19,6 +19,7 @@ class PlayerCore extends PositionComponent
   Vector2 prevPosition = Vector2.zero();
   int airCharges = maxAirCharges;
   double shieldTimer = 0.0;
+  bool isDead = false;
   double _squashImpactTimer = 0.0;
   double _ringRotation = 0.0;
   final List<Vector2> _brushTrail = [];
@@ -243,11 +244,43 @@ class PlayerCore extends PositionComponent
 
     // Se la palla è incollata a una piattaforma verde, resta ferma lì sopra!
     if (stuckPlatform != null) {
-      position = stuckPlatform!.position + _stuckLocalOffset;
+      final pad = stuckPlatform!;
+      position = pad.position + _stuckLocalOffset;
       prevPosition = position.clone();
       velocity.setZero();
       if (_brushTrail.isNotEmpty) {
         _brushTrail.removeAt(0);
+      }
+
+      // Controllo schiacciamento: se la palla si trova sul fianco di una piattaforma mobile
+      // e finisce schiacciata contro la parete prima di staccarsi
+      if (pad.movingSpeed > 0) {
+        final wallLimit = game.towerHalfWidth;
+        final isCrushedRight = _stuckNormal.x > 0.35 && (position.x + radius >= wallLimit - 1.0);
+        final isCrushedLeft = _stuckNormal.x < -0.35 && (position.x - radius <= -wallLimit + 1.0);
+
+        if (isCrushedRight || isCrushedLeft) {
+          if (game.isMenuDemo) {
+            final ejectDir = isCrushedRight ? -1.0 : 1.0;
+            launch(Vector2(ejectDir * 320.0, -420.0), silent: true);
+            return;
+          }
+
+          if (shieldTimer > 0) {
+            shieldTimer = 0.0;
+            stuckPlatform = null;
+            final ejectDir = isCrushedRight ? -1.0 : 1.0;
+            velocity = Vector2(ejectDir * 360.0, -300.0);
+            game.addCameraTrauma(0.55);
+            game.audioHaptics.onShieldBreak();
+            return;
+          }
+
+          // Schiacciato contro la parete della torre
+          stuckPlatform = null;
+          game.triggerGameOver(victory: false);
+          return;
+        }
       }
       return;
     }
@@ -326,6 +359,7 @@ class PlayerCore extends PositionComponent
 
   @override
   void render(Canvas canvas) {
+    if (isDead) return;
     final p = game.palette;
     final center = Offset(size.x / 2, size.y / 2);
     final skin = BallSkinsCatalog.getById(game.storage.selectedBallSkinId);

@@ -9,6 +9,42 @@ import 'package:flutter/material.dart';
 class MonetizationService {
   bool isAdReady = true;
 
+  /// Conteggio partite della sessione corrente per proteggere i primi minuti di gioco (Grace Period)
+  int sessionRunsPlayed = 0;
+
+  /// Timestamp dell'ultimo annuncio a schermo intero mostrato
+  DateTime? _lastInterstitialTime;
+
+  /// Minimo intervallo tra due annunci Interstitial forzati (3 minuti = 180s)
+  static const int minInterstitialIntervalSeconds = 180;
+
+  /// Minimo numero di tentativi giocati prima di mostrare qualsiasi Interstitial
+  static const int minRunsBeforeFirstInterstitial = 3;
+
+  /// Incrementa il conteggio partite giocate in questa sessione
+  void recordRunCompleted() {
+    sessionRunsPlayed++;
+  }
+
+  /// Verifica se è consentito mostrare un annuncio Interstitial rispettando le policy etiche:
+  /// - Mai se l'utente ha sbloccato Pro (Rimuovi Ads)
+  /// - Mai nei primi tentativi della sessione (Grace Period)
+  /// - Mai a meno di 3-5 minuti dall'ultimo annuncio
+  bool shouldShowInterstitial({required bool isProUnlocked}) {
+    if (isProUnlocked) return false;
+    if (sessionRunsPlayed < minRunsBeforeFirstInterstitial) return false;
+    if (_lastInterstitialTime != null) {
+      final elapsed = DateTime.now().difference(_lastInterstitialTime!).inSeconds;
+      if (elapsed < minInterstitialIntervalSeconds) return false;
+    }
+    return isAdReady;
+  }
+
+  /// Registra l'avvenuta visualizzazione di un Interstitial
+  void recordInterstitialShown() {
+    _lastInterstitialTime = DateTime.now();
+  }
+
   Future<bool> showRewardedAd({
     required BuildContext context,
     required String rewardTitle,

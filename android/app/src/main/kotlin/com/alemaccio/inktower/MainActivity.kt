@@ -1,4 +1,4 @@
-package com.example.ink_sling_daily
+package com.alemaccio.inktower
 
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 class MainActivity : FlutterActivity() {
-    private val channelName = "com.example.ink_sling_daily/audio"
+    private val channelName = "com.alemaccio.inktower/audio"
     private var soundPool: SoundPool? = null
     private val soundIds = ConcurrentHashMap<String, Int>()
     private val loadedSampleIds = ConcurrentHashMap.newKeySet<Int>()

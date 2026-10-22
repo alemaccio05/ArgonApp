@@ -1,9 +1,9 @@
 # PROJECT MEMORY — INK TOWER: Climb & Stick (`ArgonApp`)
 
-> **Ultimo aggiornamento:** 20 Ottobre 2026  
-> **Nome Ufficiale In-Game:** **INK TOWER: Climb & Stick** (Package: `ink_sling_daily`)  
+> **Ultimo aggiornamento:** 22 Ottobre 2026  
+> **Nome Ufficiale In-Game:** **INK TOWER: Climb & Stick** (Application ID: `com.alemaccio.inktower`, Package: `ink_sling_daily`)  
 > **Motore:** Flutter 3.44.x + Flame (`>=1.14.0 <2.0.0`) • Dart 3.12.x  
-> **Toolchain Android:** Android Gradle Plugin 9.0.1 (Built-in Kotlin nativo, Gradle Kotlin DSL `.kts`)  
+> **Toolchain Android:** Android Gradle Plugin 9.0.1 (Built-in Kotlin 2.2.20, Gradle Kotlin DSL `.kts`)  
 > **Target:** Android (Google Play Store), iOS, Windows, Web  
 
 ---
@@ -18,9 +18,11 @@
   2. **Rilascia per saltare:** Spara la sfera d'inchiostro nella direzione opposta al trascinamento con potenza regolabile (440–900 px/s).
   3. **Piattaforme Verdi Adesive ("Sticky Pads"):** Quando la sfera impatta una piattaforma verde (`BlockType.matchaPad`), **si incolla istantaneamente e si ferma** (`PlayerCore.stickToPlatform`). Il giocatore può riprendere fiato, studiare il percorso e mirare con calma il salto successivo.
   4. **Sistema a 3 Lanci Ricaricabili (`maxAirCharges = 3`):** Il giocatore ha a disposizione 3 lanci per ogni sequenza in volo. I lanci **si ricaricano al 100%** ogni volta che si incolla a una piattaforma verde o raccoglie un Sigillo di Boost dorato (`BlockType.hankoSeal`). Se si esauriscono i lanci a mezz'aria, toccare una parete laterale restituisce 1 lancio di emergenza per non restare mai bloccati.
-* **Condizioni di Sconfitta:**
-  1. Impatto contro una barriera vermiglio (`vermilionHazard`, `verticalPatrolHazard`, `pulsingLaserHazard`) senza avere lo Scudo d'Inchiostro attivo.
-  2. Raggiungimento da parte dell'Onda d'Inchiostro (`InkFloodWave`) che sale dal basso. L'onda parte solo dopo aver superato gli 8 metri e rallenta automaticamente quando il giocatore è fermo su una piattaforma verde a mirare.
+* **Condizioni di Sconfitta & Meccanica Mortale:**
+  1. **Ostacoli Vermiglio:** Impatto contro una barriera vermiglio (`vermilionHazard`, `verticalPatrolHazard`, `pulsingLaserHazard` attivo) senza scudo.
+  2. **Marea d'Inchiostro:** Raggiungimento da parte dell'Onda d'Inchiostro (`InkFloodWave`) che sale dal basso. L'onda parte dopo gli 8 metri e rallenta quando il giocatore mira dalla piattaforma.
+  3. **Schiacciamento contro il Muro ("Wall Crush"):** Se la sfera è incollata sul lato esterno di una piattaforma verde mobile e finisce compressa contro la parete in pietra della torre prima di saltare via.
+  4. **Esplosione d'Inchiostro alla Morte:** Alla sconfitta, il flag `player.isDead = true` nasconde la sfera solida ed emette `spawnInkDeathExplosion`: 65 particelle dual-tone (colore skin + vermiglio pericolo) con fisica radiale, gravità, air-drag e macchie permanenti sulla torre. Tutti gli ostacoli interrompono immediatamente i controlli di collisione per evitare anomalie post-mortem, e la schermata di sconfitta (`GameOverOverlay`) attende 1.1 secondi prima di apparire per consentire al giocatore di godersi pienamente l'effetto visivo e il camera shake.
 
 ---
 
@@ -59,11 +61,11 @@ L'app adotta un'architettura a doppio canale che massimizza sia la ritenzione qu
 | :--- | :--- | :--- |
 | **Piattaforma Verde** | `BlockType.matchaPad` | Piattaforma adesiva elastica; la palla si incolla e ricarica i lanci a 3. |
 | **Piattaforma Friabile** | `BlockType.crumblingPad` | Piattaforma adesiva a tempo; trema e collassa 1 secondo dopo l'impatto. |
-| **Piattaforma Mobile** | `BlockType.movingPad` | Piattaforma verde adesiva che oscilla orizzontalmente in modo sinusoidale. |
+| **Piattaforma Mobile** | `BlockType.movingPad` | Piattaforma verde adesiva che oscilla orizzontalmente in modo sinusoidale; se la sfera si trova sul fianco e tocca la parete, viene schiacciata. |
 | **Respingente Pinball** | `BlockType.bumperPin` | Perno circolare elastico; respinge la sfera con forte spinta cinetica e feedback percussivo. |
 | **Barriera Vermiglio** | `BlockType.vermilionHazard` | Barriera rossa letale con tratteggio serigrafico; statica o mobile orizzontale. |
 | **Pattuglia Verticale** | `BlockType.verticalPatrolHazard` | Lama vermiglio che pattuglia verticalmente un corridoio della torre. |
-| **Varco Laser** | `BlockType.pulsingLaserHazard` | Raggio laser pulsante che si accende e si spegne a intervalli ciclici di 1.6 secondi. |
+| **Varco Laser** | `BlockType.pulsingLaserHazard` | Raggio laser pulsante che si accende e si spegne a intervalli ciclici di 1.6s; quando è spento, la palla lo attraversa liberamente senza snapping (grazie al bypass CCD preventivo). |
 | **Sigillo Hanko** | `BlockType.hankoSeal` | Sigillo dorato; conferisce spinta verso l'alto, ricarica i 3 lanci e aumenta la combo pentatonica. |
 | **Marea d'Inchiostro** | `InkFloodWave` | Onda inferiore che sale dopo gli 8m; rallenta quando il giocatore mira dalla piattaforma. |
 
@@ -74,7 +76,7 @@ L'app adotta un'architettura a doppio canale che massimizza sia la ritenzione qu
 ### Sintetizzatore Audio Nativo (`NativeSoundSynth` + `SoundPool` Android)
 * Nessuna dipendenza da asset audio esterni o file pesanti: l'audio è **sintetizzato a runtime a 44.1kHz PCM/WAV** a latenza ultra-bassa tramite `sound_synth_io.dart` (con fallback su `sound_synth_stub.dart` su web).
 * **Architettura Audio Multipiattaforma:**
-  * **Android (`MainActivity.kt` + `sound_synth_io.dart`):** I buffer WAV generati in memoria vengono caricati nel `SoundPool` nativo Android (`AudioAttributes.USAGE_MEDIA` + `CONTENT_TYPE_MUSIC`, 12 stream polifonici simultanei e `volumeControlStream = AudioManager.STREAM_MUSIC`) tramite il `MethodChannel('com.example.ink_sling_daily/audio')` con I/O asincrono su background thread.
+  * **Android (`MainActivity.kt` + `sound_synth_io.dart`):** I buffer WAV generati in memoria vengono caricati nel `SoundPool` nativo Android (`AudioAttributes.USAGE_MEDIA` + `CONTENT_TYPE_MUSIC`, 12 stream polifonici simultanei e `volumeControlStream = AudioManager.STREAM_MUSIC`) tramite il `MethodChannel('com.alemaccio.inktower/audio')` con I/O asincrono su background thread.
   * **Windows (`sound_synth_io.dart`):** Riproduzione diretta in memoria nativa tramite `winmm.dll` (`PlaySoundW`).
 * Include sound design procedurale con armoniche ottimizzate anche per speaker di smartphone per:
   * Tick tattile di mira
@@ -99,28 +101,35 @@ L'app adotta un'architettura a doppio canale che massimizza sia la ritenzione qu
 
 ```text
 lib/
-├── main.dart                              # Entrypoint, blocco orientamento verticale, MaterialApp, GameWidget e Overlays
+├── main.dart                              # Entrypoint, blocco orientamento verticale, MaterialApp pulito, GameWidget e Overlays reattivi (zero build conflicts)
 ├── core/
 │   ├── app_strings.dart                   # Sistema multilingua (6 lingue: IT, EN, ES, FR, DE, PT) e tutte le stringhe UI
+│   ├── ball_skins.dart                    # Catalogo delle 10 skin sbloccabili, requisiti, colori dinamici per palette e painter personalizzati
+│   ├── profile_icons.dart                 # Catalogo dei 12 avatar profilo sbloccabili con traguardi e requisiti
 │   ├── daily_seed.dart                    # Seed deterministico per Livelli (1..N) e Giornaliero (YYYYMMDD), classifiche dinamiche e scontrino share
-│   └── palette_theme.dart                 # 3 Temi Risograph (Sabbia, Notte, Salvia) e RisographPalette.lerp fluido
+│   └── palette_theme.dart                 # 3 Temi Risograph (Sabbia, Notte, Salvia), lerp fluido e getter ad alto contrasto (onMatchaSafe, onOchreSeal, ecc.)
 ├── services/
-│   ├── storage_service.dart               # Persistenza SharedPreferences (livello corrente, partite giocate, record metri/rimbalzi, vite, nome, lingua, audio, palette)
+│   ├── storage_service.dart               # Persistenza SharedPreferences (livello corrente, partite giocate, record metri/rimbalzi, vite, nome, lingua, audio, palette, skin)
 │   ├── audio_haptics_service.dart         # Bridge per feedback aptici e gestione eventi sonori con controllo ON/OFF
 │   ├── sound_synth_io.dart                # Sintetizzatore PCM/WAV 44.1kHz procedurale nativo (SoundPool Android + winmm Windows)
 │   ├── sound_synth_stub.dart              # Stub del sintetizzatore audio per ambienti non-I/O (Web)
 │   └── monetization_service.dart          # Gestione flussi Rewarded Ad (Revive Scudo / +1 Vita Giornaliera)
 ├── game/
-│   ├── ink_sling_game.dart                # FlameGame principale: loop di gioco, Bullet-Time, Ink Stamps permanenti, demo menu cinematica
+│   ├── ink_sling_game.dart                # FlameGame principale: loop di gioco, Bullet-Time, Ink Stamps permanenti, demo menu cinematica, esplosione morte
 │   └── components/
-│       ├── player_core.dart               # Sfera d'inchiostro: fisica, stickToPlatform, cariche aeree, scia, squash & stretch, scudo
-│       ├── obstacle_block.dart            # Tutti i tipi di blocchi (matcha, crumbling, moving, bumper, hazard, vertical, laser, hanko)
+│       ├── player_core.dart               # Sfera d'inchiostro: fisica, stickToPlatform, cariche aeree, scia, squash & stretch, scudo, schiacciamento muro
+│       ├── obstacle_block.dart            # Tutti i tipi di blocchi (matcha, crumbling, moving, bumper, hazard, vertical, laser CCD-safe, hanko)
 │       ├── ink_flood_wave.dart            # Onda d'inchiostro inferiore con salita adattiva
 │       └── floating_label.dart            # Etichette animate a scomparsa (+SLANCIO!, SCUDO!)
 └── ui/
     ├── main_menu_overlay.dart             # Menu principale con demo animata in background, selettore modalità/livello, classifiche, lingua, audio
     ├── hud_overlay.dart                   # Barra superiore in-game: metri attuali/traguardo, cariche rimaste, combo, cambio palette
-    └── game_over_overlay.dart             # Overlay fine partita: mini-mappa 0-100m Canvas, riepilogo scontrino, share_plus, revive e riprova
+    ├── game_over_overlay.dart             # Overlay fine partita: mini-mappa 0-100m Canvas, riepilogo scontrino, share_plus, revive e riprova
+    ├── ball_skins_overlay.dart            # Studio interattivo delle skin: anteprima rotante della sfera, progressione e sblocco
+    └── profile_overlay.dart               # Profilo giocatore: avatar collezionabili, statistiche dettagliate, nickname inline
+test/
+├── daily_seed_test.dart                   # Test unitari determinismo semi, classifiche, progressione traguardi, localizzazione e cataloghi
+└── gameplay_mechanics_test.dart           # Test leggibilità contrasto palette, inizializzazione fisica sfera e proprietà ostacoli letali/mobili
 ```
 
 ---
@@ -133,6 +142,8 @@ lib/
      * **Sabbia (`washi_ivory`):** Default caldo (`#F4EFE6`) con sfera Blu Klein (`#1D3557`), piattaforme verdi (`#2A9D8F`) e ostacoli rossi (`#D62828`).
      * **Notte (`sumi_charcoal`):** Antracite morbido (`#232426`) con elementi crema, salvia e corallo.
      * **Salvia (`kyoto_matcha`):** Carta botanica verde rilassante (`#E9F0E6`) con verde foresta e cremisi.
+   * **Sistema di Contrasto Dinamico per Testo e Badge (`RisographPalette`):**
+     * Per garantire leggibilità totale nei 3 temi, l'app calcola getter contrastati dinamici (`onMatchaSafe`, `onOchreSeal`, `onPlayerFill`, `onVermilionHazard`). Sia su sfondi chiari che scuri, il testo e le icone all'interno di pulsanti colorati, badge e card rimangono perfettamente nitidi e conformi alle norme WCAG.
 2. **Macchie d'Inchiostro Permanenti sulla Torre ("Ink Stamps"):**
    * Ogni rimbalzo contro le mura laterali, atterraggio/rimbalzo sulle piattaforme verdi o impatto coi respingenti Pinball imprime sulla carta della torre una macchia d'inchiostro permanente (`InkStamp`) con micro-gocce satelliti orientate in modo deterministico, donando un senso tangibile di conquista visiva della parete durante la scalata.
 3. **Menu Demo Background Cinematica Senza Loop & "Zona Franca" Seconda Chance (`reviveWithShield`):**
@@ -177,16 +188,26 @@ lib/
   * **Audio Nativo Android Sicuro (`SoundPool` Nativo):** Rimossa la dipendenza dall'isolate FFI AAudio (`libaaudio.so`), lasciando la gestione audio interamente al `SoundPool` nativo di `MainActivity.kt` con caricamento WAV asincrono su thread in background per non bloccare mai l'UI thread.
   * **Correzione Widget ParentData (`Flexible` nidificato):** Rimosso il `Flexible` superfluo all'interno di `OutlinedButton.icon` ed `ElevatedButton.icon` che causava asserzioni fatali sul frame iniziale dell'overlay.
   * **Configurazione Gradle Release Pulita:** Disabilitata minificazione aggressiva R8 non necessaria (`isMinifyEnabled = false`, `isShrinkResources = false`) in `build.gradle.kts`.
-* **Compatibilità Android Gradle Plugin 9.0+ & Built-in Kotlin:**
-  * Risolto l'avviso di obsolescenza KGP (Kotlin Gradle Plugin) di Flutter 3.44+.
+* **Compatibilità Android Gradle Plugin 9.0+ & Built-in Kotlin (2.2.20):**
+  * Risolto l'avviso di obsolescenza KGP (Kotlin Gradle Plugin) di Flutter 3.44+ migrando a Built-in Kotlin 2.2.20 in `settings.gradle.kts`.
+  * Package e Application ID allineati a `com.alemaccio.inktower` (con native MethodChannel `com.alemaccio.inktower/audio`).
   * Dipendenza `share_plus` aggiornata a `^13.3.1` (`SharePlus.instance.share(ShareParams(text: receiptText))`).
-  * Verificata compilazione pulita con `flutter analyze` e `flutter test`: **0 errori e tutti i test superati**.
+  * Contrasti e leggibilità temi consolidati con getter dedicati ad alto contrasto (`onOchreSeal`, `onMatchaSafe`, `onPlayerFill`, `onVermilionHazard`).
+  * Risolto bug di decelerazione/snapping della palla sui laser a impulsi disattivati tramite check preventivo nel loop CCD.
+  * Implementata meccanica di schiacciamento a parete (`wall crush`) e animazione di esplosione d'inchiostro radiale a 65 particelle dual-tone con macchie permanenti.
+  * Risolta eccezione Flutter `setState() called during build` sul cambio tema stabilizzando la radice in `main.dart`.
+  * Inizializzazione sicura e non-bloccante di `PlayerCore`: risolto `LateInitializationError` all'avvio garantendo un'inizializzazione preventiva e ordinata del giocatore durante `onLoad` e `_startMenuDemo`.
+  * Verificata compilazione pulita con `flutter analyze` e `flutter test`: **0 errori, 0 warning e 14/14 test superati con successo**.
 
 ---
 
 ## 8. Icona App, UI Concept & Roadmap Pubblicazione Play Store
 
-* **Icona Ufficiale Applicata (Concept A — "La Sfera & Il Sigillo"):** Ritagliata a pieno formato (*full-bleed*, senza margini vuoti esterni né cornice nera attorno) e applicata su Android (`mipmap-mdpi` .. `mipmap-xxxhdpi`), Windows (`windows/runner/resources/app_icon.ico`) e Web (`web/icons/`).
+* **Icona Ufficiale Applicata (Scena Completa Full-Bleed & Adaptive Icon):**
+  * Ripristinata la composizione originale con la palla inchiostro che rimbalza dalla piattaforma verde tra le mura in pietra della torre e il sigillo Hanko rosso.
+  * Rimossa la vecchia cornicetta esterna per renderla **100% full-bleed**: le pietre delle mura e la carta toccano i bordi esterni senza margini o tagli fittizi.
+  * Configurato il sistema nativo **Adaptive Icon** (`res/mipmap-anydpi-v26/ic_launcher.xml` con sfondo colore carta `#FAF4E3`), eliminando definitivamente il disco bianco forzato dai launcher Android.
+  * Master 512x512 ad alta risoluzione salvato in `assets/icon_512.png` pronto per la scheda Google Play Console.
 * **Direzione Futura Menu Principale (Menu Concept B — "Griglia Bento Risograph"):** Tenuto come riferimento progettuale per l'evoluzione dell'interfaccia del menu principale (layout modulare a tessere Bento con barra progresso livello, box Rank, Torre di Oggi e selettore rapido temi Sabbia/Notte/Salvia).
 * **Esportazione Immagine Grafica (PNG/Story):** Avvolgere la card della mini-mappa in `GameOverOverlay` con un `RepaintBoundary` per consentire la condivisione dello screenshot grafico della card per Instagram e TikTok Stories oltre al testo.
 * **Classifiche Cloud Google Play Games:** Collegare `games_services` per sincronizzare la classifica con Google Play Giochi / Game Center.

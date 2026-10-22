@@ -108,6 +108,7 @@ class ObstacleBlock extends PositionComponent
     }
 
     final p = game.player;
+    if (p.isDead) return;
 
     // 3. Se la palla è incollata a una piattaforma fragile (crumblingPad), avvia il conto alla rovescia!
     if (p.stuckPlatform == this) {
@@ -123,6 +124,11 @@ class ObstacleBlock extends PositionComponent
           removeFromParent();
         }
       }
+      return;
+    }
+
+    // Se il laser a impulsi è spento, la palla lo attraversa a velocità naturale senza alcuna collisione o snapping
+    if (type == BlockType.pulsingLaserHazard && !isLaserActive) {
       return;
     }
 

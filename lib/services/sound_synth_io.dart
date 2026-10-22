@@ -30,7 +30,7 @@ class NativeSoundSynth {
   static const int _flags = _sndAsync | _sndNoDefault | _sndMemory;
 
   static const MethodChannel _androidAudioChannel =
-      MethodChannel('com.example.ink_sling_daily/audio');
+      MethodChannel('com.alemaccio.inktower/audio');
 
   _PlaySoundDart? _playSoundWin;
   bool _androidSoundPoolReady = false;

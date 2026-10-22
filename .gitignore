@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Keystore and signing keys (NEVER commit to version control)
+*.jks
+*.keystore
+key.properties
+**/android/key.properties
+*KEYSTORE*
+*keystore*
+
+# Local tool caches
+.matlab_prefs/

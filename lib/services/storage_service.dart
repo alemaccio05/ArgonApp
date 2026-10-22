@@ -127,7 +127,8 @@ class StorageService {
       awardedLevelFirstPlaces =
           _prefs?.getStringList(_keyAwardedLevelFirstPlaces) ?? [];
 
-      if (lastSeed != todaySeed) {
+      // Protezione anti-rollback data (ignora orologio spostato indietro nel tempo)
+      if (lastSeed == 0 || todaySeed > lastSeed) {
         // Nuovo giorno (24h)! Controlliamo se era ieri per incrementare la Streak
         final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
         final yesterdaySeed =
@@ -154,6 +155,7 @@ class StorageService {
         await _prefs?.setInt(_keyCurrentStreak, currentStreak);
         await _prefs?.setInt(_keyBestDailyRankAchievedToday, 999);
       } else {
+        // Stesso giorno o orologio spostato indietro nel tempo: mantiene i dati senza reset
         bestMetersToday = _prefs?.getDouble(_keyBestMetersToday) ?? 0.0;
         bestBouncesToday = _prefs?.getInt(_keyBestBouncesToday) ?? 0;
         completedToday = _prefs?.getBool(_keyCompletedToday) ?? false;

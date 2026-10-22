@@ -123,7 +123,7 @@ class GameOverOverlay extends StatelessWidget {
                               fontSize: 9.5,
                               fontWeight: FontWeight.w900,
                               color: game.lastRunWasNewDailyRecord
-                                  ? p.inkPrimary
+                                  ? p.onOchreSeal
                                   : p.paperCard,
                               letterSpacing: 0.7,
                             ),
@@ -365,13 +365,14 @@ class GameOverOverlay extends StatelessWidget {
                     const SizedBox(height: 14),
 
                     // REWARDED AD REVIVE: Riparti dal metro dell'impatto su una piattaforma verde con Scudo!
-                    if (!game.isVictory && !game.reviveUsed && meters >= 5.0)
+                    // Come da guida monetizzazione: mostra il pulsante solo se l'annuncio è pronto/disponibile
+                    if (!game.isVictory && !game.reviveUsed && meters >= 5.0 && game.monetization.isAdReady)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: p.ochreSeal,
-                            foregroundColor: p.inkPrimary,
+                            foregroundColor: p.onOchreSeal,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(
                               vertical: 13,
@@ -466,7 +467,9 @@ class GameOverOverlay extends StatelessWidget {
                               backgroundColor: game.isVictory
                                   ? p.matchaSafe
                                   : p.playerFill,
-                              foregroundColor: Colors.white,
+                              foregroundColor: game.isVictory
+                                  ? p.onMatchaSafe
+                                  : p.onPlayerFill,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(
                                 vertical: 13,

@@ -41,6 +41,18 @@ class RisographPalette {
     this.isDark = false,
   });
 
+  /// Colore ad altissimo contrasto per testo o icone su pulsanti/badge [ochreSeal]
+  Color get onOchreSeal => const Color(0xFF141517);
+
+  /// Colore ad altissimo contrasto per testo o icone su pulsanti/badge [matchaSafe]
+  Color get onMatchaSafe => isDark ? const Color(0xFF141517) : const Color(0xFFFFFFFF);
+
+  /// Colore ad altissimo contrasto per testo o icone su pulsanti [playerFill]
+  Color get onPlayerFill => isDark ? const Color(0xFF141517) : paperCard;
+
+  /// Colore ad altissimo contrasto per testo o icone su sfondi [vermilionHazard]
+  Color get onVermilionHazard => const Color(0xFFFFFFFF);
+
   /// Interpola dolcemente tutti i colori tra due palette per una transizione fluida
   static RisographPalette lerp(
     RisographPalette a,
@@ -122,7 +134,7 @@ class RisographPalette {
     paperCard: Color(0xFFF4F8F2),
     paperGrid: Color(0xFFD0DDD0),
     inkPrimary: Color(0xFF1B2E25),
-    inkSecondary: Color(0xFF596E63),
+    inkSecondary: Color(0xFF43584E),
     playerFill: Color(0xFF2D6A4F),
     playerStroke: Color(0xFF1B2E25),
     matchaSafe: Color(0xFF52B788),
