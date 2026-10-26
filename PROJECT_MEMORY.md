@@ -237,4 +237,8 @@ test/
 * [x] **Annunci:** Impostato su **NO** (nessun annuncio commerciale attivo nella v1.0.0; evitato il badge forzato).
 * [x] **Pubblico di destinazione:** Impostato su **13+** (escluso il programma Famiglie/bambini per massimizzare l'eCPM ed evitare vincoli COPPA/GDPR-K).
 * [ ] **DA FINIRE — Sicurezza dei Dati (Data Safety):** Dichiarare **"No"** a raccolta/condivisione dati (gioco 100% offline con salvataggi locali su `SharedPreferences`).
-* [ ] **DA FINIRE — Norme sulla Privacy (Privacy Policy):** Pubblicare e incollare l'URL pubblico HTTPS (file già generati e pronti nel repo: `PRIVACY_POLICY.md` e `privacy.html`).
+* [x] **COMPLETATA — Norme sulla Privacy (Privacy Policy):**
+  - **URL Pubblico Ufficiale:** `https://alemaccio05.github.io/ArgonApp/privacy.html` (e `https://alemaccio05.github.io/ArgonApp/`)
+  - **All'interno dell'app:** Implementato `PrivacyDialog` (`lib/ui/privacy_dialog.dart`) accessibile sia dal menu principale (icona scudo nel top header e link nel footer) sia dal profilo giocatore, con sintesi offline immediata e pulsante "Apri Norme Complete (Web)" collegato tramite `url_launcher`.
+  - **Configurazione Android:** Aggiunto `<intent>` HTTPS alle `<queries>` in `AndroidManifest.xml` per compatibilità package visibility Android 11+.
+  - **Pagina Web Ufficiale:** `privacy.html` e `index.html` bilingue (EN/IT) con Risograph design, conforme a tutte le policy Google Play Console (dati utente, families policy, COPPA, GDPR, assenza di tracciamento terzi, salvataggi locali `SharedPreferences`).

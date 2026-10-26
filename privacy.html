@@ -1,91 +1,298 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Privacy Policy - INK TOWER: Climb & Stick</title>
+    <meta name="description" content="Privacy Policy for INK TOWER: Climb & Stick (com.alemaccio.inktower)">
     <style>
+        :root {
+            --bg-paper: #FAF4E3;
+            --card-paper: #FFFFFF;
+            --ink-primary: #1D3557;
+            --ink-secondary: #457B9D;
+            --matcha-green: #2A9D8F;
+            --vermilion: #E76F51;
+            --ochre: #E9C46A;
+            --border-color: #E4D8C5;
+            --text-dark: #232426;
+            --text-muted: #555555;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #FAF4E3;
-            color: #232426;
-            line-height: 1.6;
+            background-color: var(--bg-paper);
+            color: var(--text-dark);
+            line-height: 1.65;
             margin: 0;
             padding: 24px 16px;
         }
+
         .container {
-            max-width: 720px;
+            max-width: 780px;
             margin: 0 auto;
-            background: #FFFFFF;
-            padding: 32px;
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-            border: 2px solid #E4D8C5;
+            background: var(--card-paper);
+            padding: 36px 32px;
+            border-radius: 16px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+            border: 2px solid var(--border-color);
         }
+
+        .header-badge {
+            display: inline-block;
+            background-color: #E9F4F2;
+            color: var(--matcha-green);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            border: 1px solid var(--matcha-green);
+        }
+
         h1 {
-            color: #1D3557;
-            font-size: 26px;
+            color: var(--ink-primary);
+            font-size: 28px;
             margin-top: 0;
-            border-bottom: 2px solid #2A9D8F;
-            padding-bottom: 10px;
+            margin-bottom: 8px;
+            line-height: 1.25;
         }
+
+        .app-meta {
+            color: var(--ink-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .lang-switch {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .lang-btn {
+            background-color: #F0EAE1;
+            border: 1.5px solid var(--border-color);
+            color: var(--ink-primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13.5px;
+            transition: all 0.2s ease;
+        }
+
+        .lang-btn.active {
+            background-color: var(--matcha-green);
+            color: #FFFFFF;
+            border-color: var(--matcha-green);
+        }
+
         h2 {
-            color: #2A9D8F;
+            color: var(--matcha-green);
             font-size: 20px;
-            margin-top: 28px;
+            margin-top: 32px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+
         p, li {
-            color: #333333;
+            color: var(--text-dark);
             font-size: 15px;
         }
+
         ul {
-            padding-left: 20px;
+            padding-left: 24px;
+            margin-top: 8px;
+            margin-bottom: 16px;
         }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .highlight-box {
+            background-color: #F8F6F0;
+            border-left: 4px solid var(--matcha-green);
+            padding: 14px 18px;
+            border-radius: 0 8px 8px 0;
+            margin: 18px 0;
+        }
+
+        .highlight-box p {
+            margin: 0;
+            font-weight: 500;
+        }
+
         .date {
-            color: #666;
-            font-size: 14px;
+            color: var(--text-muted);
+            font-size: 13.5px;
             font-style: italic;
             margin-bottom: 20px;
         }
-        .contact {
+
+        .contact-card {
             background-color: #F4EFE6;
-            padding: 14px 18px;
-            border-radius: 8px;
-            margin-top: 24px;
-            font-weight: 500;
+            border: 2px solid #E2D7C3;
+            padding: 18px 22px;
+            border-radius: 10px;
+            margin-top: 32px;
+        }
+
+        .contact-card strong {
+            color: var(--ink-primary);
+        }
+
+        .contact-card a {
+            color: var(--matcha-green);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .contact-card a:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <span class="header-badge">Official Document</span>
         <h1>Privacy Policy</h1>
-        <p class="date">Ultimo aggiornamento: 26 Ottobre 2026</p>
-        <p>Questa informativa sulla privacy descrive le modalità di gestione dei dati per l'applicazione mobile <strong>INK TOWER: Climb & Stick</strong> (package: <code>com.alemaccio.inktower</code>), sviluppata da <strong>alemacciodev</strong>.</p>
+        <div class="app-meta">
+            Application: <strong>INK TOWER: Climb & Stick</strong> | Package: <code>com.alemaccio.inktower</code> | Developer: <strong>AleMaccioDev</strong>
+        </div>
 
-        <h2>1. Tipologia di dati raccolti e archiviazione locale</h2>
-        <ul>
-            <li><strong>Nessun dato personale raccolto:</strong> L'applicazione non richiede la registrazione di alcun account e non raccoglie dati di identificazione personale (come nome reale, cognome, email o posizione geografica).</li>
-            <li><strong>Salvataggio esclusivamente in locale:</strong> Tutti i progressi di gioco (livello, punteggio, rimbalzi, preferenze audio, palette e skin sbloccate) vengono salvati unicamente sulla memoria locale del dispositivo dell'utente. Nessun dato viene trasmesso a server proprietari.</li>
-        </ul>
+        <!-- Language Selector -->
+        <div class="lang-switch">
+            <button class="lang-btn active" id="btn-en" onclick="setLang('en')">English</button>
+            <button class="lang-btn" id="btn-it" onclick="setLang('it')">Italiano</button>
+        </div>
 
-        <h2>2. Funzionamento Offline e Classifiche Simulate (Bot)</h2>
-        <p>Il gioco è progettato per funzionare completamente <strong>offline</strong>. Le classifiche e le sfide giornaliere utilizzano algoritmi deterministici con rivali simulati (bot) generati proceduralmente in base alla data/seed del giorno. Non vengono utilizzati né condivisi dati di altri utenti.</p>
+        <!-- ENGLISH SECTION (DEFAULT) -->
+        <div id="section-en">
+            <p class="date">Last updated: October 26, 2026</p>
 
-        <h2>3. Permessi del Dispositivo</h2>
-        <p>Il permesso di accesso a Internet (<code>android.permission.INTERNET</code>) è impiegato esclusivamente per le funzioni standard del motore Flutter e per l'eventuale condivisione facoltativa dello scontrino di gioco decisa dall'utente. Non sono presenti flussi di tracciamento dati.</p>
+            <p>This Privacy Policy describes how <strong>AleMaccioDev</strong> ("we", "our", or "us") handles user data and protects your privacy when you use our mobile application <strong>INK TOWER: Climb & Stick</strong> (Application ID: <code>com.alemaccio.inktower</code>).</p>
 
-        <h2>4. Pubblicità e Servizi Terzi</h2>
-        <p>Nella versione attuale dell'applicazione non sono attivi SDK pubblicitari profilanti esterni né tracciatori terzi. Qualora in futuri aggiornamenti vengano integrati circuiti pubblicitari certificati (es. Google AdMob) o acquisti in-app (Google Play Billing), questa informativa verrà tempestivamente aggiornata.</p>
+            <div class="highlight-box">
+                <p><strong>Key Summary:</strong> INK TOWER is designed to respect your privacy completely. We do <strong>not</strong> collect, transmit, store, or sell any personal or sensitive user data. The game operates 100% offline with all progression saved strictly on your local device.</p>
+            </div>
 
-        <h2>5. Conservazione ed Eliminazione dei Dati</h2>
-        <p>Poiché tutti i dati risiedono solo sul dispositivo dell'utente, la cancellazione dei dati dell'app o la disinstallazione dal dispositivo comporta la cancellazione istantanea e definitiva di ogni progresso locale.</p>
+            <h2>1. Types of Data Collected and Local Storage</h2>
+            <ul>
+                <li><strong>No Personal or Sensitive Data:</strong> The application does not require user registration, account creation, or login of any kind. We do not collect names, email addresses, phone numbers, contacts, precise location data, financial information, or persistent device identifiers.</li>
+                <li><strong>Local Device Storage Only:</strong> All gameplay progress (such as highest reached meters, current level, bounce records, unlocked cosmetic skins, profile avatars, custom in-game nickname, audio preferences, and visual color palette) is stored strictly in your device's local memory using standard operating system local storage (Android <code>SharedPreferences</code>). No gameplay data is ever transmitted to proprietary or remote developer servers.</li>
+            </ul>
 
-        <h2>6. Privacy dei Minori</h2>
-        <p>L'applicazione non raccoglie consapevolmente dati personali relativi a minori di 13 anni.</p>
+            <h2>2. Offline Gameplay and Deterministic Simulated Rivals (Bots)</h2>
+            <p>The game is fully functional <strong>offline</strong> without an active network connection. In-game leaderboards and daily challenges (such as "Today's Tower") utilize deterministic mathematical algorithms and procedurally generated simulated rivals (bots) based on the UTC calendar date. No user data from you or any other human player is shared or received over the network.</p>
 
-        <div class="contact">
-            Contatto sviluppatore: <strong>alemacciodev@gmail.com</strong>
+            <h2>3. Device Permissions</h2>
+            <ul>
+                <li><strong>Internet Access (<code>android.permission.INTERNET</code>):</strong> Used exclusively for standard Flutter engine operations and to support optional user-initiated sharing of the game score summary (via the operating system's native share sheet). The app does not transmit background telemetry or tracking logs.</li>
+            </ul>
+
+            <h2>4. Third-Party Services and Advertising</h2>
+            <p>In the current version of the application, there are <strong>no active third-party tracking, analytical, or profiling advertising SDKs</strong>. If certified ad networks (such as Google AdMob) or in-app purchases (Google Play Billing) are integrated in future updates, this policy will be promptly revised to disclose the relevant third-party providers and compliant consent mechanisms (e.g., Google UMP for EU/EEA/UK users) will be provided.</p>
+
+            <h2>5. Data Retention, Storage, and Deletion Rights</h2>
+            <p>Because all data resides exclusively on your local device, you maintain full control over your data at all times. Clearing application storage/cache via your device's Android System Settings or uninstalling the application from your device will instantly, permanently, and irrevocably delete all saved progress and user preferences.</p>
+
+            <h2>6. Children's Privacy</h2>
+            <p>The application is designed for a general audience aged 13 and older. We do not knowingly collect, store, or solicit personal information from children under the age of 13. If you believe that a child has provided us with personal information, please contact us immediately so we can take appropriate steps.</p>
+
+            <h2>7. Changes to This Privacy Policy</h2>
+            <p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated revision date. We encourage you to review this page periodically.</p>
+
+            <div class="contact-card">
+                <strong>Developer Contact & Inquiries:</strong><br>
+                AleMaccioDev<br>
+                Email: <a href="mailto:alemacciodev@gmail.com">alemacciodev@gmail.com</a>
+            </div>
+        </div>
+
+        <!-- ITALIAN SECTION -->
+        <div id="section-it" class="hidden">
+            <p class="date">Ultimo aggiornamento: 26 Ottobre 2026</p>
+
+            <p>Questa informativa sulla privacy descrive le modalità di gestione dei dati e di tutela della privacy da parte di <strong>AleMaccioDev</strong> per l'applicazione mobile <strong>INK TOWER: Climb & Stick</strong> (ID Pacchetto: <code>com.alemaccio.inktower</code>).</p>
+
+            <div class="highlight-box">
+                <p><strong>Sintesi essenziale:</strong> INK TOWER è progettato per rispettare pienamente la tua privacy. Non raccogliamo, trasmettiamo né condividiamo alcun dato personale o sensibile. Il gioco funziona al 100% offline con salvataggi custoditi unicamente sul tuo dispositivo.</p>
+            </div>
+
+            <h2>1. Tipologia di dati raccolti e archiviazione locale</h2>
+            <ul>
+                <li><strong>Nessun dato personale o sensibile raccolto:</strong> L'applicazione non richiede alcuna registrazione né la creazione di un account. Non vengono raccolti nomi, indirizzi email, numeri telefonici, rubrica contatti, posizione geografica precisa o identificatori persistenti del dispositivo.</li>
+                <li><strong>Salvataggio esclusivamente in locale:</strong> Tutti i progressi di gioco (metri massimi scalati, livello raggiunto, numero di rimbalzi, skin cosmetiche e avatar sbloccati, nickname locale, stato dell'audio e palette grafica) vengono salvati unicamente sulla memoria locale del dispositivo dell'utente tramite <code>SharedPreferences</code>. Nessun dato viene trasmesso a server proprietari esterni.</li>
+            </ul>
+
+            <h2>2. Funzionamento Offline e Rivali Simulati (Bot)</h2>
+            <p>Il gioco è progettato per funzionare completamente <strong>offline</strong> senza connessione Internet. Le classifiche e le sfide giornaliere (come la "Torre di Oggi") utilizzano algoritmi matematici deterministici con rivali procedurali simulati (bot) generati in base alla data UTC del giorno. Non vengono utilizzati né condivisi dati di altri giocatori o profili social.</p>
+
+            <h2>3. Permessi del Dispositivo</h2>
+            <ul>
+                <li><strong>Accesso a Internet (<code>android.permission.INTERNET</code>):</strong> Impiegato esclusivamente per le funzioni standard del runtime Flutter e per consentire l'eventuale condivisione facoltativa dello scontrino di fine partita decisa e avviata dall'utente tramite il menu di sistema. Non sono presenti flussi di tracciamento dati o telemetria.</li>
+            </ul>
+
+            <h2>4. Pubblicità e Servizi Terzi</h2>
+            <p>Nella versione attuale dell'applicazione non sono attivi SDK pubblicitari profilanti esterni né tracciatori terzi o sistemi di analisi comportamentale. Qualora in futuri aggiornamenti vengano integrati circuiti pubblicitari certificati (es. Google AdMob) o acquisti in-app (Google Play Billing), questa informativa verrà tempestivamente aggiornata e verranno implementati i moduli di consenso GDPR/UMP certificati.</p>
+
+            <h2>5. Conservazione ed Eliminazione dei Dati</h2>
+            <p>Poiché tutti i dati risiedono solo ed esclusivamente sul dispositivo dell'utente, la cancellazione dei dati dell'app dalle Impostazioni di sistema o la disinstallazione dal dispositivo comporta la cancellazione istantanea, permanente e definitiva di ogni progresso locale.</p>
+
+            <h2>6. Privacy dei Minori</h2>
+            <p>L'applicazione non raccoglie consapevolmente dati personali relativi a minori di 13 anni.</p>
+
+            <h2>7. Modifiche alle Norme sulla Privacy</h2>
+            <p>Eventuali aggiornamenti futuri a questa informativa verranno pubblicati su questa pagina con indicazione della data di revisione aggiornata.</p>
+
+            <div class="contact-card">
+                <strong>Contatto Sviluppatore:</strong><br>
+                AleMaccioDev<br>
+                Email: <a href="mailto:alemacciodev@gmail.com">alemacciodev@gmail.com</a>
+            </div>
         </div>
     </div>
+
+    <script>
+        function setLang(lang) {
+            const secEn = document.getElementById('section-en');
+            const secIt = document.getElementById('section-it');
+            const btnEn = document.getElementById('btn-en');
+            const btnIt = document.getElementById('btn-it');
+
+            if (lang === 'it') {
+                secEn.classList.add('hidden');
+                secIt.classList.remove('hidden');
+                btnIt.classList.add('active');
+                btnEn.classList.remove('active');
+            } else {
+                secIt.classList.add('hidden');
+                secEn.classList.remove('hidden');
+                btnEn.classList.add('active');
+                btnIt.classList.remove('active');
+            }
+        }
+
+        // Auto-detect browser language
+        (function() {
+            const userLang = navigator.language || navigator.userLanguage || '';
+            if (userLang.startsWith('it')) {
+                setLang('it');
+            } else {
+                setLang('en');
+            }
+        })();
+    </script>
 </body>
 </html>

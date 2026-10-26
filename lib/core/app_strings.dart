@@ -1374,4 +1374,77 @@ class AppStrings {
         de: 'Elektrisierende Ladung für Meister des Sprungs.',
         pt: 'Carga eletrizante para os mestres do pulo.',
       );
+
+  // --- Norme sulla Privacy (Privacy Policy) ---
+  String get privacyTitle => _t(
+        it: 'Norme sulla Privacy',
+        en: 'Privacy Policy',
+        es: 'Política de Privacidad',
+        fr: 'Politique de Confidentialité',
+        de: 'Datenschutzerklärung',
+        pt: 'Política de Privacidade',
+      );
+
+  String get privacyBtn => _t(
+        it: 'Privacy',
+        en: 'Privacy',
+        es: 'Privacidad',
+        fr: 'Confidentialité',
+        de: 'Datenschutz',
+        pt: 'Privacidade',
+      );
+
+  String get privacyOpenWeb => _t(
+        it: 'Apri Norme Complete (Web)',
+        en: 'Open Full Policy (Web)',
+        es: 'Abrir Política Completa (Web)',
+        fr: 'Ouvrir la Politique Complète (Web)',
+        de: 'Vollständige Erklärung (Web)',
+        pt: 'Abrir Política Completa (Web)',
+      );
+
+  String get privacySummaryLine1 => _t(
+        it: 'Nessun dato personale o sensibile raccolto (nessun account o tracciamento).',
+        en: 'No personal or sensitive user data is collected (no accounts or tracking).',
+        es: 'No se recopilan datos personales ni sensibles (sin cuentas ni rastreo).',
+        fr: 'Aucune donnée personnelle ou sensible collectée (aucun compte ni suivi).',
+        de: 'Keine Erfassung persönlicher oder sensibler Daten (keine Konten oder Tracking).',
+        pt: 'Nenhum dado pessoal ou confidencial é coletado (sem contas ou rastreamento).',
+      );
+
+  String get privacySummaryLine2 => _t(
+        it: 'Salvataggio 100% in locale sul dispositivo (livelli, record, skin e impostazioni).',
+        en: '100% local storage on your device (levels, records, skins, and settings).',
+        es: 'Almacenamiento 100% local en tu dispositivo (niveles, récords, skins y ajustes).',
+        fr: 'Stockage 100% local sur votre appareil (niveaux, scores, skins et paramètres).',
+        de: '100% lokale Speicherung auf dem Gerät (Level, Rekorde, Skins und Einstellungen).',
+        pt: 'Armazenamento 100% local no dispositivo (níveis, recordes, skins e opções).',
+      );
+
+  String get privacySummaryLine3 => _t(
+        it: 'Gioco offline con classifiche simulate proceduralmente senza terze parti profilanti.',
+        en: 'Offline gameplay with procedural simulated rivals and zero profiling third parties.',
+        es: 'Juego sin conexión con rivales simulados proceduralmente sin terceros de perfilado.',
+        fr: 'Jeu hors ligne avec rivaux simulés de manière procédurale sans tiers profilants.',
+        de: 'Offline-Gameplay mit prozedural simulierten Rivalen ohne Profiling-Drittanbieter.',
+        pt: 'Jogo offline com rivais simulados proceduralmente sem terceiros de rastreamento.',
+      );
+
+  String get privacyContactDeveloper => _t(
+        it: 'Contatto sviluppatore: alemacciodev@gmail.com',
+        en: 'Developer contact: alemacciodev@gmail.com',
+        es: 'Contacto del desarrollador: alemacciodev@gmail.com',
+        fr: 'Contact développeur: alemacciodev@gmail.com',
+        de: 'Entwicklerkontakt: alemacciodev@gmail.com',
+        pt: 'Contato do desenvolvedor: alemacciodev@gmail.com',
+      );
+
+  String get closeBtn => _t(
+        it: 'Chiudi',
+        en: 'Close',
+        es: 'Cerrar',
+        fr: 'Fermer',
+        de: 'Schließen',
+        pt: 'Fechar',
+      );
 }

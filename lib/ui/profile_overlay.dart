@@ -6,6 +6,7 @@ import '../core/profile_icons.dart';
 import '../game/ink_sling_game.dart';
 import '../services/storage_service.dart';
 import 'ball_skins_overlay.dart';
+import 'privacy_dialog.dart';
 
 /// Schermata/Dialog del Profilo Giocatore in perfetto stile Risograph:
 /// - Personalizzazione Nome Giocatore
@@ -444,6 +445,44 @@ class _ProfileDialogState extends State<ProfileDialog> {
                         : (_selectedTab == 1
                             ? _buildIconsView(storage, p, s)
                             : _buildSkinsView(storage, p, s)),
+                  ),
+                  const SizedBox(height: 8),
+                  // Link Norme sulla Privacy
+                  Center(
+                    child: InkWell(
+                      onTap: () => PrivacyDialog.show(context, widget.game),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.shield_outlined,
+                              size: 13,
+                              color: p.inkSecondary.withAlpha(200),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              s.privacyTitle,
+                              style: TextStyle(
+                                color: p.inkSecondary.withAlpha(220),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Icon(
+                              Icons.open_in_new_rounded,
+                              size: 10,
+                              color: p.inkSecondary.withAlpha(180),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  
                   ),
                 ],
               ),

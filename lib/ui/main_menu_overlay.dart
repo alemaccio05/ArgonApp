@@ -6,6 +6,7 @@ import '../core/palette_theme.dart';
 import '../core/profile_icons.dart';
 import '../game/ink_sling_game.dart';
 import 'ball_skins_overlay.dart';
+import 'privacy_dialog.dart';
 import 'profile_overlay.dart';
 
 /// Menu Principale di INK TOWER: Climb & Stick, con:
@@ -617,6 +618,31 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                                   : Icons.volume_off_rounded,
                               size: 15,
                               color: soundOn ? p.matchaSafe : p.inkSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        // Pulsante Norme sulla Privacy
+                        InkWell(
+                          onTap: () => PrivacyDialog.show(context, widget.game),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: p.paperBg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: p.inkPrimary,
+                                width: 1.6,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.shield_outlined,
+                              size: 15,
+                              color: p.inkPrimary,
                             ),
                           ),
                         ),
