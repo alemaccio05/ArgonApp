@@ -1,7 +1,8 @@
 # PROJECT MEMORY — INK TOWER: Climb & Stick (`ArgonApp`)
 
-> **Ultimo aggiornamento:** 25 Ottobre 2026  
+> **Ultimo aggiornamento:** 26 Ottobre 2026  
 > **Nome Ufficiale In-Game:** **INK TOWER: Climb & Stick** (Application ID: `com.alemaccio.inktower`, Package: `ink_sling_daily`)  
+> **Developer:** `AleMaccioDev` (`alemacciodev@gmail.com`)  
 > **Motore:** Flutter 3.44.x + Flame (`>=1.14.0 <2.0.0`) • Dart 3.12.x  
 > **Toolchain Android:** Android Gradle Plugin 9.0.1 (Built-in Kotlin 2.2.20, Gradle Kotlin DSL `.kts`)  
 > **Target:** Android (Google Play Store), iOS, Windows, Web  
@@ -225,3 +226,15 @@ test/
 * **Esportazione Immagine Grafica (PNG/Story):** Avvolgere la card della mini-mappa in `GameOverOverlay` con un `RepaintBoundary` per consentire la condivisione dello screenshot grafico della card per Instagram e TikTok Stories oltre al testo.
 * **Classifiche Cloud Google Play Games:** Collegare `games_services` per sincronizzare la classifica con Google Play Giochi / Game Center.
 * **AdMob ID Produzione:** Inserire gli ID reali dei blocchi pubblicitari Rewarded in `monetization_service.dart` e nel manifest Android.
+
+---
+
+## 9. Checklist Dichiarazioni Google Play Console ("Contenuti dell'app")
+
+* **Sviluppatore:** `AleMaccioDev` (`alemacciodev@gmail.com`)
+* [x] **Classificazione Contenuti (IARC):** **COMPLETATA** con rating **PEGI 3** (Europa) / **ESRB Everyone** (USA).
+* [x] **ID Pubblicità:** Impostato su **NO** (nessun permesso `AD_ID` o SDK pubblicitario nel manifest del bundle v1.0.0).
+* [x] **Annunci:** Impostato su **NO** (nessun annuncio commerciale attivo nella v1.0.0; evitato il badge forzato).
+* [x] **Pubblico di destinazione:** Impostato su **13+** (escluso il programma Famiglie/bambini per massimizzare l'eCPM ed evitare vincoli COPPA/GDPR-K).
+* [ ] **DA FINIRE — Sicurezza dei Dati (Data Safety):** Dichiarare **"No"** a raccolta/condivisione dati (gioco 100% offline con salvataggi locali su `SharedPreferences`).
+* [ ] **DA FINIRE — Norme sulla Privacy (Privacy Policy):** Pubblicare e incollare l'URL pubblico HTTPS (file già generati e pronti nel repo: `PRIVACY_POLICY.md` e `privacy.html`).
