@@ -261,7 +261,7 @@ class DailySeedEngine {
     all.add(
       LeaderboardEntry(
         rank: 0,
-        name: playerName.trim().isEmpty ? 'Scalatore' : playerName.trim(),
+        name: playerName.trim().isEmpty ? 'Climber' : playerName.trim(),
         level: playerLevel,
         bestMeters: playerBestMeters,
         progressPercent: playerPct,
@@ -386,7 +386,7 @@ class DailySeedEngine {
     all.add(
       LeaderboardEntry(
         rank: 0,
-        name: playerName.trim().isEmpty ? 'Scalatore' : playerName.trim(),
+        name: playerName.trim().isEmpty ? 'Climber' : playerName.trim(),
         level: completedToday ? 1 : 0,
         bestMeters: effectiveMeters,
         progressPercent: effectivePct,
@@ -432,7 +432,7 @@ class DailySeedEngine {
     required int attemptNumber,
     GameMode mode = GameMode.dailyTower,
     int level = 1,
-    AppLanguage lang = AppLanguage.it,
+    AppLanguage lang = AppLanguage.en,
   }) {
     final strings = AppStrings(lang);
     final topPct = estimateTopPercentile(

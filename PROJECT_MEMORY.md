@@ -1,6 +1,6 @@
 # PROJECT MEMORY — INK TOWER: Climb & Stick (`ArgonApp`)
 
-> **Ultimo aggiornamento:** 22 Ottobre 2026  
+> **Ultimo aggiornamento:** 25 Ottobre 2026  
 > **Nome Ufficiale In-Game:** **INK TOWER: Climb & Stick** (Application ID: `com.alemaccio.inktower`, Package: `ink_sling_daily`)  
 > **Motore:** Flutter 3.44.x + Flame (`>=1.14.0 <2.0.0`) • Dart 3.12.x  
 > **Toolchain Android:** Android Gradle Plugin 9.0.1 (Built-in Kotlin 2.2.20, Gradle Kotlin DSL `.kts`)  
@@ -17,7 +17,7 @@
   1. **Trascina ovunque sullo schermo (`DragCallbacks`):** Attiva il *Bullet-Time* (`timeScale` scende morbidamente a `0.15`) e proietta una traiettoria predittiva a 22 punti calcolata con precisione millimetrica includendo i rimbalzi fisici sulle pareti laterali della torre.
   2. **Rilascia per saltare:** Spara la sfera d'inchiostro nella direzione opposta al trascinamento con potenza regolabile (440–900 px/s).
   3. **Piattaforme Verdi Adesive ("Sticky Pads"):** Quando la sfera impatta una piattaforma verde (`BlockType.matchaPad`), **si incolla istantaneamente e si ferma** (`PlayerCore.stickToPlatform`). Il giocatore può riprendere fiato, studiare il percorso e mirare con calma il salto successivo.
-  4. **Sistema a 3 Lanci Ricaricabili (`maxAirCharges = 3`):** Il giocatore ha a disposizione 3 lanci per ogni sequenza in volo. I lanci **si ricaricano al 100%** ogni volta che si incolla a una piattaforma verde o raccoglie un Sigillo di Boost dorato (`BlockType.hankoSeal`). Se si esauriscono i lanci a mezz'aria, toccare una parete laterale restituisce 1 lancio di emergenza per non restare mai bloccati.
+  4. **Sistema a 3 Lanci Ricaricabili (`maxAirCharges = 3`):** Il giocatore ha a disposizione 3 lanci per ogni sequenza in volo. I lanci **si ricaricano al 100%** ogni volta che si incolla a una piattaforma verde o raccoglie un Sigillo di Boost dorato (`BlockType.hankoSeal`). I rimbalzi sulle pareti laterali della torre sono puramente fisici e non ricaricano i lanci, prevenendo qualsiasi abuso di scalata infinita sui muri.
 * **Condizioni di Sconfitta & Meccanica Mortale:**
   1. **Ostacoli Vermiglio:** Impatto contro una barriera vermiglio (`vermilionHazard`, `verticalPatrolHazard`, `pulsingLaserHazard` attivo) senza scudo.
   2. **Marea d'Inchiostro:** Raggiungimento da parte dell'Onda d'Inchiostro (`InkFloodWave`) che sale dal basso. L'onda parte dopo gli 8 metri e rallenta quando il giocatore mira dalla piattaforma.
@@ -197,12 +197,25 @@ test/
   * Implementata meccanica di schiacciamento a parete (`wall crush`) e animazione di esplosione d'inchiostro radiale a 65 particelle dual-tone con macchie permanenti.
   * Risolta eccezione Flutter `setState() called during build` sul cambio tema stabilizzando la radice in `main.dart`.
   * Inizializzazione sicura e non-bloccante di `PlayerCore`: risolto `LateInitializationError` all'avvio garantendo un'inizializzazione preventiva e ordinata del giocatore durante `onLoad` e `_startMenuDemo`.
-  * Verificata compilazione pulita con `flutter analyze` e `flutter test`: **0 errori, 0 warning e 14/14 test superati con successo**.
+  * **Risoluzione Exploit Scalata Infinita a Muro:** Rimossa la ricarica di 1 lancio al contatto con le pareti in `PlayerCore._onWallBounce`; i rimbalzi sui muri laterali sono puramente elastici/fisici e le cariche si recuperano unicamente sulle piattaforme verdi e con i sigilli Hanko.
+  * Verificata compilazione pulita con `flutter analyze` e `flutter test`: **0 errori, 0 warning e 16/16 test superati con successo**.
+  * **Lingua di Default Inglese (en):** Impostato l'inglese come lingua di default dell'app (AppStrings.fromCode, StorageService.selectedLanguage, InkSlingGame.languageNotifier), con nome di default 'Climber'.
+  * **Compilazione Release AAB Ufficiale:** Configurato `android/key.properties` collegato a `android/app/upload-keystore.jks` (alias `upload`, RSA 2048-bit, Application ID `com.alemaccio.inktower`). Compilato con successo il bundle firmato `build/app/outputs/bundle/release/app-release.aab` (51.1 MB) pronto per Google Play.
+  * **Note di Rilascio v1.0.0 (EN/IT):** Predisposti i testi ufficiali per la scheda di rilascio Google Play Console (mira Bullet-Time, stile Risograph, torri procedurali, torre di oggi 100m, gioco offline e rivali simulati).
+  * **Traduzioni Scheda Store Ufficiali (7 Lingue):** Creati `STORE_TRANSLATIONS.md` e `store_translations.csv` con titoli, brevi descrizioni e descrizioni complete ottimizzate in EN, IT, ES, FR, DE, PT, JA per Google Play Store.
 
 ---
 
 ## 8. Icona App, UI Concept & Roadmap Pubblicazione Play Store
 
+* **Asset Grafici Google Play Console Pronti (`assets/`):**
+  * **Icona Ufficiale (512x512):** `assets/icon_512.png` — Ripulita dai margini laterali stirati, ritagliata sul quadrato originale `364x364` e scalata uniformemente 1:1 a `512x512` (aggiornate anche tutte le risorse Android `mipmap-*/ic_launcher.png` e `ic_launcher_foreground.png`).
+  * **Grafica di Primo Piano / Feature Graphic (1024x500):** `assets/feature_graphic.png` — Renderizzata direttamente dal motore reale Flutter & Flame (`InkSlingGame`), mostra il titolo grande **INK TOWER: Climb & Stick** a sinistra e la sfera d'inchiostro in volo mentre salta tra le piattaforme della torre a destra (zero elementi stirati).
+  * **Screenshot 1 (1080x1920):** `assets/screenshot_1_gameplay.png` — Renderizzato direttamente da `InkSlingGame` + `HudOverlay` con mira in Bullet-Time, traiettoria predittiva a rimbalzo sulle mura in pietra, piattaforme verdi, trappola rossa striata, bumper pinball, sigillo Hanko e marea d'inchiostro.
+  * **Screenshot 2 (1080x1920):** `assets/screenshot_2_daily.png` — Renderizzato direttamente da `InkSlingGame` + `MainMenuOverlay` nella modalità *Today's Tower (100m)* con profilo giocatore, skin, vite giornaliere e classifica.
+  * **Screenshot 3 (1080x1920):** `assets/screenshot_3_skins.png` — Renderizzato direttamente da `InkSlingGame` + `BallSkinsDialog` con anteprima dinamica e collezione delle skin sbloccabili.
+  * **Screenshot 4 (1080x1920):** `assets/screenshot_4_victory.png` — Renderizzato direttamente da `InkSlingGame` + `GameOverOverlay` con la vittoria del livello (`LEVEL 7 CLEARED!`), la mini-mappa del tracciato Risograph (`RisographFlightMapPainter`), i 5 settori completati e le statistiche.
+  * **Screenshot 5 (1080x1920):** `assets/screenshot_5_profile.png` — Renderizzato direttamente da `InkSlingGame` + `ProfileDialog` con statistiche dettagliate di scalata, grado onorifico e collezione avatar.
 * **Icona Ufficiale Applicata (Scena Completa Full-Bleed & Adaptive Icon):**
   * Ripristinata la composizione originale con la palla inchiostro che rimbalza dalla piattaforma verde tra le mura in pietra della torre e il sigillo Hanko rosso.
   * Rimossa la vecchia cornicetta esterna per renderla **100% full-bleed**: le pietre delle mura e la carta toccano i bordi esterni senza margini o tagli fittizi.

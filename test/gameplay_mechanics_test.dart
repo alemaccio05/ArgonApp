@@ -85,5 +85,73 @@ void main() {
       expect(game.player, isNotNull);
       expect(game.player.isDead, isFalse);
     });
+    test('Player air charges are max 3 and wall bounces do not recharge air charges', () async {
+      final storage = StorageService();
+      final audio = AudioHapticsService();
+      audio.soundEnabled = false;
+      final monetization = MonetizationService();
+      final game = InkSlingGame(
+        storage: storage,
+        audioHaptics: audio,
+        monetization: monetization,
+      );
+
+      game.onGameResize(Vector2(400, 800));
+      await game.onLoad();
+      game.isPlaying = true;
+      game.isMenuDemo = false;
+
+      // Inizialmente il giocatore ha 3 cariche
+      expect(game.player.airCharges, equals(3));
+      expect(game.chargesNotifier.value, equals(3));
+
+      // Effettua 3 lanci per esaurire tutte le cariche
+      game.player.launch(Vector2(100, -200), silent: true);
+      expect(game.player.airCharges, equals(2));
+
+      game.player.launch(Vector2(-100, -200), silent: true);
+      expect(game.player.airCharges, equals(1));
+
+      game.player.launch(Vector2(100, -200), silent: true);
+      expect(game.player.airCharges, equals(0));
+      expect(game.chargesNotifier.value, equals(0));
+
+      // Posiziona il giocatore oltre la parete destra per forzare il rimbalzo
+      final halfWall = game.towerHalfWidth - PlayerCore.radius;
+      game.player.position.setValues(halfWall + 10.0, -50.0);
+      game.player.velocity.setValues(200.0, 50.0);
+
+      // Esegue update del player: urta la parete
+      game.player.update(0.016);
+
+      // VERIFICA: la sfera rimbalza fisicamente ma le cariche rimangono TASSATIVAMENTE a 0 (nessun salto infinito)
+      expect(game.player.position.x, equals(halfWall));
+      expect(game.player.velocity.x, lessThan(0.0)); // rimbalzo invertito a sinistra
+      expect(game.player.airCharges, equals(0));
+      expect(game.chargesNotifier.value, equals(0));
+
+      // Verifica anche la parete sinistra
+      game.player.position.setValues(-halfWall - 10.0, -60.0);
+      game.player.velocity.setValues(-200.0, 50.0);
+      game.player.update(0.016);
+
+      expect(game.player.position.x, equals(-halfWall));
+      expect(game.player.velocity.x, greaterThan(0.0)); // rimbalzo invertito a destra
+      expect(game.player.airCharges, equals(0));
+      expect(game.chargesNotifier.value, equals(0));
+
+      // Incollarsi a una piattaforma verde ripristina invece tutti i 3 salti
+      final pad = ObstacleBlock(
+        type: BlockType.matchaPad,
+        position: Vector2(0, -100),
+        size: Vector2(100, 20),
+      );
+      game.player.position.setValues(0, -100);
+      final stuck = game.player.stickToPlatform(pad);
+
+      expect(stuck, isTrue);
+      expect(game.player.airCharges, equals(3));
+      expect(game.chargesNotifier.value, equals(3));
+    });
   });
 }

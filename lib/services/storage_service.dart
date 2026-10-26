@@ -59,7 +59,7 @@ class StorageService {
   int totalLevelsPlayed = 0;
   double bestMetersCurrentLevel = 0.0;
   int bestBouncesCurrentLevel = 0;
-  String playerName = 'Scalatore';
+  String playerName = 'Climber';
 
   // Profilo Giocatore, Icone & Skin Sfera Sbloccabili
   int totalBouncesAllTime = 0;
@@ -76,7 +76,7 @@ class StorageService {
   List<String> awardedLevelFirstPlaces = [];
 
   // Lingua & Audio
-  AppLanguage selectedLanguage = AppLanguage.it;
+  AppLanguage selectedLanguage = AppLanguage.en;
   bool soundEnabled = true;
 
   Future<void> init() async {
@@ -96,7 +96,7 @@ class StorageService {
           _prefs?.getDouble(_keyBestMetersCurrentLevel) ?? 0.0;
       bestBouncesCurrentLevel =
           _prefs?.getInt(_keyBestBouncesCurrentLevel) ?? 0;
-      playerName = _prefs?.getString(_keyPlayerName) ?? 'Scalatore';
+      playerName = _prefs?.getString(_keyPlayerName) ?? 'Climber';
 
       final savedLang = _prefs?.getString(_keyLanguageCode);
       selectedLanguage = AppLanguage.fromCode(savedLang);

@@ -66,7 +66,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   final ValueNotifier<RisographPalette> paletteNotifier =
       ValueNotifier<RisographPalette>(RisographPalette.washiIvory);
   final ValueNotifier<AppLanguage> languageNotifier =
-      ValueNotifier<AppLanguage>(AppLanguage.it);
+      ValueNotifier<AppLanguage>(AppLanguage.en);
   final ValueNotifier<bool> soundNotifier = ValueNotifier<bool>(true);
 
   AppStrings get strings => AppStrings(languageNotifier.value);

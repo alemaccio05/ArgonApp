@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 enum AppLanguage {
   it('it', 'IT', 'Italiano'),
   en('en', 'EN', 'English'),
@@ -15,17 +13,13 @@ enum AppLanguage {
 
   static AppLanguage fromCode(String? code) {
     if (code == null || code.isEmpty) {
-      final sysCode = PlatformDispatcher.instance.locale.languageCode.toLowerCase();
-      for (final lang in AppLanguage.values) {
-        if (lang.code == sysCode) return lang;
-      }
-      return AppLanguage.it;
+      return AppLanguage.en;
     }
     final clean = code.toLowerCase();
     for (final lang in AppLanguage.values) {
       if (lang.code == clean) return lang;
     }
-    return AppLanguage.it;
+    return AppLanguage.en;
   }
 }
 

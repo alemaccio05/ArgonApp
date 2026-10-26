@@ -29,7 +29,7 @@ void main() {
     expect(receipt, contains('INK TOWER'));
     expect(receipt, contains('🟩🟩🟩🟩🟥'));
     expect(receipt, contains('84.6m'));
-    expect(receipt, contains('Riesci a scalare la torre di oggi?'));
+    expect(receipt, contains("Can you climb today's tower?"));
   });
 
   test('Level goal height grows by +10m every 10 levels starting from 50m', () {
@@ -225,5 +225,15 @@ void main() {
     // 7. Thunder Spark (750 rimbalzi) sbloccata
     final thunder = BallSkinsCatalog.getById('thunder_spark');
     expect(thunder.isUnlocked(storage), isTrue);
+  });
+
+  test('Default language is English across AppStrings and StorageService', () {
+    expect(AppLanguage.fromCode(null), equals(AppLanguage.en));
+    expect(AppLanguage.fromCode(''), equals(AppLanguage.en));
+    expect(AppLanguage.fromCode('unknown'), equals(AppLanguage.en));
+
+    final storage = StorageService();
+    expect(storage.selectedLanguage, equals(AppLanguage.en));
+    expect(storage.playerName, equals('Climber'));
   });
 }

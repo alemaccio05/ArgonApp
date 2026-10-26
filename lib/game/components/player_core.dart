@@ -339,13 +339,6 @@ class PlayerCore extends PositionComponent
       isLeftWall: isLeftWall,
       color: game.palette.playerFill,
     );
-    // Toccare il muro restituisce 1 lancio se eri a secco, così non rimani mai bloccato!
-    if (airCharges == 0) {
-      airCharges = 1;
-      if (!game.isMenuDemo) {
-        game.chargesNotifier.value = airCharges;
-      }
-    }
     if (!game.isMenuDemo) {
       game.addCameraTrauma(0.14);
       game.audioHaptics.onWallOrPadBounce(combo: game.comboNotifier.value);
