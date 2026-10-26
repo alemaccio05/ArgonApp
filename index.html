@@ -165,19 +165,19 @@
 </head>
 <body>
     <div class="container">
-        <span class="header-badge">Official Document</span>
-        <h1>Privacy Policy</h1>
-        <div class="app-meta">
+        <span class="header-badge" id="badge-doc">Official Document</span>
+        <h1 id="page-title">Privacy Policy</h1>
+        <div class="app-meta" id="app-meta">
             Application: <strong>INK TOWER: Climb & Stick</strong> | Package: <code>com.alemaccio.inktower</code> | Developer: <strong>AleMaccioDev</strong>
         </div>
 
         <!-- Language Selector -->
         <div class="lang-switch">
-            <button class="lang-btn active" id="btn-en" onclick="setLang('en')">English</button>
+            <button class="lang-btn active" id="btn-en" onclick="setLang('en')">English (Default)</button>
             <button class="lang-btn" id="btn-it" onclick="setLang('it')">Italiano</button>
         </div>
 
-        <!-- ENGLISH SECTION (DEFAULT) -->
+        <!-- ENGLISH SECTION (DEFAULT FOR ALL LANGUAGES EXCEPT ITALIAN) -->
         <div id="section-en">
             <p class="date">Last updated: October 26, 2026</p>
 
@@ -220,7 +220,7 @@
             </div>
         </div>
 
-        <!-- ITALIAN SECTION -->
+        <!-- ITALIAN SECTION (ONLY WHEN ITALIAN IS SELECTED) -->
         <div id="section-it" class="hidden">
             <p class="date">Ultimo aggiornamento: 26 Ottobre 2026</p>
 
@@ -270,26 +270,58 @@
             const secIt = document.getElementById('section-it');
             const btnEn = document.getElementById('btn-en');
             const btnIt = document.getElementById('btn-it');
+            const badgeDoc = document.getElementById('badge-doc');
+            const pageTitle = document.getElementById('page-title');
+            const appMeta = document.getElementById('app-meta');
 
             if (lang === 'it') {
                 secEn.classList.add('hidden');
                 secIt.classList.remove('hidden');
                 btnIt.classList.add('active');
                 btnEn.classList.remove('active');
+                if (badgeDoc) badgeDoc.textContent = 'Documento Ufficiale';
+                if (pageTitle) pageTitle.textContent = 'Norme sulla Privacy';
+                if (appMeta) appMeta.innerHTML = 'Applicazione: <strong>INK TOWER: Climb & Stick</strong> | Pacchetto: <code>com.alemaccio.inktower</code> | Sviluppatore: <strong>AleMaccioDev</strong>';
+                document.documentElement.lang = 'it';
             } else {
+                // Default per qualsiasi altra lingua (EN, ES, FR, DE, PT...)
                 secIt.classList.add('hidden');
                 secEn.classList.remove('hidden');
                 btnEn.classList.add('active');
                 btnIt.classList.remove('active');
+                if (badgeDoc) badgeDoc.textContent = 'Official Document';
+                if (pageTitle) pageTitle.textContent = 'Privacy Policy';
+                if (appMeta) appMeta.innerHTML = 'Application: <strong>INK TOWER: Climb & Stick</strong> | Package: <code>com.alemaccio.inktower</code> | Developer: <strong>AleMaccioDev</strong>';
+                document.documentElement.lang = 'en';
             }
         }
 
-        // Auto-detect browser language
+        // Regola lingua: Default sempre Inglese (EN), tranne se esplicitamente Italiano (IT)
         (function() {
-            const userLang = navigator.language || navigator.userLanguage || '';
-            if (userLang.startsWith('it')) {
-                setLang('it');
-            } else {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const queryLang = (params.get('lang') || '').toLowerCase();
+                const hashLang = (window.location.hash || '').replace('#', '').toLowerCase();
+
+                // 1. Parametro URL prioritario (?lang=it o #it)
+                if (queryLang.startsWith('it') || hashLang.startsWith('it')) {
+                    setLang('it');
+                    return;
+                }
+                if (queryLang || hashLang) {
+                    // Se specificata qualsiasi altra lingua diversa dall'italiano, default inglese
+                    setLang('en');
+                    return;
+                }
+
+                // 2. Controllo lingua del dispositivo/browser: solo se è italiano va su 'it', per qualsiasi altra lingua mondiale va su 'en'
+                const browserLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+                if (browserLang.startsWith('it')) {
+                    setLang('it');
+                } else {
+                    setLang('en');
+                }
+            } catch (_) {
                 setLang('en');
             }
         })();

@@ -23,8 +23,10 @@ class PrivacyDialog extends StatelessWidget {
     );
   }
 
-  static Future<void> launchPrivacyUrl(BuildContext context) async {
-    final uri = Uri.parse(privacyPolicyUrl);
+  static Future<void> launchPrivacyUrl(BuildContext context, InkSlingGame game) async {
+    final langCode = game.languageNotifier.value.code;
+    final uri = Uri.parse('$privacyPolicyUrl?lang=$langCode');
+    final s = game.strings;
     try {
       final launched = await launchUrl(
         uri,
@@ -32,10 +34,10 @@ class PrivacyDialog extends StatelessWidget {
       );
       if (!launched && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Impossibile aprire il link: $privacyPolicyUrl',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              '${s.privacyErrorOpenUrl}: $uri',
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         );
@@ -43,10 +45,10 @@ class PrivacyDialog extends StatelessWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Link: $privacyPolicyUrl',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              '${s.privacyErrorOpenUrl}: $uri',
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         );
@@ -148,7 +150,7 @@ class PrivacyDialog extends StatelessWidget {
                           _buildPointCard(
                             icon: Icons.person_off_rounded,
                             iconColor: p.matchaSafe,
-                            title: 'Zero Dati Personali',
+                            title: s.privacyPoint1Title,
                             desc: s.privacySummaryLine1,
                             p: p,
                           ),
@@ -156,7 +158,7 @@ class PrivacyDialog extends StatelessWidget {
                           _buildPointCard(
                             icon: Icons.phone_android_rounded,
                             iconColor: p.ochreSeal,
-                            title: 'Salvataggio Locale',
+                            title: s.privacyPoint2Title,
                             desc: s.privacySummaryLine2,
                             p: p,
                           ),
@@ -164,7 +166,7 @@ class PrivacyDialog extends StatelessWidget {
                           _buildPointCard(
                             icon: Icons.wifi_off_rounded,
                             iconColor: p.playerFill,
-                            title: 'Offline & Bot Simulati',
+                            title: s.privacyPoint3Title,
                             desc: s.privacySummaryLine3,
                             p: p,
                           ),
@@ -228,7 +230,7 @@ class PrivacyDialog extends StatelessWidget {
                               side: BorderSide(color: p.inkPrimary, width: 2),
                             ),
                           ),
-                          onPressed: () => launchPrivacyUrl(context),
+                          onPressed: () => launchPrivacyUrl(context, game),
                           icon: const Icon(Icons.open_in_new_rounded, size: 16),
                           label: FittedBox(
                             fit: BoxFit.scaleDown,

@@ -1439,6 +1439,42 @@ class AppStrings {
         pt: 'Contato do desenvolvedor: alemacciodev@gmail.com',
       );
 
+  String get privacyPoint1Title => _t(
+        it: 'Zero Dati Personali',
+        en: 'Zero Personal Data',
+        es: 'Cero Datos Personales',
+        fr: 'Zéro Donnée Personnelle',
+        de: 'Keine persönlichen Daten',
+        pt: 'Zero Dados Pessoais',
+      );
+
+  String get privacyPoint2Title => _t(
+        it: 'Salvataggio Locale',
+        en: 'Local Storage',
+        es: 'Almacenamiento Local',
+        fr: 'Stockage Local',
+        de: 'Lokale Speicherung',
+        pt: 'Armazenamento Local',
+      );
+
+  String get privacyPoint3Title => _t(
+        it: 'Offline & Bot Simulati',
+        en: 'Offline & Simulated Bots',
+        es: 'Sin Conexión y Bots',
+        fr: 'Hors Ligne & Bots',
+        de: 'Offline & Simulierte Bots',
+        pt: 'Offline e Bots Simulados',
+      );
+
+  String get privacyErrorOpenUrl => _t(
+        it: 'Impossibile aprire il link',
+        en: 'Could not open link',
+        es: 'No se pudo abrir el enlace',
+        fr: 'Impossible d\'ouvrir le lien',
+        de: 'Link konnte nicht geöffnet werden',
+        pt: 'Não foi possibile abrir o link',
+      );
+
   String get closeBtn => _t(
         it: 'Chiudi',
         en: 'Close',
