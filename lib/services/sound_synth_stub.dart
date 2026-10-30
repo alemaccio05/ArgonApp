@@ -1,6 +1,8 @@
 class NativeSoundSynth {
   void init() {}
   void stopAll() {}
+  void setPaused(bool paused) {}
+  void setMusicEnabled(bool enabled) {}
   void playAimTick() {}
   void playLaunch() {}
   void playPadStick(int combo) {}
@@ -10,4 +12,5 @@ class NativeSoundSynth {
   void playShieldBreak() {}
   void playVictory() {}
   void playCrash() {}
+  void dispose() {}
 }

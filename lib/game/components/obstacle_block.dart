@@ -30,6 +30,10 @@ class ObstacleBlock extends PositionComponent
   final double verticalSpeed;
   final double phaseOffset;
 
+  /// Quota opzionale in metri associata alla piattaforma (es. per sincronizzare
+  /// deterministicamente la metrica d'altezza sulla piattaforma di Seconda Chance).
+  final double? heightScore;
+
   late final double _originY;
   double _moveDir = 1.0;
   double _vertDir = 1.0;
@@ -40,6 +44,25 @@ class ObstacleBlock extends PositionComponent
   static const double _maxCrumbleTime = 1.35;
   bool _consumed = false;
 
+  // Oggetti Paint e Path pre-allocati per azzerare il Garbage Collector nel render loop
+  final Paint _shadowPaint = Paint();
+  final Paint _fillPaint = Paint();
+  final Paint _stripePaint = Paint()..strokeWidth = 3.0;
+  final Paint _stickyBorderPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.2;
+  final Paint _crumbleFillPaint = Paint();
+  final Paint _strokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.2;
+  final Paint _laserGlowPaint = Paint();
+  final Paint _laserCorePaint = Paint();
+  final Paint _dashPaint = Paint();
+  final Paint _emitterPaint = Paint();
+  final Paint _detailPaint = Paint();
+  final Path _gemShadowPath = Path();
+  final Path _gemBodyPath = Path();
+
   ObstacleBlock({
     required super.position,
     required super.size,
@@ -47,12 +70,31 @@ class ObstacleBlock extends PositionComponent
     this.movingSpeed = 0.0,
     this.verticalSpeed = 0.0,
     this.phaseOffset = 0.0,
+    this.heightScore,
   }) : super(anchor: Anchor.center) {
     _originY = position.y;
     _sealPulse = phaseOffset;
   }
 
   double get originY => _originY;
+
+  // Coordinate deterministiche del bounding box nel world space
+  double get left => position.x - size.x / 2;
+  double get right => position.x + size.x / 2;
+  double get top => position.y - size.y / 2;
+  double get bottom => position.y + size.y / 2;
+
+  Rect get worldBounds => Rect.fromCenter(
+        center: Offset(position.x, position.y),
+        width: size.x,
+        height: size.y,
+      );
+
+  /// Calcola una coordinata X sicura e confinata nei margini della piattaforma per la pallina
+  double clampBallX(double desiredX, double ballRadius) {
+    final safeHalfSpan = max(0.0, (size.x / 2) - ballRadius);
+    return desiredX.clamp(position.x - safeHalfSpan, position.x + safeHalfSpan);
+  }
 
   bool get isLaserActive {
     if (type != BlockType.pulsingLaserHazard) return false;
@@ -117,9 +159,14 @@ class ObstacleBlock extends PositionComponent
         if (_crumbleTimer >= _maxCrumbleTime) {
           _consumed = true;
           p.stuckPlatform = null;
-          p.velocity = Vector2(0, 60);
+          p.velocity.setValues(0, 60);
           game.addCameraTrauma(0.22);
-          game.spawnInkDrops(position.clone(), game.palette.ochreSeal, count: 18);
+          game.spawnInkDropsAt(
+            position.x,
+            position.y,
+            game.palette.ochreSeal,
+            count: 18,
+          );
           game.audioHaptics.onShieldBreak();
           removeFromParent();
         }
@@ -135,15 +182,16 @@ class ObstacleBlock extends PositionComponent
     // 4. Rilevamento collisione preciso Cerchio-Rettangolo (include lati e angoli al 100%)
     if (type == BlockType.bumperPin || type == BlockType.hankoSeal) {
       final hitDist = (size.x / 2) + PlayerCore.radius;
-      if (p.position.distanceTo(position) <= hitDist) {
+      final dx = p.position.x - position.x;
+      final dy = p.position.y - position.y;
+      if ((dx * dx + dy * dy) <= hitDist * hitDist) {
         _resolveCollision(p);
       }
       return;
     }
 
     // Nel menu demo di sottofondo, la palla attraversa dal basso le piattaforme verdi mentre sale
-    // e si incolla morbidamente sulla faccia superiore mentre scende dall'apice dell'arco,
-    // così scala la torre senza mai bloccarsi sotto una piattaforma!
+    // e si incolla morbidamente sulla faccia superiore mentre scende dall'apice dell'arco
     if (game.isMenuDemo &&
         (type == BlockType.matchaPad || type == BlockType.crumblingPad)) {
       if (p.velocity.y < -10.0 || p.prevPosition.y > position.y - size.y * 0.25) {
@@ -184,7 +232,6 @@ class ObstacleBlock extends PositionComponent
 
       if ((dx * dx + dy * dy) <= hitRadiusSq) {
         // Riporta la palla al primo punto esatto di contatto sulla superficie esterna
-        // così non può mai attraversare la piattaforma né scavalcarne il centro!
         p.position.setValues(sampleX, sampleY);
         _resolveCollision(p);
         break;
@@ -205,7 +252,7 @@ class ObstacleBlock extends PositionComponent
         game.addCameraTrauma(0.28);
         game.audioHaptics.onSealCollected(combo: game.comboNotifier.value);
       }
-      game.spawnInkDrops(position.clone(), palette.ochreSeal, count: 20);
+      game.spawnInkDropsAt(position.x, position.y, palette.ochreSeal, count: 20);
       removeFromParent();
       return;
     }
@@ -214,14 +261,20 @@ class ObstacleBlock extends PositionComponent
       if (_bumperCooldown > 0) return;
       _bumperCooldown = 0.16;
       p.stuckPlatform = null;
-      final dir = (p.position - position);
-      final norm = dir.length > 0.01 ? dir.normalized() : Vector2(0, -1);
+      final dx = p.position.x - position.x;
+      final dy = p.position.y - position.y;
+      final len = sqrt(dx * dx + dy * dy);
+      final nx = len > 0.01 ? dx / len : 0.0;
+      final ny = len > 0.01 ? dy / len : -1.0;
       final hitDist = (size.x / 2) + PlayerCore.radius;
-      p.position = position + norm * (hitDist + 2.0);
+      p.position.setValues(
+        position.x + nx * (hitDist + 2.0),
+        position.y + ny * (hitDist + 2.0),
+      );
       // Spinge con forza verso l'alto/esterno e restituisce 1 lancio aereo
-      final bounceVel = norm * 650.0;
-      if (bounceVel.y > -260.0) bounceVel.y = -480.0;
-      p.velocity = bounceVel;
+      final bvx = nx * 650.0;
+      final bvy = (ny * 650.0) > -260.0 ? -480.0 : (ny * 650.0);
+      p.velocity.setValues(bvx, bvy);
       if (p.airCharges < PlayerCore.maxAirCharges) {
         p.airCharges = min(PlayerCore.maxAirCharges, p.airCharges + 1);
         if (!game.isMenuDemo) {
@@ -229,17 +282,19 @@ class ObstacleBlock extends PositionComponent
         }
       }
       _pressOffset = 5.0;
-      game.addInkStamp(
-        position: position.clone(),
+      game.addInkStampAt(
+        x: position.x,
+        y: position.y,
         isWall: false,
         color: palette.ochreSeal,
       );
-      game.spawnInkDrops(position.clone(), palette.ochreSeal, count: 14);
+      game.spawnInkDropsAt(position.x, position.y, palette.ochreSeal, count: 14);
       if (!game.isMenuDemo) {
         game.totalBounces++;
         game.addCameraTrauma(0.22);
-        game.spawnFloatingStamp(
-          position + Vector2(0, -20),
+        game.spawnFloatingStampAt(
+          position.x,
+          position.y - 20,
           game.strings.floatingBumper,
         );
         game.audioHaptics.onBumperBounce();
@@ -248,7 +303,6 @@ class ObstacleBlock extends PositionComponent
     }
 
     if (type == BlockType.pulsingLaserHazard && !isLaserActive) {
-      // Il laser è spento: passaggio sicuro!
       return;
     }
 
@@ -259,10 +313,20 @@ class ObstacleBlock extends PositionComponent
         p.velocity.y = -520.0;
         return;
       }
-      if (p.shieldTimer > 0) {
+      // Durante il freeze di invulnerabilità post-respawn o con scudo attivo il giocatore è protetto
+      if (p.isRespawnFrozen || p.shieldTimer > 0) {
         _consumed = true;
-        game.spawnInkDrops(position.clone(), palette.vermilionHazard, count: 18);
-        game.spawnFloatingStamp(position.clone(), game.strings.floatingShield);
+        game.spawnInkDropsAt(
+          position.x,
+          position.y,
+          palette.vermilionHazard,
+          count: 18,
+        );
+        game.spawnFloatingStampAt(
+          position.x,
+          position.y,
+          game.strings.floatingShield,
+        );
         game.audioHaptics.onShieldBreak();
         removeFromParent();
       } else {
@@ -272,17 +336,20 @@ class ObstacleBlock extends PositionComponent
     }
 
     if (type == BlockType.matchaPad || type == BlockType.crumblingPad) {
-      // INCOLLAGGIO SU TUTTI I LATI E ANGOLI DELLA PIATTAFORMA:
-      // Esegue effetti e suono SOLO se la palla si è effettivamente incollata ora!
       if (!p.stickToPlatform(this)) return;
       _pressOffset = 3.5;
-      // Lascia un'impronta permanente d'inchiostro ("Ink Stamp") sulla carta della torre!
-      game.addInkStamp(
-        position: p.position.clone(),
+      game.addInkStampAt(
+        x: p.position.x,
+        y: p.position.y,
         isWall: false,
         color: palette.matchaSafe,
       );
-      game.spawnInkDrops(p.position.clone(), palette.matchaSafe, count: 8);
+      game.spawnInkDropsAt(
+        p.position.x,
+        p.position.y,
+        palette.matchaSafe,
+        count: 8,
+      );
       if (!game.isMenuDemo) {
         game.totalBounces++;
         game.addCameraTrauma(0.12);
@@ -295,13 +362,14 @@ class ObstacleBlock extends PositionComponent
   void render(Canvas canvas) {
     if (_consumed) return;
     final p = game.palette;
+    final lowQuality = game.isLowQualityMode;
 
     if (type == BlockType.hankoSeal) {
-      _renderBoostGem(canvas, p);
+      _renderBoostGem(canvas, p, lowQuality);
       return;
     }
     if (type == BlockType.bumperPin) {
-      _renderBumperPin(canvas, p);
+      _renderBumperPin(canvas, p, lowQuality);
       return;
     }
     if (type == BlockType.pulsingLaserHazard) {
@@ -322,12 +390,15 @@ class ObstacleBlock extends PositionComponent
       shakeX = sin(_crumbleTimer * 48.0) * 2.5;
     }
 
-    // 1. Ombra portata sotto il blocco
-    final shadowRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(3.5 + shakeX, 4.5, size.x, size.y),
-      const Radius.circular(6),
-    );
-    canvas.drawRRect(shadowRect, Paint()..color = p.shadowColor);
+    // 1. Ombra portata sotto il blocco (disattivata automaticamente se FPS < 60)
+    if (!lowQuality) {
+      _shadowPaint.color = p.shadowColor;
+      final shadowRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(3.5 + shakeX, 4.5, size.x, size.y),
+        const Radius.circular(6),
+      );
+      canvas.drawRRect(shadowRect, _shadowPaint);
+    }
 
     // 2. Corpo del blocco
     canvas.save();
@@ -337,64 +408,52 @@ class ObstacleBlock extends PositionComponent
       Rect.fromLTWH(0, 0, size.x, size.y),
       const Radius.circular(6),
     );
-    canvas.drawRRect(bodyRect, Paint()..color = fillColor);
+    _fillPaint.color = fillColor;
+    canvas.drawRRect(bodyRect, _fillPaint);
 
     // 3. Dettaglio visivo interno
     canvas.save();
     canvas.clipRRect(bodyRect);
     if (isHazard) {
-      final stripePaint = Paint()
-        ..color = p.paperBg.withAlpha((0.30 * 255).round())
-        ..strokeWidth = 3.0;
+      _stripePaint.color = p.paperBg.withAlpha((0.30 * 255).round());
       for (double x = -size.y; x < size.x + size.y; x += 11) {
         canvas.drawLine(
           Offset(x, 0),
           Offset(x + size.y, size.y),
-          stripePaint,
+          _stripePaint,
         );
       }
       if (type == BlockType.verticalPatrolHazard) {
-        // Frecce su/giù al centro per indicare il movimento verticale
-        final center = Offset(size.x / 2, size.y / 2);
+        _detailPaint.color = p.paperCard;
         canvas.drawCircle(
-          center,
+          Offset(size.x / 2, size.y / 2),
           4.0,
-          Paint()..color = p.paperCard,
+          _detailPaint,
         );
       }
     } else {
-      // Cornice adesiva su TUTTI i 4 lati e angoli per mostrare l'incollaggio al 100%!
       final innerStickyRect = RRect.fromRectAndRadius(
         Rect.fromLTWH(3, 3, size.x - 6, size.y - 6),
         const Radius.circular(4),
       );
-      canvas.drawRRect(
-        innerStickyRect,
-        Paint()
-          ..color = p.paperCard.withAlpha((0.48 * 255).round())
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.2,
-      );
+      _stickyBorderPaint.color = p.paperCard.withAlpha((0.48 * 255).round());
+      canvas.drawRRect(innerStickyRect, _stickyBorderPaint);
 
-      // Barra di esaurimento per la piattaforma fragile a tempo
       if (isCrumbling && _crumbleTimer > 0) {
         final leftRatio = (1.0 - _crumbleTimer / _maxCrumbleTime).clamp(0.0, 1.0);
+        _crumbleFillPaint.color =
+            p.vermilionHazard.withAlpha((0.45 * 255).round());
         canvas.drawRect(
           Rect.fromLTWH(0, 0, size.x * leftRatio, size.y),
-          Paint()..color = p.vermilionHazard.withAlpha((0.45 * 255).round()),
+          _crumbleFillPaint,
         );
       }
     }
     canvas.restore();
 
     // 4. Contorno netto
-    canvas.drawRRect(
-      bodyRect,
-      Paint()
-        ..color = p.playerStroke
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2,
-    );
+    _strokePaint.color = p.playerStroke;
+    canvas.drawRRect(bodyRect, _strokePaint);
 
     canvas.restore();
   }
@@ -404,7 +463,6 @@ class ObstacleBlock extends PositionComponent
     final charge = _laserChargeProgress;
     final centerY = size.y / 2;
 
-    // Emettitori laterali
     final leftEmitter = RRect.fromRectAndRadius(
       Rect.fromLTWH(0, 0, 12, size.y),
       const Radius.circular(3),
@@ -415,63 +473,53 @@ class ObstacleBlock extends PositionComponent
     );
 
     if (active) {
-      // Raggio laser letale attivo
+      _laserGlowPaint.color = p.vermilionHazard.withAlpha((0.35 * 255).round());
+      _laserCorePaint.color = p.vermilionHazard;
       canvas.drawRect(
         Rect.fromLTWH(10, centerY - 5, size.x - 20, 10),
-        Paint()..color = p.vermilionHazard.withAlpha((0.35 * 255).round()),
+        _laserGlowPaint,
       );
       canvas.drawRect(
         Rect.fromLTWH(10, centerY - 2.5, size.x - 20, 5),
-        Paint()..color = p.vermilionHazard,
+        _laserCorePaint,
       );
     } else {
-      // Linea tratteggiata di preavviso che si intensifica prima dello sparo
-      final dashPaint = Paint()
-        ..color = p.vermilionHazard.withAlpha(((0.20 + charge * 0.55) * 255).round())
+      _dashPaint
+        ..color = p.vermilionHazard
+            .withAlpha(((0.20 + charge * 0.55) * 255).round())
         ..strokeWidth = 1.5 + charge * 1.5;
       for (double x = 14; x < size.x - 18; x += 10) {
-        canvas.drawLine(Offset(x, centerY), Offset(x + 5, centerY), dashPaint);
+        canvas.drawLine(Offset(x, centerY), Offset(x + 5, centerY), _dashPaint);
       }
     }
 
-    canvas.drawRRect(leftEmitter, Paint()..color = p.inkPrimary);
-    canvas.drawRRect(rightEmitter, Paint()..color = p.inkPrimary);
+    _emitterPaint.color = p.inkPrimary;
+    canvas.drawRRect(leftEmitter, _emitterPaint);
+    canvas.drawRRect(rightEmitter, _emitterPaint);
   }
 
-  void _renderBumperPin(Canvas canvas, RisographPalette p) {
+  void _renderBumperPin(Canvas canvas, RisographPalette p, bool lowQuality) {
     final center = Offset(size.x / 2, size.y / 2);
     final r = (size.x / 2) + (_pressOffset * 0.6);
 
-    canvas.drawCircle(
-      center + const Offset(3, 4),
-      r,
-      Paint()..color = p.shadowColor,
-    );
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()..color = p.ochreSeal,
-    );
-    canvas.drawCircle(
-      center,
-      r * 0.58,
-      Paint()
-        ..color = p.paperCard
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2,
-    );
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..color = p.playerStroke
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4,
-    );
+    if (!lowQuality) {
+      _shadowPaint.color = p.shadowColor;
+      canvas.drawCircle(center + const Offset(3, 4), r, _shadowPaint);
+    }
+    _fillPaint.color = p.ochreSeal;
+    canvas.drawCircle(center, r, _fillPaint);
+
+    _stickyBorderPaint.color = p.paperCard;
+    canvas.drawCircle(center, r * 0.58, _stickyBorderPaint);
+
+    _strokePaint
+      ..color = p.playerStroke
+      ..strokeWidth = 2.4;
+    canvas.drawCircle(center, r, _strokePaint);
+    _strokePaint.strokeWidth = 2.2;
   }
 
-  /// Disegna una gemma romboidale per il boost aereo
-  void _renderBoostGem(Canvas canvas, RisographPalette p) {
+  void _renderBoostGem(Canvas canvas, RisographPalette p, bool lowQuality) {
     final center = Offset(size.x / 2, size.y / 2);
     final pulseScale = 1.0 + sin(_sealPulse) * 0.08;
 
@@ -479,35 +527,34 @@ class ObstacleBlock extends PositionComponent
     canvas.translate(center.dx, center.dy);
     canvas.scale(pulseScale);
 
-    final shadowPath = Path()
-      ..moveTo(0, -size.y / 2 + 3)
-      ..lineTo(size.x / 2 + 3, 3)
-      ..lineTo(0, size.y / 2 + 3)
-      ..lineTo(-size.x / 2 + 3, 3)
-      ..close();
-    canvas.drawPath(shadowPath, Paint()..color = p.shadowColor);
+    if (!lowQuality) {
+      _gemShadowPath
+        ..reset()
+        ..moveTo(0, -size.y / 2 + 3)
+        ..lineTo(size.x / 2 + 3, 3)
+        ..lineTo(0, size.y / 2 + 3)
+        ..lineTo(-size.x / 2 + 3, 3)
+        ..close();
+      _shadowPaint.color = p.shadowColor;
+      canvas.drawPath(_gemShadowPath, _shadowPaint);
+    }
 
-    final gemPath = Path()
+    _gemBodyPath
+      ..reset()
       ..moveTo(0, -size.y / 2)
       ..lineTo(size.x / 2, 0)
       ..lineTo(0, size.y / 2)
       ..lineTo(-size.x / 2, 0)
       ..close();
 
-    canvas.drawPath(gemPath, Paint()..color = p.ochreSeal);
-    canvas.drawPath(
-      gemPath,
-      Paint()
-        ..color = p.playerStroke
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2,
-    );
+    _fillPaint.color = p.ochreSeal;
+    canvas.drawPath(_gemBodyPath, _fillPaint);
 
-    canvas.drawCircle(
-      Offset.zero,
-      size.x * 0.20,
-      Paint()..color = p.paperCard,
-    );
+    _strokePaint.color = p.playerStroke;
+    canvas.drawPath(_gemBodyPath, _strokePaint);
+
+    _detailPaint.color = p.paperCard;
+    canvas.drawCircle(Offset.zero, size.x * 0.20, _detailPaint);
 
     canvas.restore();
   }

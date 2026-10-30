@@ -18,10 +18,10 @@ typedef _PlaySoundDart = int Function(
   int fdwSound,
 );
 
-/// Sintetizzatore procedurale di effetti sonori a 44.1kHz 16-bit in memoria.
-/// - Su Android: riproduce i buffer WAV tramite `SoundPool` nativo (`STREAM_MUSIC` / `USAGE_MEDIA`)
-///   su `MethodChannel` (`MainActivity.kt`).
-/// - Su Windows: riproduce i buffer WAV tramite `winmm.dll` (`PlaySoundW`).
+/// Sintetizzatore procedurale di effetti sonori a 44.1kHz 16-bit in memoria pre-allocata.
+/// - Tutti i buffer PCM/WAV sono pre-generati e pre-caricati una sola volta in [init].
+/// - Zero allocazioni di memoria o decodifiche durante il salto ([playLaunch]) o i rimbalzi.
+/// - Supporta silenziamento/ducking istantaneo in pausa ([setPaused]) e rilascio memoria ([dispose]).
 class NativeSoundSynth {
   static const int _sampleRate = 44100;
   static const int _sndAsync = 0x0001;
@@ -35,8 +35,14 @@ class NativeSoundSynth {
   _PlaySoundDart? _playSoundWin;
   bool _androidSoundPoolReady = false;
   bool _initialized = false;
+  bool _disposed = false;
+  bool _isPaused = false;
+  bool _musicEnabled = true;
 
-  // Buffer PCM 16-bit
+  // Mappe argomenti pre-allocate per evitare allocazioni GC a ogni salto su MethodChannel
+  final Map<String, Map<String, Object>> _playArgsPool = {};
+
+  // Buffer PCM 16-bit pre-calcolati
   late final Int16List _aimTickPcm;
   late final Int16List _launchPcm;
   final List<Int16List> _padStickPcms = [];
@@ -46,6 +52,7 @@ class NativeSoundSynth {
   late final Int16List _shieldPcm;
   late final Int16List _victoryPcm;
   late final Int16List _crashPcm;
+  late final Int16List _zenChordPcm;
 
   // Buffer WAV in memoria nativa (usati su Windows PlaySoundW)
   Pointer<Uint8>? _aimTickWav;
@@ -57,14 +64,38 @@ class NativeSoundSynth {
   Pointer<Uint8>? _shieldWav;
   Pointer<Uint8>? _victoryWav;
   Pointer<Uint8>? _crashWav;
+  Pointer<Uint8>? _zenChordWav;
 
   void init() {
-    if (_initialized) return;
+    if (_initialized || _disposed) return;
     _initialized = true;
 
-    // 1. Genera i 9 timbri sonori ben distinti tra loro con guadagno ottimizzato
-    //    sia per speaker smartphone (Android) sia per desktop (Windows).
-    // A) Tick di mira: tocco legnoso breve e acuto (Marimba tick)
+    // Pre-alloca le mappe degli argomenti MethodChannel per azzerare il GC a runtime
+    const baseKeys = [
+      'aimTick',
+      'launch',
+      'wallBounce',
+      'bumper',
+      'shield',
+      'victory',
+      'crash',
+      'zenChord',
+    ];
+    for (final k in baseKeys) {
+      _playArgsPool[k] = <String, Object>{'key': k, 'volume': 1.0};
+    }
+    for (int i = 0; i < 8; i++) {
+      _playArgsPool['padStick_$i'] = <String, Object>{
+        'key': 'padStick_$i',
+        'volume': 1.0,
+      };
+      _playArgsPool['seal_$i'] = <String, Object>{
+        'key': 'seal_$i',
+        'volume': 1.0,
+      };
+    }
+
+    // 1. Genera i timbri sonori ben distinti tra loro in memoria all'avvio
     _aimTickPcm = _synthSweepPcm(
       durationSec: 0.026,
       startFreq: 1120,
@@ -73,7 +104,6 @@ class NativeSoundSynth {
       triangleMix: 0.25,
     );
 
-    // B) Lancio fionda: "whoosh" elastico ascendente
     _launchPcm = _synthSweepPcm(
       durationSec: 0.135,
       startFreq: 165,
@@ -82,8 +112,6 @@ class NativeSoundSynth {
       triangleMix: 0.55,
     );
 
-    // C) Incollaggio piattaforma verde (scala pentatonica ascendente: doppio plop morbido)
-    // D) Raccolta Gemma Scudo (arpeggio cristallino a 4 note)
     const pentatonic = [1.0, 1.122, 1.26, 1.498, 1.682, 2.0, 2.245, 2.52];
     for (final mult in pentatonic) {
       _padStickPcms.add(
@@ -107,7 +135,6 @@ class NativeSoundSynth {
       );
     }
 
-    // E) Rimbalzo sul muro in pietra: colpo grave e profondo ("thud" con armoniche udibili su telefono)
     _wallBouncePcm = _synthSweepPcm(
       durationSec: 0.095,
       startFreq: 185,
@@ -117,28 +144,24 @@ class NativeSoundSynth {
       noiseMix: 0.14,
     );
 
-    // F) Rimbalzo su Bumper Pinball: "boing" squillante a campana elastica
     _bumperPcm = _synthArpeggioPcm(
       notesHz: [440.0, 880.0, 659.25, 1174.66],
       noteDurationSec: 0.038,
       volume: 0.82,
     );
 
-    // G) Rottura Scudo / Crollo piattaforma: accordo discendente frizzante
     _shieldPcm = _synthArpeggioPcm(
       notesHz: [880.0, 622.25, 440.0, 311.13],
       noteDurationSec: 0.048,
       volume: 0.78,
     );
 
-    // H) Vittoria: fanfara trionfale a 5 note
     _victoryPcm = _synthArpeggioPcm(
       notesHz: [523.25, 659.25, 783.99, 987.77, 1046.50],
       noteDurationSec: 0.085,
       volume: 0.86,
     );
 
-    // I) Sconfitta / Impatto: discesa grave con spruzzo d'inchiostro
     _crashPcm = _synthSweepPcm(
       durationSec: 0.28,
       startFreq: 260,
@@ -146,6 +169,13 @@ class NativeSoundSynth {
       volume: 0.85,
       triangleMix: 0.35,
       noiseMix: 0.35,
+    );
+
+    // Accordo armonico zen morbido per feedback musicale ambientale
+    _zenChordPcm = _synthArpeggioPcm(
+      notesHz: [261.63, 329.63, 392.00, 523.25],
+      noteDurationSec: 0.065,
+      volume: 0.42,
     );
 
     if (Platform.isWindows) {
@@ -167,6 +197,7 @@ class NativeSoundSynth {
         _shieldWav = _allocWav(_encodeWav(_shieldPcm));
         _victoryWav = _allocWav(_encodeWav(_victoryPcm));
         _crashWav = _allocWav(_encodeWav(_crashPcm));
+        _zenChordWav = _allocWav(_encodeWav(_zenChordPcm));
       } catch (_) {
         _playSoundWin = null;
       }
@@ -176,7 +207,6 @@ class NativeSoundSynth {
   }
 
   Future<void> _initAndroidAudio() async {
-    // Prepara i WAV e li registra nel SoundPool nativo Android tramite MethodChannel
     try {
       final wavMap = <String, Uint8List>{
         'aimTick': _encodeWav(_aimTickPcm),
@@ -186,6 +216,7 @@ class NativeSoundSynth {
         'shield': _encodeWav(_shieldPcm),
         'victory': _encodeWav(_victoryPcm),
         'crash': _encodeWav(_crashPcm),
+        'zenChord': _encodeWav(_zenChordPcm),
       };
       for (int i = 0; i < _padStickPcms.length; i++) {
         wavMap['padStick_$i'] = _encodeWav(_padStickPcms[i]);
@@ -194,12 +225,35 @@ class NativeSoundSynth {
         wavMap['seal_$i'] = _encodeWav(_sealPcms[i]);
       }
 
-      final ok = await _androidAudioChannel.invokeMethod<bool>('initWavs', wavMap);
+      final ok =
+          await _androidAudioChannel.invokeMethod<bool>('initWavs', wavMap);
       if (ok == true) {
         _androidSoundPoolReady = true;
       }
     } catch (_) {
       _androidSoundPoolReady = false;
+    }
+  }
+
+  void setPaused(bool paused) {
+    _isPaused = paused;
+    if (paused) {
+      if (Platform.isWindows && _playSoundWin != null) {
+        _playSoundWin!(nullptr, 0, 0);
+      } else if (Platform.isAndroid && _androidSoundPoolReady) {
+        unawaited(_androidAudioChannel.invokeMethod<void>('setPaused', true));
+      }
+    } else {
+      if (Platform.isAndroid && _androidSoundPoolReady) {
+        unawaited(_androidAudioChannel.invokeMethod<void>('setPaused', false));
+      }
+    }
+  }
+
+  void setMusicEnabled(bool enabled) {
+    _musicEnabled = enabled;
+    if (_musicEnabled && !_isPaused) {
+      _play('zenChord', _zenChordPcm, _zenChordWav, allowWhenPaused: true);
     }
   }
 
@@ -211,18 +265,29 @@ class NativeSoundSynth {
     }
   }
 
-  void _play(String key, Int16List pcm, Pointer<Uint8>? winWav) {
+  void _play(
+    String key,
+    Int16List pcm,
+    Pointer<Uint8>? winWav, {
+    bool allowWhenPaused = false,
+  }) {
+    if (_disposed) return;
+    if (_isPaused && !allowWhenPaused) return;
     if (!_initialized) init();
+
     if (Platform.isWindows && _playSoundWin != null && winWav != null) {
       _playSoundWin!(winWav, 0, _flags);
     } else if (Platform.isAndroid && _androidSoundPoolReady) {
-      unawaited(
-        _androidAudioChannel.invokeMethod<void>('play', {'key': key}),
-      );
+      final args = _playArgsPool[key];
+      if (args != null) {
+        args['volume'] = _isPaused ? 0.25 : 1.0;
+        unawaited(_androidAudioChannel.invokeMethod<void>('play', args));
+      }
     }
   }
 
-  void playAimTick() => _play('aimTick', _aimTickPcm, _aimTickWav);
+  void playAimTick() =>
+      _play('aimTick', _aimTickPcm, _aimTickWav, allowWhenPaused: true);
   void playLaunch() => _play('launch', _launchPcm, _launchWav);
 
   void playPadStick(int combo) {
@@ -245,6 +310,38 @@ class NativeSoundSynth {
   void playShieldBreak() => _play('shield', _shieldPcm, _shieldWav);
   void playVictory() => _play('victory', _victoryPcm, _victoryWav);
   void playCrash() => _play('crash', _crashPcm, _crashWav);
+
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    stopAll();
+    if (Platform.isWindows) {
+      _freePtr(_aimTickWav);
+      _freePtr(_launchWav);
+      _freePtr(_wallBounceWav);
+      _freePtr(_bumperWav);
+      _freePtr(_shieldWav);
+      _freePtr(_victoryWav);
+      _freePtr(_crashWav);
+      _freePtr(_zenChordWav);
+      for (final p in _padStickWavs) {
+        _freePtr(p);
+      }
+      for (final p in _sealWavs) {
+        _freePtr(p);
+      }
+      _padStickWavs.clear();
+      _sealWavs.clear();
+    }
+  }
+
+  void _freePtr(Pointer<Uint8>? ptr) {
+    if (ptr != null && ptr != nullptr) {
+      try {
+        malloc.free(ptr);
+      } catch (_) {}
+    }
+  }
 
   Pointer<Uint8> _allocWav(Uint8List wavBytes) {
     final ptr = malloc.allocate<Uint8>(wavBytes.length);

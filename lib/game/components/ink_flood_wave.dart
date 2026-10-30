@@ -10,6 +10,20 @@ class InkFloodWave extends PositionComponent
     with HasGameReference<InkSlingGame> {
   double _wavePhase = 0.0;
 
+  // Path, Paint e Shader pre-allocati / cachati per zero allocazioni nel loop di render
+  final Path _backWavePath = Path();
+  final Path _frontWavePath = Path();
+  final Path _crestPath = Path();
+  final Paint _backPaint = Paint();
+  final Paint _frontPaint = Paint();
+  final Paint _crestPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.8;
+
+  Shader? _cachedShader;
+  Color? _lastTopColor;
+  Color? _lastBottomColor;
+
   InkFloodWave({required double startY})
       : super(
           position: Vector2(0, startY),
@@ -29,19 +43,20 @@ class InkFloodWave extends PositionComponent
       return;
     }
 
-    if (!game.isPlaying) return;
+    if (!game.isPlaying || game.isPaused) return;
+
+    // Durante il freeze temporaneo di respawn ("Seconda Chance"), l'onda resta sospesa
+    if (game.player.isRespawnFrozen) return;
 
     // Parte subito appena il giocatore fa il primo salto (0.8m) o dopo 1.1 secondi!
     if (game.maxMetersReached < 0.8 && game.runTimeSeconds < 1.1) return;
 
-    final levelSpeedBonus =
-        game.activeMode == GameMode.levelProgression
-            ? min(20.0, (game.currentLevel - 1) * 1.8)
-            : 6.0;
+    final levelSpeedBonus = game.activeMode == GameMode.levelProgression
+        ? min(20.0, (game.currentLevel - 1) * 1.8)
+        : 6.0;
 
     final distanceAhead = position.y - game.player.position.y;
-    final baseSpeed =
-        (game.player.isStuck ? 44.0 : 62.0) + levelSpeedBonus;
+    final baseSpeed = (game.player.isStuck ? 44.0 : 62.0) + levelSpeedBonus;
     final catchUpSpeed =
         distanceAhead > 260 ? (distanceAhead - 260) * 0.60 : 0.0;
     position.y -= (baseSpeed + catchUpSpeed) * dt;
@@ -54,57 +69,65 @@ class InkFloodWave extends PositionComponent
   @override
   void render(Canvas canvas) {
     final p = game.palette;
+    final lowQuality = game.isLowQualityMode;
+    final step = lowQuality ? 32.0 : 16.0;
 
-    final backWave = Path()..moveTo(0, 0);
-    for (double x = 0; x <= size.x; x += 20) {
-      final y = sin((x * 0.035) - _wavePhase * 0.8) * 6.0 - 6.0;
-      backWave.lineTo(x, y);
+    if (!lowQuality) {
+      _backWavePath
+        ..reset()
+        ..moveTo(0, 0);
+      for (double x = 0; x <= size.x; x += 20) {
+        final y = sin((x * 0.035) - _wavePhase * 0.8) * 6.0 - 6.0;
+        _backWavePath.lineTo(x, y);
+      }
+      _backWavePath
+        ..lineTo(size.x, size.y)
+        ..lineTo(0, size.y)
+        ..close();
+      _backPaint.color = p.vermilionHazard.withAlpha((0.55 * 255).round());
+      canvas.drawPath(_backWavePath, _backPaint);
     }
-    backWave
-      ..lineTo(size.x, size.y)
-      ..lineTo(0, size.y)
-      ..close();
-    canvas.drawPath(
-      backWave,
-      Paint()..color = p.vermilionHazard.withAlpha((0.55 * 255).round()),
-    );
 
-    final frontWave = Path()..moveTo(0, 0);
-    for (double x = 0; x <= size.x; x += 16) {
+    _frontWavePath
+      ..reset()
+      ..moveTo(0, 0);
+    _crestPath.reset();
+    for (double x = 0; x <= size.x; x += step) {
       final y = sin((x * 0.04) + _wavePhase) * 5.0;
-      frontWave.lineTo(x, y);
-    }
-    frontWave
-      ..lineTo(size.x, size.y)
-      ..lineTo(0, size.y)
-      ..close();
-
-    final rect = Rect.fromLTWH(0, 0, size.x, size.y);
-    final gradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [p.inkFloodTop, p.inkFloodBottom],
-    );
-    canvas.drawPath(
-      frontWave,
-      Paint()..shader = gradient.createShader(rect),
-    );
-
-    final crestLine = Path();
-    for (double x = 0; x <= size.x; x += 16) {
-      final y = sin((x * 0.04) + _wavePhase) * 5.0;
+      _frontWavePath.lineTo(x, y);
       if (x == 0) {
-        crestLine.moveTo(x, y);
+        _crestPath.moveTo(x, y);
       } else {
-        crestLine.lineTo(x, y);
+        _crestPath.lineTo(x, y);
       }
     }
-    canvas.drawPath(
-      crestLine,
-      Paint()
-        ..color = p.playerStroke
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.8,
-    );
+    _frontWavePath
+      ..lineTo(size.x, size.y)
+      ..lineTo(0, size.y)
+      ..close();
+
+    if (lowQuality) {
+      _frontPaint
+        ..shader = null
+        ..color = p.inkFloodTop;
+    } else {
+      if (_cachedShader == null ||
+          _lastTopColor != p.inkFloodTop ||
+          _lastBottomColor != p.inkFloodBottom) {
+        _lastTopColor = p.inkFloodTop;
+        _lastBottomColor = p.inkFloodBottom;
+        final rect = Rect.fromLTWH(0, 0, size.x, size.y);
+        _cachedShader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [p.inkFloodTop, p.inkFloodBottom],
+        ).createShader(rect);
+      }
+      _frontPaint.shader = _cachedShader;
+    }
+    canvas.drawPath(_frontWavePath, _frontPaint);
+
+    _crestPaint.color = p.playerStroke;
+    canvas.drawPath(_crestPath, _crestPaint);
   }
 }

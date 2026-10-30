@@ -1,7 +1,8 @@
 import 'dart:math';
+import '../services/trusted_time_service.dart';
 import 'app_strings.dart';
 
-enum GameMode { levelProgression, dailyTower }
+enum GameMode { levelProgression, dailyTower, infiniteTower }
 
 class LeaderboardEntry {
   final int rank;
@@ -85,9 +86,20 @@ class DailySeedEngine {
     'Vale_11',
   ];
 
-  /// Seed intero basato sulla data UTC corrente (formato YYYYMMDD)
-  static int getTodaySeed() {
-    final now = DateTime.now().toUtc();
+  /// Arrotondamento deterministico a 1 cifra decimale per prevenire oscillazioni floating-point
+  static double roundMeters(double meters, {double? maxGoal}) {
+    final clamped = max(0.0, maxGoal != null ? min(meters, maxGoal) : meters);
+    return (clamped * 10.0).roundToDouble() / 10.0;
+  }
+
+  /// Formattazione coerente a 1 cifra decimale (es. "0.0", "14.2")
+  static String formatMeters(double meters, {double? maxGoal}) {
+    return roundMeters(meters, maxGoal: maxGoal).toStringAsFixed(1);
+  }
+
+  /// Seed intero basato sulla data UTC validata (formato YYYYMMDD)
+  static int getTodaySeed({DateTime? trustedNow}) {
+    final now = (trustedNow ?? TrustedTimeService.instance.nowUtc()).toUtc();
     return now.year * 10000 + now.month * 100 + now.day;
   }
 
@@ -109,15 +121,27 @@ class DailySeedEngine {
     return (50.0 + tier * 10.0).clamp(50.0, 300.0);
   }
 
+  /// Nella modalità Torre Infinita, ogni 50m scalati si sblocca un nuovo tipo di ostacolo!
+  /// 0-49.9m -> Tier 1 | 50-99.9m -> Tier 2 | 100-149.9m -> Tier 3 | 150-199.9m -> Tier 4 | 200-249.9m -> Tier 5 | 250m+ -> Tier 6+
+  static int getInfiniteObstacleTier(double meters) {
+    return (max(0.0, meters) / 50.0).floor() + 1;
+  }
+
+  /// Restituisce la prossima soglia (multiplo di 50m) in cui verrà aggiunto un nuovo ostacolo nella Torre Infinita.
+  static int getInfiniteNextObstacleMeters(double meters) {
+    return ((max(0.0, meters) / 50.0).floor() + 1) * 50;
+  }
+
   /// Numero progressivo della sfida giornaliera (es. Sfida #291)
-  static int getIssueNumber() {
+  static int getIssueNumber({DateTime? trustedNow}) {
     final epoch = DateTime.utc(2025, 1, 1);
-    return DateTime.now().toUtc().difference(epoch).inDays + 1;
+    final now = (trustedNow ?? TrustedTimeService.instance.nowUtc()).toUtc();
+    return now.difference(epoch).inDays + 1;
   }
 
   /// Data formattata (es. "19/10/2026")
-  static String getFormattedDate() {
-    final now = DateTime.now();
+  static String getFormattedDate({DateTime? trustedNow}) {
+    final now = (trustedNow ?? TrustedTimeService.instance.nowUtc()).toLocal();
     final d = now.day.toString().padLeft(2, '0');
     final m = now.month.toString().padLeft(2, '0');
     return '$d/$m/${now.year}';
@@ -160,9 +184,10 @@ class DailySeedEngine {
   }
 
   /// Seed deterministico che ruota ogni 7 giorni (settimanale) per rinnovare gli sfidanti della Scalata Livelli
-  static int getWeeklySeed() {
+  static int getWeeklySeed({DateTime? trustedNow}) {
     final epoch = DateTime.utc(2025, 1, 1);
-    final daysSinceEpoch = DateTime.now().toUtc().difference(epoch).inDays;
+    final now = (trustedNow ?? TrustedTimeService.instance.nowUtc()).toUtc();
+    final daysSinceEpoch = now.difference(epoch).inDays;
     final weekIndex = daysSinceEpoch ~/ 7;
     return 2025000 + weekIndex;
   }
@@ -221,18 +246,23 @@ class DailySeedEngine {
     const baseLevels = [12, 10, 9, 7, 6, 5, 4, 3, 3, 2, 1, 1];
     const basePcts = [74, 68, 64, 60, 56, 52, 48, 44, 38, 34, 28, 22];
 
+    // Limita rigorosamente l'impatto dei tentativi: se il giocatore fallisce molte volte sullo stesso livello,
+    // i bot NON continuano a salire aumentando il divario!
+    final maxCountedPlays = max(0, (playerLevel - 1) * 2);
+    final effectivePlays = min(totalLevelsPlayed, maxCountedPlays);
+
     final all = <LeaderboardEntry>[];
     for (int i = 0; i < 12; i++) {
       final rName = _dailyChallengerPool[indices[i]];
 
-      // Cadenza naturale di ogni bot: avanza di 1 livello ogni 4..8 partite giocate dal giocatore (sia vinte che perse).
-      // In un blocco di 1-10 partite, i bot incrementano di poco (es. 1 livello, massimo 2-3).
-      final botCadence = 4 + ((i * 3 + weekSeed) % 5); // tra 4 e 8 partite per livello
-      final levelIncrement = (totalLevelsPlayed / botCadence).floor();
+      // Cadenza controllata: i bot avanzano solo quando anche il giocatore progredisce di livello,
+      // e a un ritmo più lento del giocatore così che il divario non aumenti mai per via dei tentativi falliti.
+      final botCadence = 5 + ((i * 3 + weekSeed) % 5); // tra 5 e 9 passi validi per livello
+      final levelIncrement = (effectivePlays / botCadence).floor();
       final rLevel = baseLevels[i] + levelIncrement;
 
-      // La percentuale varia morbidamente con le partite giocate
-      final pctVariation = ((totalLevelsPlayed * (i + 3) + i * 11 + weekSeed) % 21) - 10;
+      // La percentuale varia morbidamente
+      final pctVariation = ((effectivePlays * (i + 3) + i * 11 + weekSeed) % 21) - 10;
       final rPct = (basePcts[i] + pctVariation).clamp(15, 88);
 
       final rGoal = getLevelGoalMeters(rLevel);
@@ -421,6 +451,106 @@ class DailySeedEngine {
     ];
   }
 
+  /// Genera la classifica per la modalità Torre Infinita (ordinata per metri massimi raggiunti,
+  /// e a parità di metri per minor numero di rimbalzi).
+  static List<LeaderboardEntry> getInfiniteLeaderboard({
+    required String playerName,
+    required double playerInfiniteBestMeters,
+    int playerInfiniteBounces = 0,
+    String playerAvatarEmoji = '💧',
+  }) {
+    final weekSeed = getWeeklySeed();
+    final rng = Random(weekSeed ^ 0x3C91E4);
+    final indices = List<int>.generate(_dailyChallengerPool.length, (i) => i);
+    for (int i = indices.length - 1; i > 0; i--) {
+      final j = rng.nextInt(i + 1);
+      final tmp = indices[i];
+      indices[i] = indices[j];
+      indices[j] = tmp;
+    }
+
+    const baseInfiniteHeights = <double>[
+      268.4,
+      234.0,
+      198.6,
+      172.5,
+      148.2,
+      126.0,
+      104.8,
+      86.5,
+      68.0,
+      52.4,
+      36.8,
+      22.5,
+    ];
+    const botAvatars = ['⚪', '🍃', '🥷', '🎋', '🕊️', '🐉', '⚡', '🖌️', '💧', '🥈', '🥉', '👑'];
+
+    final all = <LeaderboardEntry>[];
+    for (int i = 0; i < 12; i++) {
+      final rName = _dailyChallengerPool[indices[i]];
+      final jitter = (rng.nextDouble() - 0.5) * 6.0;
+      final meters =
+          roundMeters(max(12.0, baseInfiniteHeights[i] + jitter));
+      final tier = getInfiniteObstacleTier(meters);
+      final bounces = computeRealisticRivalBounces(
+        metersClimbed: meters,
+        difficultyLevel: tier,
+        rivalIndex: i,
+      );
+      all.add(
+        LeaderboardEntry(
+          rank: 0,
+          name: rName,
+          level: tier,
+          bestMeters: meters,
+          progressPercent: ((meters % 50.0) / 50.0 * 100.0).round(),
+          bounces: bounces,
+          avatarEmoji: botAvatars[i % botAvatars.length],
+        ),
+      );
+    }
+
+    final cleanBest = roundMeters(playerInfiniteBestMeters);
+    final effectiveBounces = playerInfiniteBounces > 0
+        ? playerInfiniteBounces
+        : (cleanBest > 0 ? max(4, (cleanBest * 0.48).round()) : 0);
+
+    all.add(
+      LeaderboardEntry(
+        rank: 0,
+        name: playerName.trim().isEmpty ? 'Climber' : playerName.trim(),
+        level: getInfiniteObstacleTier(cleanBest),
+        bestMeters: cleanBest,
+        progressPercent: ((cleanBest % 50.0) / 50.0 * 100.0).round(),
+        bounces: effectiveBounces,
+        isCurrentUser: true,
+        avatarEmoji: playerAvatarEmoji,
+      ),
+    );
+
+    all.sort((a, b) {
+      final mCmp = b.bestMeters.compareTo(a.bestMeters);
+      if (mCmp != 0) return mCmp;
+      if (a.bounces == 0 && b.bounces > 0) return 1;
+      if (b.bounces == 0 && a.bounces > 0) return -1;
+      return a.bounces.compareTo(b.bounces);
+    });
+
+    return [
+      for (int i = 0; i < all.length; i++)
+        LeaderboardEntry(
+          rank: i + 1,
+          name: all[i].name,
+          level: all[i].level,
+          bestMeters: all[i].bestMeters,
+          progressPercent: all[i].progressPercent,
+          bounces: all[i].bounces,
+          isCurrentUser: all[i].isCurrentUser,
+          avatarEmoji: all[i].avatarEmoji,
+        ),
+    ];
+  }
+
   /// Costruisce il testo condivisibile per TikTok / WhatsApp / X.
   /// Nota: Il messaggio finale di sfida compare SOLO qui quando il giocatore condivide il risultato!
   static String buildShareReceipt({
@@ -435,13 +565,17 @@ class DailySeedEngine {
     AppLanguage lang = AppLanguage.en,
   }) {
     final strings = AppStrings(lang);
+    final isInfinite = mode == GameMode.infiniteTower;
+    final effectiveTarget = isInfinite
+        ? getInfiniteNextObstacleMeters(meters).toDouble()
+        : targetMeters;
     final topPct = estimateTopPercentile(
       meters,
       isVictory,
-      targetMeters: targetMeters,
+      targetMeters: effectiveTarget,
     );
     final grid = StringBuffer();
-    final sectorSize = targetMeters / 5.0;
+    final sectorSize = effectiveTarget / 5.0;
 
     // 5 blocchi proporzionali (stile Wordle)
     for (int sector = 1; sector <= 5; sector++) {
@@ -457,11 +591,15 @@ class DailySeedEngine {
 
     final header = mode == GameMode.levelProgression
         ? 'INK TOWER • ${strings.levelShort} $level 🎯'
-        : 'INK TOWER • ${getFormattedDate()} 🎯';
+        : (isInfinite
+            ? 'INK TOWER • ${strings.modeInfiniteCardTitle}'
+            : 'INK TOWER • ${getFormattedDate()} 🎯');
 
-    final statusText = isVictory
-        ? '🏆 ${targetMeters.toStringAsFixed(0)}m!'
-        : '${meters.toStringAsFixed(1)}m / ${targetMeters.toStringAsFixed(0)}m (Top $topPct%)';
+    final statusText = isInfinite
+        ? '${meters.toStringAsFixed(1)}m (Tier ${getInfiniteObstacleTier(meters)})'
+        : (isVictory
+            ? '🏆 ${targetMeters.toStringAsFixed(0)}m!'
+            : '${meters.toStringAsFixed(1)}m / ${targetMeters.toStringAsFixed(0)}m (Top $topPct%)');
 
     return '$header\n'
         '$grid $statusText\n'

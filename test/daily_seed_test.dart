@@ -92,6 +92,18 @@ void main() {
     expect(diff, greaterThanOrEqualTo(1));
     expect(diff, lessThanOrEqualTo(3));
 
+    // Se il giocatore fa molti tentativi fallendo sullo stesso livello (es. Livello 1 o 3 con 150 tentativi),
+    // i bot NON devono scappare via aumentando il divario!
+    final globalManyFailedAttempts = DailySeedEngine.getGlobalLeaderboard(
+      playerName: 'Tester',
+      playerLevel: 1,
+      playerBestMeters: 20.0,
+      totalLevelsPlayed: 150,
+    );
+    final topBotAfter150Fails = globalManyFailedAttempts
+        .firstWhere((e) => !e.isCurrentUser && e.name == topBotStart.name);
+    expect(topBotAfter150Fails.level, equals(topBotStart.level));
+
     for (int i = 0; i < globalWon.length - 1; i++) {
       final a = globalWon[i];
       final b = globalWon[i + 1];
@@ -112,6 +124,17 @@ void main() {
       expect(s.modeDailyTab(657).contains('#657'), isFalse);
       expect(s.leaderboardDailyBtn(3), contains('#3'));
       expect(s.leaderboardLevelsBtn(2), contains('#2'));
+      expect(s.hudInfiniteBadge.contains('♾️'), isFalse);
+      final infSub = s.motivatingSubtitle(
+        meters: 42.0,
+        targetMeters: 50.0,
+        isVictory: false,
+        isLevelMode: false,
+        nextLevel: 2,
+        isInfiniteMode: true,
+        bestInfiniteMeters: 80.0,
+      );
+      expect(infSub.toLowerCase().contains('vetta'), isFalse);
     }
   });
 

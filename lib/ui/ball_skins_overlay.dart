@@ -459,11 +459,11 @@ class _BallPreviewPainter extends CustomPainter {
     // Grafica Skin
     skin.renderCustomSkin(canvas, radius, p, progress * 2 * pi);
 
-    // Riflesso
+    // Riflesso speculare avorio caldo (sempre visibile anche in modalità Notte)
     canvas.drawCircle(
       const Offset(-3.5, -3.5),
-      radius * 0.32,
-      Paint()..color = p.paperCard.withAlpha((0.65 * 255).round()),
+      radius * 0.28,
+      Paint()..color = const Color(0xFFFFFDF8).withAlpha((0.68 * 255).round()),
     );
 
     // Contorno
@@ -506,8 +506,8 @@ class _BallIconPainter extends CustomPainter {
 
     canvas.drawCircle(
       const Offset(-2.5, -2.5),
-      radius * 0.32,
-      Paint()..color = p.paperCard.withAlpha((0.65 * 255).round()),
+      radius * 0.28,
+      Paint()..color = const Color(0xFFFFFDF8).withAlpha((0.68 * 255).round()),
     );
 
     canvas.drawCircle(

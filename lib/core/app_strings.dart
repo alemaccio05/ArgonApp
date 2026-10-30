@@ -537,7 +537,33 @@ class AppStrings {
     required bool isVictory,
     required bool isLevelMode,
     required int nextLevel,
+    bool isInfiniteMode = false,
+    bool isNewRecord = false,
+    double bestInfiniteMeters = 0.0,
   }) {
+    if (isInfiniteMode) {
+      final mStr = meters.toStringAsFixed(1);
+      final bestStr = (bestInfiniteMeters > meters ? bestInfiniteMeters : meters)
+          .toStringAsFixed(1);
+      if (isNewRecord && meters > 0) {
+        return _t(
+          it: 'Nuovo record nella Torre Infinita! Hai raggiunto ${mStr}m!',
+          en: 'New Infinite Tower record! You climbed ${mStr}m!',
+          es: '¡Nuevo récord en la Torre Infinita! ¡Subiste ${mStr}m!',
+          fr: 'Nouveau record Tour Infinie ! Vous avez atteint ${mStr}m !',
+          de: 'Neuer Endlos-Turm-Rekord! Du hast ${mStr}m erreicht!',
+          pt: 'Novo recorde na Torre Infinita! Você alcançou ${mStr}m!',
+        );
+      }
+      return _t(
+        it: 'Scalata infinita fino a ${mStr}m • Record personale: ${bestStr}m',
+        en: 'Infinite climb up to ${mStr}m • Personal best: ${bestStr}m',
+        es: 'Escalada infinita hasta ${mStr}m • Récord personal: ${bestStr}m',
+        fr: 'Ascension infinie jusqu\'à ${mStr}m • Record : ${bestStr}m',
+        de: 'Endloser Aufstieg bis ${mStr}m • Rekord: ${bestStr}m',
+        pt: 'Escalada infinita até ${mStr}m • Recorde pessoal: ${bestStr}m',
+      );
+    }
     if (isVictory) {
       if (isLevelMode) {
         return _t(
@@ -617,7 +643,23 @@ class AppStrings {
         pt: 'REBOTES',
       );
 
-  String globalRankSummary(int rank, bool isLevelMode, int levelOrIssue) {
+  String globalRankSummary(
+    int rank,
+    bool isLevelMode,
+    int levelOrIssue, {
+    bool isInfiniteMode = false,
+    String bestInfiniteMeters = '0.0',
+  }) {
+    if (isInfiniteMode) {
+      return _t(
+        it: 'Classifica Torre Infinita: #$rank (Record ${bestInfiniteMeters}m)',
+        en: 'Infinite Tower Rank: #$rank (Best ${bestInfiniteMeters}m)',
+        es: 'Ranking Torre Infinita: #$rank (Récord ${bestInfiniteMeters}m)',
+        fr: 'Classement Tour Infinie : #$rank (Record ${bestInfiniteMeters}m)',
+        de: 'Endlos-Turm-Rang: #$rank (Rekord ${bestInfiniteMeters}m)',
+        pt: 'Ranking Torre Infinita: #$rank (Recorde ${bestInfiniteMeters}m)',
+      );
+    }
     if (isLevelMode) {
       return _t(
         it: '🏆 Classifica Livelli: #$rank (Max Liv. $levelOrIssue)',
@@ -1482,5 +1524,428 @@ class AppStrings {
         fr: 'Fermer',
         de: 'Schließen',
         pt: 'Fechar',
+      );
+
+  // --- MENU PAUSA, IMPOSTAZIONI & ANTI-CHEAT ORARIO ---
+  String get pauseTitle => _t(
+        it: 'GIOCO IN PAUSA',
+        en: 'GAME PAUSED',
+        es: 'JUEGO EN PAUSA',
+        fr: 'JEU EN PAUSE',
+        de: 'SPIEL PAUSIERT',
+        pt: 'JOGO PAUSADO',
+      );
+
+  String get pauseSubtitle => _t(
+        it: 'Fisica e timer sospesi in sicurezza',
+        en: 'Physics and timer safely paused',
+        es: 'Física y temporizador en pausa',
+        fr: 'Physique et chrono en pause',
+        de: 'Physik und Timer pausiert',
+        pt: 'Física e cronômetro em pausa',
+      );
+
+  String get resumeBtn => _t(
+        it: 'RIPRENDI SCALATA',
+        en: 'RESUME CLIMB',
+        es: 'REANUDAR ESCALADA',
+        fr: 'REPRENDRE',
+        de: 'WEITERSPIELEN',
+        pt: 'RETOMAR ESCALADA',
+      );
+
+  String get themeSelectLabel => _t(
+        it: 'TEMA VISIVO RISOGRAPH',
+        en: 'RISOGRAPH VISUAL THEME',
+        es: 'TEMA VISUAL RISOGRAPH',
+        fr: 'THÈME VISUEL RISOGRAPH',
+        de: 'RISOGRAPH-FARBSCHEMA',
+        pt: 'TEMA VISUAL RISOGRAPH',
+      );
+  String get themeSectionLabel => themeSelectLabel;
+
+  String get audioSettingsLabel => _t(
+        it: 'CONTROLLI AUDIO',
+        en: 'AUDIO CONTROLS',
+        es: 'CONTROLES DE AUDIO',
+        fr: 'CONTRÔLES AUDIO',
+        de: 'AUDIO-EINSTELLUNGEN',
+        pt: 'CONTROLES DE ÁUDIO',
+      );
+  String get audioSectionLabel => audioSettingsLabel;
+
+  String get masterAudioLabel => _t(
+        it: 'Audio Generale (Master)',
+        en: 'Master Audio',
+        es: 'Audio General (Master)',
+        fr: 'Audio Principal (Master)',
+        de: 'Haupt-Audio (Master)',
+        pt: 'Áudio Geral (Master)',
+      );
+
+  String get sfxAudioLabel => _t(
+        it: 'Effetti Sonori (SFX)',
+        en: 'Sound Effects (SFX)',
+        es: 'Efectos de Sonido (SFX)',
+        fr: 'Effets Sonores (SFX)',
+        de: 'Soundeffekte (SFX)',
+        pt: 'Efeitos Sonoros (SFX)',
+      );
+
+  String get musicAudioLabel => _t(
+        it: 'Musica Ambientale',
+        en: 'Ambient Music',
+        es: 'Música Ambiental',
+        fr: 'Musique d\'Ambiance',
+        de: 'Hintergrundmusik',
+        pt: 'Música Ambiente',
+      );
+
+  String get exitToMenuBtn => _t(
+        it: 'ESCI AL MENÙ PRINCIPALE',
+        en: 'EXIT TO MAIN MENU',
+        es: 'SALIR AL MENÚ PRINCIPAL',
+        fr: 'QUITTER VERS LE MENU',
+        de: 'ZUM HAUPTMENÜ',
+        pt: 'SAIR PARA O MENU',
+      );
+
+  String get exitConfirmTitle => _t(
+        it: 'Uscire dalla partita?',
+        en: 'Exit current climb?',
+        es: '¿Salir de la partida?',
+        fr: 'Quitter la partie ?',
+        de: 'Runde wirklich beenden?',
+        pt: 'Sair da partida atual?',
+      );
+
+  String get exitConfirmSub => _t(
+        it: 'Il progresso della scalata attuale andrà perso.',
+        en: 'Your current climb progress will be lost.',
+        es: 'Se perderá el progreso de la escalada actual.',
+        fr: 'La progression de l\'ascension actuelle sera perdue.',
+        de: 'Dein aktueller Fortschritt geht verloren.',
+        pt: 'O progresso da escalada atual será perdido.',
+      );
+
+  String get cancelBtn => _t(
+        it: 'ANNULLA',
+        en: 'CANCEL',
+        es: 'CANCELAR',
+        fr: 'ANNULER',
+        de: 'ABBRECHEN',
+        pt: 'CANCELAR',
+      );
+
+  String get confirmExitBtn => _t(
+        it: 'ESCI ORA',
+        en: 'EXIT NOW',
+        es: 'SALIR AHORA',
+        fr: 'QUITTER',
+        de: 'BEENDEN',
+        pt: 'SAIR AGORA',
+      );
+
+  String get settingsBtn => _t(
+        it: 'Impostazioni',
+        en: 'Settings',
+        es: 'Ajustes',
+        fr: 'Options',
+        de: 'Optionen',
+        pt: 'Ajustes',
+      );
+  String get settingsTitle => settingsBtn.toUpperCase();
+  String get settingsNavBtn => settingsBtn;
+
+  String get levelsNavBtn => _t(
+        it: 'Classifica',
+        en: 'Rankings',
+        es: 'Ranking',
+        fr: 'Classement',
+        de: 'Rangliste',
+        pt: 'Ranking',
+      );
+
+  String get shopSkinsNavBtn => _t(
+        it: 'Skin Sfera',
+        en: 'Ball Skins',
+        es: 'Skins Bola',
+        fr: 'Skins Balle',
+        de: 'Ball-Skins',
+        pt: 'Skins Bola',
+      );
+  String get shopNavBtn => shopSkinsNavBtn;
+
+  String get profileNavBtn => _t(
+        it: 'Profilo',
+        en: 'Profile',
+        es: 'Perfil',
+        fr: 'Profil',
+        de: 'Profil',
+        pt: 'Perfil',
+      );
+
+  String get languageLabel => _t(
+        it: 'Lingua / Language',
+        en: 'Language',
+        es: 'Idioma',
+        fr: 'Langue',
+        de: 'Sprache',
+        pt: 'Idioma',
+      );
+
+  String nextDailyInLabel(String timeStr) => _t(
+        it: 'Nuova Torre tra $timeStr',
+        en: 'Next Tower in $timeStr',
+        es: 'Nueva Torre en $timeStr',
+        fr: 'Prochaine Tour dans $timeStr',
+        de: 'Nächster Turm in $timeStr',
+        pt: 'Nova Torre em $timeStr',
+      );
+
+  String get clockTamperTitle => _t(
+        it: 'ORARIO DI SISTEMA ALTERATO',
+        en: 'SYSTEM CLOCK TAMPERED',
+        es: 'RELOJ DEL SISTEMA ALTERADO',
+        fr: 'HORLOGE SYSTÈME MODIFIÉE',
+        de: 'SYSTEMUHR MANIPULIERT',
+        pt: 'RELÓGIO DO SISTEMA ALTERADO',
+      );
+
+  String get clockTamperWarning => _t(
+        it: 'Rilevata modifica manuale della data/ora. Ripristina l\'ora automatica o connettiti a Internet per accedere alla Torre di Oggi.',
+        en: 'Manual date/time change detected. Restore automatic time or connect to the Internet to access Today\'s Tower.',
+        es: 'Cambio manual de hora detectado. Restaura la hora automática o conéctate a Internet para jugar la Torre de Hoy.',
+        fr: 'Modification manuelle de l\'heure détectée. Rétablissez l\'heure automatique ou connectez-vous à Internet.',
+        de: 'Manuelle Zeitänderung erkannt. Stelle die automatische Uhrzeit wieder her oder verbinde dich mit dem Internet.',
+        pt: 'Alteração manual de data/hora detectada. Restaure a hora automática ou conecte-se à Internet.',
+      );
+  String get clockTamperBody => clockTamperWarning;
+
+  String get clockTamperVerifyBtn => _t(
+        it: 'VERIFICA ORARIO ORA',
+        en: 'VERIFY TIME NOW',
+        es: 'VERIFICAR HORA AHORA',
+        fr: 'VÉRIFIER L\'HEURE',
+        de: 'ZEIT JETZT PRÜFEN',
+        pt: 'VERIFICAR HORA AGORA',
+      );
+  String get clockTamperRetryBtn => clockTamperVerifyBtn;
+
+  // --- VOLUME SINGOLO, TORRE INFINITA & MATRICE LIVELLI ---
+  String get volumeAudioLabel => _t(
+        it: 'Volume di Gioco',
+        en: 'Game Volume',
+        es: 'Volumen del Juego',
+        fr: 'Volume du Jeu',
+        de: 'Spiellautstärke',
+        pt: 'Volume do Jogo',
+      );
+
+  String get modeDailyCardTitle => _t(
+        it: 'LIVELLO GIORNALIERO',
+        en: 'DAILY LEVEL',
+        es: 'NIVEL DIARIO',
+        fr: 'NIVEAU DU JOUR',
+        de: 'TAGES-LEVEL',
+        pt: 'NÍVEL DIÁRIO',
+      );
+
+  String get modeDailyCardSub => _t(
+        it: 'Torre da 100m condivisa (24h)',
+        en: 'Shared 100m daily tower (24h)',
+        es: 'Torre de 100m compartida (24h)',
+        fr: 'Tour de 100m partagée (24h)',
+        de: 'Geteilter 100m-Tagesturm (24h)',
+        pt: 'Torre de 100m compartilhada (24h)',
+      );
+
+  String get modeProgressiveCardTitle => _t(
+        it: 'LIVELLI PROGRESSIVI',
+        en: 'PROGRESSIVE LEVELS',
+        es: 'NIVELES PROGRESIVOS',
+        fr: 'NIVEAUX PROGRESSIFS',
+        de: 'PROGRESSIVE LEVEL',
+        pt: 'NÍVEIS PROGRESSIVOS',
+      );
+
+  String get modeProgressiveCardSub => _t(
+        it: 'Livelli infiniti • +10m ogni 10 liv.',
+        en: 'Endless levels • +10m every 10 lvls',
+        es: 'Niveles infinitos • +10m cada 10 niv.',
+        fr: 'Niveaux infinis • +10m / 10 niv.',
+        de: 'Endlose Level • +10m alle 10 Lvl',
+        pt: 'Níveis infinitos • +10m a cada 10 nív.',
+      );
+
+  String get modeInfiniteCardTitle => _t(
+        it: 'TORRE INFINITA',
+        en: 'INFINITE TOWER',
+        es: 'TORRE INFINITA',
+        fr: 'TOUR INFINIE',
+        de: 'ENDLOSER TURM',
+        pt: 'TORRE INFINITA',
+      );
+
+  String get modeInfiniteCardSub => _t(
+        it: 'Senza fine • +1 ostacolo ogni 50m',
+        en: 'No summit • +1 obstacle every 50m',
+        es: 'Sin cima • +1 obstáculo cada 50m',
+        fr: 'Sans sommet • +1 obstacle / 50m',
+        de: 'Ohne Gipfel • +1 Hindernis / 50m',
+        pt: 'Sem topo • +1 obstáculo a cada 50m',
+      );
+
+  String get hudInfiniteBadge => _t(
+        it: 'INFINITA',
+        en: 'INFINITE',
+        es: 'INFINITA',
+        fr: 'INFINIE',
+        de: 'ENDLOS',
+        pt: 'INFINITA',
+      );
+
+  String get infiniteRecordLabel => _t(
+        it: 'RECORD INFINITO',
+        en: 'INFINITE BEST',
+        es: 'RÉCORD INFINITO',
+        fr: 'RECORD INFINI',
+        de: 'ENDLOS-REKORD',
+        pt: 'RECORDE INFINITO',
+      );
+
+  String get nextObstacleLabel => _t(
+        it: 'NUOVO OSTACOLO',
+        en: 'NEW OBSTACLE',
+        es: 'NUEVO OBSTÁCULO',
+        fr: 'NOUVEL OBSTACLE',
+        de: 'NEUES HINDERNIS',
+        pt: 'NOVO OBSTÁCULO',
+      );
+
+  String get every50mValue => _t(
+        it: 'OGNI 50m',
+        en: 'EVERY 50m',
+        es: 'CADA 50m',
+        fr: 'TOUS LES 50m',
+        de: 'ALLE 50m',
+        pt: 'A CADA 50m',
+      );
+
+  String get infiniteSummaryHeader => _t(
+        it: 'RIEPILOGO SCALATA INFINITA',
+        en: 'INFINITE CLIMB SUMMARY',
+        es: 'RESUMEN ESCALADA INFINITA',
+        fr: 'BILAN ASCENSION INFINIE',
+        de: 'ENDLOS-AUFSTIEG BILANZ',
+        pt: 'RESUMO ESCALADA INFINITA',
+      );
+
+  String get infiniteReachedHeightLabel => _t(
+        it: 'ALTEZZA RAGGIUNTA',
+        en: 'HEIGHT REACHED',
+        es: 'ALTURA ALCANZADA',
+        fr: 'HAUTEUR ATTEINTE',
+        de: 'ERREICHTE HÖHE',
+        pt: 'ALTURA ALCANÇADA',
+      );
+
+  String infiniteObstacleTierInfo(int tier, int nextMeters) => _t(
+        it: 'Fascia Ostacoli $tier • Prossimo ostacolo a ${nextMeters}m',
+        en: 'Obstacle Tier $tier • Next obstacle at ${nextMeters}m',
+        es: 'Fase Obstáculos $tier • Próximo obstáculo a ${nextMeters}m',
+        fr: 'Palier Obstacles $tier • Prochain obstacle à ${nextMeters}m',
+        de: 'Hindernis-Stufe $tier • Nächstes Hindernis bei ${nextMeters}m',
+        pt: 'Fase Obstáculos $tier • Próximo obstáculo em ${nextMeters}m',
+      );
+
+  String leaderboardInfiniteOpenBtn(int rank, int tier) => _t(
+        it: 'CLASSIFICA INFINITA (#$rank) • FASCIA OSTACOLI $tier',
+        en: 'INFINITE RANKING (#$rank) • OBSTACLE TIER $tier',
+        es: 'RANKING INFINITO (#$rank) • FASE OBSTÁCULOS $tier',
+        fr: 'CLASSEMENT INFINI (#$rank) • PALIER $tier',
+        de: 'ENDLOS-RANG (#$rank) • HINDERNIS-STUFE $tier',
+        pt: 'RANKING INFINITO (#$rank) • FASE OBSTÁCULOS $tier',
+      );
+
+  String playInfiniteBtn(String bestMeters) => _t(
+        it: 'GIOCA TORRE INFINITA (RECORD ${bestMeters}m)',
+        en: 'PLAY INFINITE TOWER (BEST ${bestMeters}m)',
+        es: 'JUGAR TORRE INFINITA (RÉCORD ${bestMeters}m)',
+        fr: 'JOUER TOUR INFINIE (RECORD ${bestMeters}m)',
+        de: 'SPIELE ENDLOS-TURM (REKORD ${bestMeters}m)',
+        pt: 'JOGAR TORRE INFINITA (RECORDE ${bestMeters}m)',
+      );
+
+  String infiniteNewObstacleStamp(int meters) => _t(
+        it: '${meters}m! +NUOVO OSTACOLO!',
+        en: '${meters}m! +NEW OBSTACLE!',
+        es: '¡${meters}m! ¡+NUEVO OBSTÁCULO!',
+        fr: '${meters}m ! +NOUVEL OBSTACLE !',
+        de: '${meters}m! +NEUES HINDERNIS!',
+        pt: '${meters}m! +NOVO OBSTÁCULO!',
+      );
+
+  String infiniteMilestoneMarker(int meters) => _t(
+        it: '— ${meters}m • +NUOVO OSTACOLO —',
+        en: '— ${meters}m • +NEW OBSTACLE —',
+        es: '— ${meters}m • +NUEVO OBSTÁCULO —',
+        fr: '— ${meters}m • +NOUVEL OBSTACLE —',
+        de: '— ${meters}m • +NEUES HINDERNIS —',
+        pt: '— ${meters}m • +NOVO OBSTÁCULO —',
+      );
+
+  String get leaderboardInfiniteTitle => _t(
+        it: 'CLASSIFICA TORRE INFINITA',
+        en: 'INFINITE TOWER LEADERBOARD',
+        es: 'CLASIFICACIÓN TORRE INFINITA',
+        fr: 'CLASSEMENT TOUR INFINIE',
+        de: 'ENDLOS-TURM RANGLISTE',
+        pt: 'RANKING TORRE INFINITA',
+      );
+
+  String get leaderboardInfiniteSub => _t(
+        it: 'Chi scala più in alto nella Torre Infinita (+1 ostacolo ogni 50m)',
+        en: 'Highest climbers in the Infinite Tower (+1 obstacle every 50m)',
+        es: 'Los más altos en la Torre Infinita (+1 obstáculo cada 50m)',
+        fr: 'Les plus hauts sur la Tour Infinie (+1 obstacle tous les 50m)',
+        de: 'Höchste Kletterer im Endlos-Turm (+1 Hindernis alle 50m)',
+        pt: 'Os mais altos na Torre Infinita (+1 obstáculo a cada 50m)',
+      );
+
+  String get levelMatrixTitle => _t(
+        it: 'MATRICE SELEZIONE LIVELLI',
+        en: 'LEVEL SELECTION MATRIX',
+        es: 'MATRIZ DE NIVELES',
+        fr: 'MATRICE DES NIVEAUX',
+        de: 'LEVEL-MATRIX',
+        pt: 'MATRIZ DE NÍVEIS',
+      );
+
+  String levelMatrixPageLabel(int start, int end) => _t(
+        it: 'LIVELLI $start – $end',
+        en: 'LEVELS $start – $end',
+        es: 'NIVELES $start – $end',
+        fr: 'NIVEAUX $start – $end',
+        de: 'LEVEL $start – $end',
+        pt: 'NÍVEIS $start – $end',
+      );
+
+  String levelMatrixOpenBtn(int selected, int maxUnlocked) => _t(
+        it: 'SCEGLI LIVELLO DALLA MATRICE (LIV. $selected / $maxUnlocked)',
+        en: 'SELECT LEVEL FROM MATRIX (LVL $selected / $maxUnlocked)',
+        es: 'ELEGIR NIVEL EN MATRIZ (NIV. $selected / $maxUnlocked)',
+        fr: 'CHOISIR NIVEAU DANS LA MATRICE (NIV. $selected / $maxUnlocked)',
+        de: 'LEVEL AUS MATRIX WÄHLEN (LVL $selected / $maxUnlocked)',
+        pt: 'ESCOLHER NÍVEL NA MATRIZ (NÍV. $selected / $maxUnlocked)',
+      );
+
+  String levelMatrixLockedHint(int frontierLevel) => _t(
+        it: 'Supera il Livello $frontierLevel per sbloccare i successivi • Usa le frecce per sfogliare all\'infinito!',
+        en: 'Beat Level $frontierLevel to unlock next levels • Use arrows to browse infinitely!',
+        es: '¡Supera el Nivel $frontierLevel para desbloquear • Usa las flechas para explorar sin fin!',
+        fr: 'Battez le Niveau $frontierLevel pour débloquer • Utilisez les flèches à l\'infini !',
+        de: 'Schlage Level $frontierLevel zum Freischalten • Pfeile zum endlosen Blättern!',
+        pt: 'Vença o Nível $frontierLevel para desbloquear • Use as setas para navegar sem fim!',
       );
 }
