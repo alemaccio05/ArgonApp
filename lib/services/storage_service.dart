@@ -5,6 +5,69 @@ import '../core/app_strings.dart';
 import '../core/daily_seed.dart';
 import 'trusted_time_service.dart';
 
+/// Rappresenta un amico salvato nella Sezione Amici (abbinato una sola volta tramite Codice Amico)
+/// per lanciare sfide P2P con 1 tap senza dover ricreare stanze manualmente.
+class FriendRecord {
+  final String code;
+  final String name;
+  final String avatarEmoji;
+  final String skinId;
+  final int winsAgainst;
+  final int lossesAgainst;
+  final bool isOnline;
+
+  const FriendRecord({
+    required this.code,
+    required this.name,
+    this.avatarEmoji = '🥷',
+    this.skinId = 'shinobi_star',
+    this.winsAgainst = 0,
+    this.lossesAgainst = 0,
+    this.isOnline = true,
+  });
+
+  FriendRecord copyWith({
+    String? name,
+    String? avatarEmoji,
+    String? skinId,
+    int? winsAgainst,
+    int? lossesAgainst,
+    bool? isOnline,
+  }) {
+    return FriendRecord(
+      code: code,
+      name: name ?? this.name,
+      avatarEmoji: avatarEmoji ?? this.avatarEmoji,
+      skinId: skinId ?? this.skinId,
+      winsAgainst: winsAgainst ?? this.winsAgainst,
+      lossesAgainst: lossesAgainst ?? this.lossesAgainst,
+      isOnline: isOnline ?? this.isOnline,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'name': name,
+        'avatarEmoji': avatarEmoji,
+        'skinId': skinId,
+        'winsAgainst': winsAgainst,
+        'lossesAgainst': lossesAgainst,
+        'isOnline': isOnline,
+      };
+
+  factory FriendRecord.fromJson(Map<String, dynamic> json) {
+    return FriendRecord(
+      code: (json['code'] as String?) ?? 'INK-1000',
+      name: (json['name'] as String?) ?? 'Rival',
+      avatarEmoji: (json['avatarEmoji'] as String?) ?? '🥷',
+      skinId: (json['skinId'] as String?) ?? 'shinobi_star',
+      winsAgainst: (json['winsAgainst'] as int?) ?? 0,
+      lossesAgainst: (json['lossesAgainst'] as int?) ?? 0,
+      isOnline: (json['isOnline'] as bool?) ?? true,
+    );
+  }
+}
+
 /// Gestisce il salvataggio locale veloce e resiliente (con protezione High-Water Mark
 /// e snapshot di backup automatico per impedire qualsiasi perdita o reset dei progressi):
 /// - Progressione infinita dei livelli (Livello 1, 2, 3...), record metri e rimbalzi
@@ -51,6 +114,11 @@ class StorageService {
   static const _keyLastRankAwardedSeed = 'last_rank_awarded_seed';
   static const _keyAwardedLevelFirstPlaces = 'awarded_level_first_places';
   static const _keyProgressBackupSnapshot = 'ink_progress_backup_snapshot_v1';
+  static const _keySelectedAbility = 'selected_climb_ability_id';
+  static const _keyP2PWinsCount = 'p2p_wins_count_all_time';
+  static const _keyP2PMatchesPlayed = 'p2p_matches_played_all_time';
+  static const _keyMyFriendCode = 'my_unique_friend_code';
+  static const _keyFriendsListJson = 'saved_friends_list_json_v1';
 
   SharedPreferences? _prefs;
 
@@ -85,6 +153,33 @@ class StorageService {
   int bestDailyRankAchievedToday = 999;
   int lastRankAwardedSeed = 0;
   List<String> awardedLevelFirstPlaces = [];
+  String selectedAbilityId = 'zen_anchor';
+  int p2pWinsCount = 0;
+  int p2pMatchesPlayed = 0;
+  String myFriendCode = 'INK-4829';
+  List<FriendRecord> friendsList = [
+    const FriendRecord(
+      code: 'INK-9042',
+      name: 'Kenji_Zen',
+      avatarEmoji: '🥷',
+      skinId: 'shinobi_star',
+      isOnline: true,
+    ),
+    const FriendRecord(
+      code: 'INK-3188',
+      name: 'Sakura_Up',
+      avatarEmoji: '🕊️',
+      skinId: 'paper_origami',
+      isOnline: true,
+    ),
+    const FriendRecord(
+      code: 'INK-7714',
+      name: 'Ryu_Dragon',
+      avatarEmoji: '🐉',
+      skinId: 'dragon_ember',
+      isOnline: true,
+    ),
+  ];
 
   // Lingua & Volume Audio Unificato
   AppLanguage selectedLanguage = AppLanguage.en;
@@ -199,6 +294,28 @@ class StorageService {
       lastRankAwardedSeed = _prefs?.getInt(_keyLastRankAwardedSeed) ?? 0;
       awardedLevelFirstPlaces =
           _prefs?.getStringList(_keyAwardedLevelFirstPlaces) ?? [];
+      selectedAbilityId = _prefs?.getString(_keySelectedAbility) ??
+          (backup['selectedAbilityId'] as String?) ??
+          'zen_anchor';
+      p2pWinsCount = max(
+        _prefs?.getInt(_keyP2PWinsCount) ?? 0,
+        (backup['p2pWinsCount'] as int?) ?? 0,
+      );
+      p2pMatchesPlayed = max(
+        _prefs?.getInt(_keyP2PMatchesPlayed) ?? 0,
+        (backup['p2pMatchesPlayed'] as int?) ?? 0,
+      );
+      final savedCode = _prefs?.getString(_keyMyFriendCode) ??
+          (backup['myFriendCode'] as String?);
+      if (savedCode != null && savedCode.isNotEmpty) {
+        myFriendCode = savedCode;
+      } else {
+        final rng = Random();
+        final numPart = 1000 + rng.nextInt(9000);
+        myFriendCode = 'INK-$numPart';
+        await _prefs?.setString(_keyMyFriendCode, myFriendCode);
+      }
+      _loadFriendsList(backup);
 
       // Carica subito i dati giornalieri esistenti prima della verifica oraria
       bestMetersToday = _prefs?.getDouble(_keyBestMetersToday) ?? 0.0;
@@ -318,6 +435,11 @@ class StorageService {
         'languageCode': selectedLanguage.code,
         'selectedProfileIconId': selectedProfileIconId,
         'selectedBallSkinId': selectedBallSkinId,
+        'selectedAbilityId': selectedAbilityId,
+        'p2pWinsCount': p2pWinsCount,
+        'p2pMatchesPlayed': p2pMatchesPlayed,
+        'myFriendCode': myFriendCode,
+        'friendsList': friendsList.map((f) => f.toJson()).toList(),
         'proUnlocked': proUnlocked,
       };
       await _prefs?.setString(_keyProgressBackupSnapshot, jsonEncode(snapshot));
@@ -600,6 +722,124 @@ class StorageService {
   }
 
   Future<void> unlockProEdition() async {
+    proUnlocked = true;
+    await _prefs?.setBool(_keyProUnlocked, true);
+    await _saveBackupSnapshot();
+  }
+
+  void _loadFriendsList(Map<String, dynamic> backup) {
+    try {
+      final raw = _prefs?.getString(_keyFriendsListJson);
+      List<dynamic>? decoded;
+      if (raw != null && raw.isNotEmpty) {
+        decoded = jsonDecode(raw) as List<dynamic>?;
+      } else if (backup['friendsList'] is List<dynamic>) {
+        decoded = backup['friendsList'] as List<dynamic>;
+      }
+      if (decoded != null && decoded.isNotEmpty) {
+        friendsList = decoded
+            .whereType<Map<String, dynamic>>()
+            .map(FriendRecord.fromJson)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveFriendsList() async {
+    try {
+      final encoded = jsonEncode(friendsList.map((f) => f.toJson()).toList());
+      await _prefs?.setString(_keyFriendsListJson, encoded);
+      await _saveBackupSnapshot();
+    } catch (_) {}
+  }
+
+  Future<void> setSelectedAbility(String abilityId) async {
+    selectedAbilityId = abilityId;
+    await _prefs?.setString(_keySelectedAbility, selectedAbilityId);
+    await _saveBackupSnapshot();
+  }
+
+  Future<FriendRecord> addFriend({
+    required String code,
+    required String name,
+    String avatarEmoji = '🥷',
+    String skinId = 'shinobi_star',
+  }) async {
+    final cleanCode = code.trim().toUpperCase();
+    final cleanName = name.trim().isEmpty ? 'Climber' : name.trim();
+    final existingIdx =
+        friendsList.indexWhere((f) => f.code.toUpperCase() == cleanCode);
+    final record = FriendRecord(
+      code: cleanCode.isEmpty ? 'INK-5521' : cleanCode,
+      name: cleanName,
+      avatarEmoji: avatarEmoji,
+      skinId: skinId,
+      isOnline: true,
+    );
+    if (existingIdx >= 0) {
+      friendsList[existingIdx] = friendsList[existingIdx].copyWith(
+        name: cleanName,
+        isOnline: true,
+      );
+    } else {
+      friendsList.insert(0, record);
+    }
+    await _saveFriendsList();
+    return record;
+  }
+
+  Future<void> removeFriend(String code) async {
+    friendsList.removeWhere((f) => f.code.toUpperCase() == code.toUpperCase());
+    await _saveFriendsList();
+  }
+
+  Future<void> recordP2PDuelResult({
+    required String friendCode,
+    required bool isWin,
+    required double meters,
+    required int bounces,
+  }) async {
+    try {
+      _prefs ??= await SharedPreferences.getInstance();
+    } catch (_) {}
+
+    p2pMatchesPlayed += 1;
+    await _prefs?.setInt(_keyP2PMatchesPlayed, p2pMatchesPlayed);
+
+    if (isWin) {
+      p2pWinsCount += 1;
+      await _prefs?.setInt(_keyP2PWinsCount, p2pWinsCount);
+    }
+
+    totalBouncesAllTime += max(1, bounces);
+    await _prefs?.setInt(_keyTotalBouncesAllTime, totalBouncesAllTime);
+
+    totalMetersClimbed += meters;
+    await _prefs?.setDouble(_keyTotalMetersClimbed, totalMetersClimbed);
+
+    totalRunsPlayed += 1;
+    await _prefs?.setInt(_keyTotalRunsPlayed, totalRunsPlayed);
+
+    if (meters > allTimeBestMeters) {
+      allTimeBestMeters = meters;
+      await _prefs?.setDouble(_keyAllTimeBestMeters, allTimeBestMeters);
+    }
+
+    final idx = friendsList.indexWhere(
+      (f) => f.code.toUpperCase() == friendCode.toUpperCase(),
+    );
+    if (idx >= 0) {
+      final f = friendsList[idx];
+      friendsList[idx] = f.copyWith(
+        winsAgainst: isWin ? f.winsAgainst + 1 : f.winsAgainst,
+        lossesAgainst: isWin ? f.lossesAgainst : f.lossesAgainst + 1,
+      );
+    }
+    await _saveFriendsList();
+  }
+
+  // ignore: unused_element
+  Future<void> _syncProHelper() async {
     proUnlocked = true;
     await _prefs?.setBool(_keyProUnlocked, true);
     await _saveBackupSnapshot();

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ink_sling_daily/core/app_strings.dart';
 import 'package:ink_sling_daily/core/ball_skins.dart';
+import 'package:ink_sling_daily/core/climb_abilities.dart';
 import 'package:ink_sling_daily/core/daily_seed.dart';
 import 'package:ink_sling_daily/core/palette_theme.dart';
 import 'package:ink_sling_daily/core/profile_icons.dart';
@@ -184,7 +185,7 @@ void main() {
   });
 
   test('ProfileIconsCatalog has 12 unlockable icons with valid criteria', () {
-    expect(ProfileIconsCatalog.allIcons.length, equals(12));
+    expect(ProfileIconsCatalog.allIcons.length, equals(18));
 
     final storage = StorageService();
     storage.currentTowerLevel = 15;
@@ -213,7 +214,11 @@ void main() {
   });
 
   test('BallSkinsCatalog has 10 unlockable skins with valid progression criteria', () {
-    expect(BallSkinsCatalog.allSkins.length, equals(10));
+    expect(BallSkinsCatalog.allSkins.length, equals(16));
+    expect(ClimbAbilitiesCatalog.allAbilities.length, equals(6));
+    expect(ClimbAbilitiesCatalog.getById('zen_anchor').isUnlocked(1), isTrue);
+    expect(ClimbAbilitiesCatalog.getById('chrono_seal').isUnlocked(15), isFalse);
+    expect(ClimbAbilitiesCatalog.getById('chrono_seal').isUnlocked(30), isTrue);
 
     final storage = StorageService();
     storage.currentTowerLevel = 15;

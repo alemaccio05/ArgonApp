@@ -10,6 +10,9 @@ import '../game/ink_sling_game.dart';
 import '../services/trusted_time_service.dart';
 import 'ball_skins_overlay.dart';
 import 'privacy_dialog.dart';
+import '../core/climb_abilities.dart';
+import '../services/p2p_multiplayer_service.dart';
+import 'friends_p2p_overlay.dart';
 import 'profile_overlay.dart';
 
 /// Menu Principale progettato secondo la nuova struttura:
@@ -628,6 +631,126 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 // ========================================================
+                                // Banner Sfida Rapida 1-Tap in arrivo da un Amico
+                                ValueListenableBuilder<P2PIncomingInvite?>(
+                                  valueListenable: widget
+                                      .game
+                                      .p2pService
+                                      .incomingInviteNotifier,
+                                  builder: (context, invite, _) {
+                                    if (invite == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    final modeName =
+                                        invite.format ==
+                                            P2PDuelFormat.infiniteSurvival
+                                        ? s.p2pFormatInfinite
+                                        : s.p2pFormat100m;
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: p.vermilionHazard.withAlpha(32),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: p.vermilionHazard,
+                                          width: 2.2,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            s.incomingInviteTitle(
+                                              invite.senderName,
+                                            ),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w900,
+                                              color: p.vermilionHazard,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            s.incomingInviteSub(modeName),
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: p.inkPrimary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 7),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: _MenuPressableButton(
+                                                  onTap: () {
+                                                    widget
+                                                        .game
+                                                        .audioHaptics
+                                                        .onButtonTap();
+                                                    widget.game
+                                                        .acceptIncomingP2PInvite(
+                                                          invite,
+                                                        );
+                                                  },
+                                                  backgroundColor: p.matchaSafe,
+                                                  borderColor: p.inkPrimary,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 7,
+                                                      ),
+                                                  child: Text(
+                                                    s.acceptChallengeBtn,
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontSize: 10.5,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: p.onMatchaSafe,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: _MenuPressableButton(
+                                                  onTap: () {
+                                                    widget
+                                                        .game
+                                                        .audioHaptics
+                                                        .onButtonTap();
+                                                    widget
+                                                        .game
+                                                        .p2pService
+                                                        .declineIncomingInvite();
+                                                  },
+                                                  backgroundColor: p.paperBg,
+                                                  borderColor: p.inkPrimary,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 7,
+                                                      ),
+                                                  child: Text(
+                                                    s.declineChallengeBtn,
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontSize: 10.5,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: p.inkPrimary,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
                                 // STADIO 1: HEADER "INK TOWER" IN CIMA + SOTTOTITOLO FLUTTUANTE
                                 // (Senza pulsanti volume/tema che ora sono nelle Impostazioni)
                                 // ========================================================
@@ -1494,6 +1617,54 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                                   ),
                                                 ],
                                               ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Riga Duello P2P (1-Tap Amici) & Abilità Attive
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _SecondaryMenuTile(
+                                              emojiIcon: '⚔️',
+                                              iconColor: p.vermilionHazard,
+                                              badgeText:
+                                                  '${storage.friendsList.length} 👥',
+                                              label: s.friendsP2PBtn,
+                                              palette: p,
+                                              onTap: () async {
+                                                widget.game.audioHaptics
+                                                    .onButtonTap();
+                                                await showFriendsAndP2PDialog(
+                                                  context,
+                                                  widget.game,
+                                                );
+                                                if (mounted) setState(() {});
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _SecondaryMenuTile(
+                                              emojiIcon:
+                                                  ClimbAbilitiesCatalog.getById(
+                                                    storage.selectedAbilityId,
+                                                  ).icon,
+                                              iconColor: p.ochreSeal,
+                                              badgeText:
+                                                  '${ClimbAbilitiesCatalog.allAbilities.where((a) => a.isUnlocked(storage.currentTowerLevel)).length}/${ClimbAbilitiesCatalog.allAbilities.length}',
+                                              label: s.abilitiesNavBtn,
+                                              palette: p,
+                                              onTap: () async {
+                                                widget.game.audioHaptics
+                                                    .onButtonTap();
+                                                await showClimbAbilitiesDialog(
+                                                  context,
+                                                  widget.game,
+                                                );
+                                                if (mounted) setState(() {});
+                                              },
                                             ),
                                           ),
                                         ],

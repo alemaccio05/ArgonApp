@@ -23,6 +23,8 @@ class PlayerCore extends PositionComponent
   Vector2 prevPosition = Vector2.zero();
   int airCharges = maxAirCharges;
   double shieldTimer = 0.0;
+  double shadowPhaseTimer = 0.0;
+  double zenAnchorTimer = 0.0;
   double respawnFreezeTimer = 0.0;
   bool isDead = false;
   double _squashImpactTimer = 0.0;
@@ -68,10 +70,22 @@ class PlayerCore extends PositionComponent
     prevPosition = position.clone();
   }
 
-  bool get isStuck => stuckPlatform != null || position.y >= 0.0;
+  bool get isStuck =>
+      stuckPlatform != null || zenAnchorTimer > 0.0 || position.y >= 0.0;
+
+  bool get isShadowPhaseActive => shadowPhaseTimer > 0.0;
+
+  bool get isZenAnchored => zenAnchorTimer > 0.0;
 
   /// Flag di freeze/invulnerabilità temporaneo attivo subito dopo la Seconda Chance (0.5s)
   bool get isRespawnFrozen => respawnFreezeTimer > 0.0;
+
+  /// Lo scudo della Seconda Chance non ha timer: resta attivo finché non colpisce un ostacolo
+  bool get hasShield => shieldTimer > 0.0;
+
+  void breakShield() {
+    shieldTimer = 0.0;
+  }
 
   /// Punto di contatto inferiore della sfera (usato per la calibrazione esatta dell'altezza a 0.0m)
   double get bottomContactY => position.y + radius;
@@ -295,6 +309,7 @@ class PlayerCore extends PositionComponent
   }
 
   void launch(Vector2 launchVelocity, {bool silent = false}) {
+    zenAnchorTimer = 0.0;
     if (isRespawnFrozen) return;
     final safeVelocity = sanitizeLaunchVelocity(launchVelocity);
 
@@ -349,9 +364,15 @@ class PlayerCore extends PositionComponent
     if (!game.isPlaying && !game.isMenuDemo) return;
 
     _ringRotation += dt * 1.8;
-    if (shieldTimer > 0) shieldTimer = max(0.0, shieldTimer - dt);
+    // Lo scudo non scade più a tempo: resta attivo finché non colpisce un ostacolo!
     if (respawnFreezeTimer > 0) {
       respawnFreezeTimer = max(0.0, respawnFreezeTimer - dt);
+    }
+    if (shadowPhaseTimer > 0) {
+      shadowPhaseTimer = max(0.0, shadowPhaseTimer - dt);
+    }
+    if (zenAnchorTimer > 0) {
+      zenAnchorTimer = max(0.0, zenAnchorTimer - dt);
     }
     if (_squashImpactTimer > 0) {
       _squashImpactTimer = max(0.0, _squashImpactTimer - dt);
@@ -412,7 +433,7 @@ class PlayerCore extends PositionComponent
     }
 
     // Durante il freeze temporaneo di respawn (0.5s) sospende la caduta gravitazionale
-    if (isRespawnFrozen) {
+    if (isRespawnFrozen || zenAnchorTimer > 0.0) {
       velocity.setZero();
       acceleration.setZero();
       prevPosition.setFrom(position);
@@ -546,6 +567,17 @@ class PlayerCore extends PositionComponent
       _shieldStrokePaint.color = p.matchaSafe;
       canvas.drawCircle(center, radius + 13, _shieldFillPaint);
       canvas.drawCircle(center, radius + 13, _shieldStrokePaint);
+    }
+    if (zenAnchorTimer > 0.0) {
+      _stuckGlowPaint.color = p.matchaSafe.withAlpha((0.35 * 255).round());
+      canvas.drawCircle(center, radius + 7.5, _stuckGlowPaint);
+    }
+    if (shadowPhaseTimer > 0.0) {
+      _shieldFillPaint.color =
+          const Color(0xFF9D4EDD).withAlpha((0.26 * 255).round());
+      _shieldStrokePaint.color = const Color(0xFFE0AAFF);
+      canvas.drawCircle(center, radius + 11.5, _shieldFillPaint);
+      canvas.drawCircle(center, radius + 11.5, _shieldStrokePaint);
     }
 
     // 5. Ombra portata + Corpo elastico Squash & Stretch

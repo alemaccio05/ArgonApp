@@ -1948,4 +1948,578 @@ class AppStrings {
         de: 'Schlage Level $frontierLevel zum Freischalten • Pfeile zum endlosen Blättern!',
         pt: 'Vença o Nível $frontierLevel para desbloquear • Use as setas para navegar sem fim!',
       );
+
+  // ===========================================================================
+  // NUOVE SKIN SFERA HARDCORE & ICONE PROFILO AVANZATE
+  // ===========================================================================
+  String get skinCrimsonOniName => _t(
+        it: 'Oni Cremisi',
+        en: 'Crimson Oni',
+        es: 'Oni Carmesí',
+        fr: 'Oni Cramoisi',
+        de: 'Purpur-Oni',
+        pt: 'Oni Carmesim',
+      );
+  String get skinCrimsonOniDesc => _t(
+        it: 'Maschera demoniaca incisa a fuoco con corna d\'avorio e nucleo cremisi.',
+        en: 'Fire-etched demon mask with ivory horns and crimson core.',
+        es: 'Máscara demoníaca grabada con cuernos de marfil y núcleo carmesí.',
+        fr: 'Masque de démon gravé avec cornes d\'ivoire et cœur cramoisi.',
+        de: 'Feuergeätzte Dämonenmaske mit Elfenbeinhörnern und Purpurkern.',
+        pt: 'Máscara demoníaca gravada com chifres de marfim e núcleo carmesim.',
+      );
+
+  String get skinKitsuneSpiritName => _t(
+        it: 'Vortice Kitsune',
+        en: 'Kitsune Vortex',
+        es: 'Vórtice Kitsune',
+        fr: 'Vortex Kitsune',
+        de: 'Kitsune-Wirbel',
+        pt: 'Vórtice Kitsune',
+      );
+  String get skinKitsuneSpiritDesc => _t(
+        it: 'Spirito volpe a nove code con fiamme volpine ciano e oro.',
+        en: 'Nine-tailed fox spirit with cyan and gold foxfire.',
+        es: 'Espíritu zorro de nueve colas con fuego fatuo cian y oro.',
+        fr: 'Esprit renard à neuf queues avec feu follet cyan et or.',
+        de: 'Neunschwänziger Fuchsgeist mit Cyan- und Gold-Fuchsfeuer.',
+        pt: 'Espírito raposa de nove caudas com fogo-fátuo ciano e ouro.',
+      );
+
+  String get skinShogunObsidianName => _t(
+        it: 'Ossidiana Shogun',
+        en: 'Shogun Obsidian',
+        es: 'Obsidiana Shogun',
+        fr: 'Obsidienne Shogun',
+        de: 'Shogun-Obsidian',
+        pt: 'Obsidiana Shogun',
+      );
+  String get skinShogunObsidianDesc => _t(
+        it: 'Armatura poligonale in ossidiana nera e lame di giada imperiale.',
+        en: 'Black obsidian polygonal armor with imperial jade blades.',
+        es: 'Armadura poligonal de obsidiana negra y hojas de jade imperial.',
+        fr: 'Armure polygonale en obsidienne noire et lames de jade impérial.',
+        de: 'Schwarze Obsidian-Rüstung mit kaiserlichen Jade-Klingen.',
+        pt: 'Armadura poligonal de obsidiana negra e lâminas de jade imperial.',
+      );
+
+  String get skinSunEmperorName => _t(
+        it: 'Imperatore del Sole',
+        en: 'Sun Emperor',
+        es: 'Emperador del Sol',
+        fr: 'Empereur du Soleil',
+        de: 'Sonnenkaiser',
+        pt: 'Imperador do Sol',
+      );
+  String get skinSunEmperorDesc => _t(
+        it: 'Aureola solare a 12 raggi forgiata per i dominatori della Torre di Oggi.',
+        en: '12-ray solar halo forged for masters of Today\'s Tower.',
+        es: 'Halo solar de 12 rayos forjado para maestros de la Torre de Hoy.',
+        fr: 'Halo solaire à 12 rayons forgé pour les maîtres de la Tour du Jour.',
+        de: '12-strahliger Sonnenkranz für Meister des Tagesturms.',
+        pt: 'Halo solar de 12 raios forjado para mestres da Torre de Hoje.',
+      );
+
+  String get skinPhantomDuelistName => _t(
+        it: 'Spettro Duellante',
+        en: 'Phantom Duelist',
+        es: 'Espectro Duelista',
+        fr: 'Spectre Duelliste',
+        de: 'Phantom-Duellant',
+        pt: 'Espectro Duelista',
+      );
+  String get skinPhantomDuelistDesc => _t(
+        it: 'Sfera ectoplasmatica bicolore riservata ai campioni delle sfide P2P.',
+        en: 'Dual-tone ectoplasmic orb reserved for P2P duel champions.',
+        es: 'Orbe ectoplásmico bicolor reservado a campeones de duelos P2P.',
+        fr: 'Orbe ectoplasmique bicolore réservé aux champions de duels P2P.',
+        de: 'Zweifarbige Ektoplasma-Kugel für P2P-Duell-Champions.',
+        pt: 'Orbe ectoplasmático bicolor reservado a campeões de duelos P2P.',
+      );
+
+  String get skinVoidSingularityName => _t(
+        it: 'Singolarità Zen',
+        en: 'Zen Singularity',
+        es: 'Singularidad Zen',
+        fr: 'Singularité Zen',
+        de: 'Zen-Singularität',
+        pt: 'Singularidade Zen',
+      );
+  String get skinVoidSingularityDesc => _t(
+        it: 'Orizzonte degli eventi d\'inchiostro puro con anello gravitazionale.',
+        en: 'Pure ink event horizon with rotating gravitational accretion ring.',
+        es: 'Horizonte de sucesos de tinta pura con anillo gravitacional.',
+        fr: 'Horizon des événements d\'encre pure avec anneau gravitationnel.',
+        de: 'Ereignishorizont aus reiner Tinte mit Gravitationsring.',
+        pt: 'Horizonte de eventos de tinta pura com anel gravitacional.',
+      );
+
+  String skinInfiniteMetersReq(int meters) => _t(
+        it: 'Raggiungi ${meters}m nella Torre Infinita',
+        en: 'Reach ${meters}m in Infinite Tower',
+        es: 'Alcanza ${meters}m en Torre Infinita',
+        fr: 'Atteindre ${meters}m en Tour Infinie',
+        de: 'Erreiche ${meters}m im Endlos-Turm',
+        pt: 'Alcance ${meters}m na Torre Infinita',
+      );
+
+  String skinP2PWinsReq(int wins) => _t(
+        it: 'Vinci $wins sfide Multiplayer P2P',
+        en: 'Win $wins P2P Multiplayer duels',
+        es: 'Gana $wins duelos Multijugador P2P',
+        fr: 'Gagner $wins duels Multijoueur P2P',
+        de: 'Gewinne $wins P2P-Multiplayer-Duelle',
+        pt: 'Vença $wins duelos Multiplayer P2P',
+      );
+
+  String get iconOniMaskName => _t(
+        it: 'Maschera Oni',
+        en: 'Oni Mask',
+        es: 'Máscara Oni',
+        fr: 'Masque Oni',
+        de: 'Oni-Maske',
+        pt: 'Máscara Oni',
+      );
+  String get iconKitsuneFoxName => _t(
+        it: 'Spirito Kitsune',
+        en: 'Kitsune Spirit',
+        es: 'Espíritu Kitsune',
+        fr: 'Esprit Kitsune',
+        de: 'Kitsune-Geist',
+        pt: 'Espírito Kitsune',
+      );
+  String get iconDuelChampionName => _t(
+        it: 'Campione Duelli',
+        en: 'Duel Champion',
+        es: 'Campeón de Duelos',
+        fr: 'Champion de Duels',
+        de: 'Duell-Champion',
+        pt: 'Campeão de Duelos',
+      );
+  String get iconSunSovereignName => _t(
+        it: 'Sovrano del Sole',
+        en: 'Sun Sovereign',
+        es: 'Soberano del Sol',
+        fr: 'Souverain Solaire',
+        de: 'Sonnenherrscher',
+        pt: 'Soberano do Sol',
+      );
+  String get iconInkCometName => _t(
+        it: 'Cometa d\'Inchiostro',
+        en: 'Ink Comet',
+        es: 'Cometa de Tinta',
+        fr: 'Comète d\'Encre',
+        de: 'Tintenkomet',
+        pt: 'Cometa de Tinta',
+      );
+  String get iconPeakDeityName => _t(
+        it: 'Divinità della Vetta',
+        en: 'Peak Deity',
+        es: 'Deidad de la Cima',
+        fr: 'Divinité du Sommet',
+        de: 'Gipfelgottheit',
+        pt: 'Divindade do Topo',
+      );
+
+  String get titleGrandShogun => _t(
+        it: '⚔️ Grande Shogun della Torre',
+        en: '⚔️ Grand Tower Shogun',
+        es: '⚔️ Gran Shogun de la Torre',
+        fr: '⚔️ Grand Shogun de la Tour',
+        de: '⚔️ Großer Turm-Shogun',
+        pt: '⚔️ Grande Shogun da Torre',
+      );
+  String get titleDuelMaster => _t(
+        it: '👻 Maestro dei Duelli P2P',
+        en: '👻 P2P Duel Master',
+        es: '👻 Maestro de Duelos P2P',
+        fr: '👻 Maître des Duels P2P',
+        de: '👻 P2P-Duellmeister',
+        pt: '👻 Mestre dos Duelos P2P',
+      );
+
+  // ===========================================================================
+  // ABILITÀ DI SCALATA SBLOCCABILI (COOLDOWN)
+  // ===========================================================================
+  String get abilitiesTitle => _t(
+        it: 'ABILITÀ DI SCALATA',
+        en: 'CLIMB ABILITIES',
+        es: 'HABILIDADES DE ESCALADA',
+        fr: 'COMPÉTENCES D\'ASCENSION',
+        de: 'KLETTER-FÄHIGKEITEN',
+        pt: 'HABILIDADES DE ESCALADA',
+      );
+  String get abilitiesSubtitle => _t(
+        it: 'Equipaggia 1 abilità attiva con tempo di ricarica da usare durante la scalata',
+        en: 'Equip 1 active cooldown ability to trigger during your climb',
+        es: 'Equipa 1 habilidad activa con enfriamiento para usar al escalar',
+        fr: 'Équipez 1 compétence active avec recharge à utiliser en grimpant',
+        de: 'Rüste 1 aktive Fähigkeit mit Abklingzeit für den Aufstieg aus',
+        pt: 'Equipe 1 habilidade ativa com recarga para usar na escalada',
+      );
+  String abilityCooldownLabel(int sec) => _t(
+        it: 'RICARICA: ${sec}s',
+        en: 'COOLDOWN: ${sec}s',
+        es: 'RECARGA: ${sec}s',
+        fr: 'RECHARGE: ${sec}s',
+        de: 'ABKLINGZEIT: ${sec}s',
+        pt: 'RECARGA: ${sec}s',
+      );
+  String get abilityReadyLabel => _t(
+        it: 'PRONTA',
+        en: 'READY',
+        es: 'LISTA',
+        fr: 'PRÊTE',
+        de: 'BEREIT',
+        pt: 'PRONTA',
+      );
+
+  String get abilityZenAnchorName => _t(
+        it: 'Presa Zen',
+        en: 'Zen Anchor',
+        es: 'Ancla Zen',
+        fr: 'Ancre Zen',
+        de: 'Zen-Anker',
+        pt: 'Âncora Zen',
+      );
+  String get abilityZenAnchorDesc => _t(
+        it: 'Ferma istantaneamente la sfera a mezz\'aria per 2.5s e ricarica tutti i 3 lanci.',
+        en: 'Freezes the orb in mid-air for 2.5s and recharges all 3 slings.',
+        es: 'Detiene la esfera en el aire por 2.5s y recarga los 3 tiros.',
+        fr: 'Figer la sphère en plein vol (2.5s) et recharge les 3 tirs.',
+        de: 'Stoppt die Kugel für 2.5s in der Luft und lädt alle 3 Würfe auf.',
+        pt: 'Trava a esfera no ar por 2.5s e recarrega todos os 3 lanços.',
+      );
+
+  String get abilityInkAegisName => _t(
+        it: 'Egida d\'Inchiostro',
+        en: 'Ink Aegis',
+        es: 'Égida de Tinta',
+        fr: 'Égide d\'Encre',
+        de: 'Tinten-Ägide',
+        pt: 'Égide de Tinta',
+      );
+  String get abilityInkAegisDesc => _t(
+        it: 'Evoca uno scudo protettivo che si rompe solo quando colpisci un ostacolo.',
+        en: 'Summons a protective shield that only breaks when hitting an obstacle.',
+        es: 'Invoca un escudo protector que solo se rompe al chocar un obstáculo.',
+        fr: 'Invoque un bouclier qui ne se brise qu\'en touchant un obstacle.',
+        de: 'Beschwört einen Schild, der erst beim Aufprall auf ein Hindernis bricht.',
+        pt: 'Invoca um escudo protetor que só quebra ao atingir um obstáculo.',
+      );
+
+  String get abilityInkSabotageName => _t(
+        it: 'Spruzzo d\'Inchiostro',
+        en: 'Ink Splatter',
+        es: 'Salpicadura de Tinta',
+        fr: 'Jet d\'Encre',
+        de: 'Tintenklecks',
+        pt: 'Jato de Tinta',
+      );
+  String get abilityInkSabotageDesc => _t(
+        it: 'In P2P macchia lo schermo avversario per 3.5s (+1 lancio). In solo distrugge la trappola vicina.',
+        en: 'In P2P splatters opponent screen for 3.5s (+1 sling). In solo destroys nearby hazard.',
+        es: 'En P2P mancha la pantalla rival por 3.5s (+1 tiro). En solo destruye trampa cercana.',
+        fr: 'En P2P tache l\'écran adverse 3.5s (+1 tir). En solo détruit le piège proche.',
+        de: 'Befleckt im P2P den Gegner-Screen für 3.5s (+1 Wurf). Zerstört solo nahe Falle.',
+        pt: 'No P2P mancha a tela rival por 3.5s (+1 lanço). No solo destrói armadilha próxima.',
+      );
+
+  String get abilityHankoSurgeName => _t(
+        it: 'Slancio Hanko',
+        en: 'Hanko Surge',
+        es: 'Impulso Hanko',
+        fr: 'Élan Hanko',
+        de: 'Hanko-Schub',
+        pt: 'Impulso Hanko',
+      );
+  String get abilityHankoSurgeDesc => _t(
+        it: 'Forte spinta verticale verso l\'alto e ricarica immediata di tutti e 3 i lanci.',
+        en: 'Powerful upward boost and instant recharge of all 3 air slings.',
+        es: 'Potente impulso vertical hacia arriba y recarga de los 3 tiros.',
+        fr: 'Puissant boost vertical et recharge immédiate des 3 tirs.',
+        de: 'Starker Aufwärtsschub und sofortiges Aufladen aller 3 Würfe.',
+        pt: 'Forte impulso vertical para cima e recarga imediata dos 3 lanços.',
+      );
+
+  String get abilityShadowPhaseName => _t(
+        it: 'Passo d\'Ombra',
+        en: 'Shadow Phase',
+        es: 'Paso Sombrío',
+        fr: 'Phase d\'Ombre',
+        de: 'Schattenphase',
+        pt: 'Passo das Sombras',
+      );
+  String get abilityShadowPhaseDesc => _t(
+        it: 'Per 3.5s attraversi indenne tutte le barriere rosse e i laser attivi.',
+        en: 'For 3.5s phase harmlessly through all red hazards and active lasers.',
+        es: 'Por 3.5s atraviesas sin daño todas las barreras rojas y láseres.',
+        fr: 'Pendant 3.5s traversez sans dommage les pièges rouges et lasers.',
+        de: '3.5s lang unbeschadet durch alle roten Fallen und Laser gleiten.',
+        pt: 'Por 3.5s atravesse ileso todas as barreiras vermelhas e lasers.',
+      );
+
+  String get abilityChronoSealName => _t(
+        it: 'Sigillo del Tempo',
+        en: 'Chrono Seal',
+        es: 'Sello del Tiempo',
+        fr: 'Sceau Temporel',
+        de: 'Zeitsiegel',
+        pt: 'Selo do Tempo',
+      );
+  String get abilityChronoSealDesc => _t(
+        it: 'Per 5s congela la Marea d\'Inchiostro e rallenta del 65% tutti gli ostacoli.',
+        en: 'For 5s freezes the Ink Tide and slows all moving hazards by 65%.',
+        es: 'Por 5s congela la Marea de Tinta y frena un 65% los obstáculos.',
+        fr: 'Pendant 5s gèle la Marée d\'Encre et ralentit les pièges de 65%.',
+        de: 'Friert 5s lang die Tintenflut ein und verlangsamt Fallen um 65%.',
+        pt: 'Por 5s congela a Maré de Tinta e desacelera obstáculos em 65%.',
+      );
+
+  // ===========================================================================
+  // SEZIONE AMICI & MULTIPLAYER P2P (FANTASMA + SPETTATORE)
+  // ===========================================================================
+  String get friendsAndP2PBtn => _t(
+        it: 'AMICI & DUELLO P2P',
+        en: 'FRIENDS & P2P DUEL',
+        es: 'AMIGOS Y DUELO P2P',
+        fr: 'AMIS & DUEL P2P',
+        de: 'FREUNDE & P2P-DUELL',
+        pt: 'AMIGOS E DUELO P2P',
+      );
+  String get friendsSectionTitle => _t(
+        it: 'AMICI & SFIDE P2P 1-TAP',
+        en: 'FRIENDS & 1-TAP P2P DUELS',
+        es: 'AMIGOS Y DUELOS P2P 1-TAP',
+        fr: 'AMIS & DUELS P2P 1-TAP',
+        de: 'FREUNDE & 1-TAP P2P-DUELLE',
+        pt: 'AMIGOS E DUELOS P2P 1-TAP',
+      );
+  String get yourFriendCodeLabel => _t(
+        it: 'IL TUO CODICE AMICO',
+        en: 'YOUR FRIEND CODE',
+        es: 'TU CÓDIGO DE AMIGO',
+        fr: 'VOTRE CODE AMI',
+        de: 'DEIN FREUNDESCODE',
+        pt: 'SEU CÓDIGO DE AMIGO',
+      );
+  String get addFriendTitle => _t(
+        it: 'AGGIUNGI AMICO (UNA SOLA VOLTA)',
+        en: 'ADD FRIEND (ONE-TIME SETUP)',
+        es: 'AÑADIR AMIGO (UNA SOLA VEZ)',
+        fr: 'AJOUTER UN AMI (UNE SEULE FOIS)',
+        de: 'FREUND HINZUFÜGEN (EINMALIG)',
+        pt: 'ADICIONAR AMIGO (UMA SÓ VEZ)',
+      );
+  String get friendCodeHint => _t(
+        it: 'Codice (es. INK-4821)',
+        en: 'Code (e.g. INK-4821)',
+        es: 'Código (ej. INK-4821)',
+        fr: 'Code (ex. INK-4821)',
+        de: 'Code (z.B. INK-4821)',
+        pt: 'Código (ex. INK-4821)',
+      );
+  String get friendNameHint => _t(
+        it: 'Nome amico',
+        en: 'Friend name',
+        es: 'Nombre del amigo',
+        fr: 'Nom de l\'ami',
+        de: 'Name des Freundes',
+        pt: 'Nome do amigo',
+      );
+  String get addFriendBtn => _t(
+        it: 'AGGIUNGI',
+        en: 'ADD',
+        es: 'AÑADIR',
+        fr: 'AJOUTER',
+        de: 'HINZUFÜGEN',
+        pt: 'ADICIONAR',
+      );
+  String get duelFormatLabel => _t(
+        it: 'MODALITÀ SFIDA P2P',
+        en: 'P2P DUEL FORMAT',
+        es: 'FORMATO DUELO P2P',
+        fr: 'FORMAT DUEL P2P',
+        de: 'P2P-DUELLFORMAT',
+        pt: 'FORMATO DUELO P2P',
+      );
+  String get duelFormatRace100m => _t(
+        it: '🏁 Traguardo 100m',
+        en: '🏁 100m Race',
+        es: '🏁 Meta 100m',
+        fr: '🏁 Course 100m',
+        de: '🏁 100m-Rennen',
+        pt: '🏁 Corrida 100m',
+      );
+  String get duelFormatInfinite => _t(
+        it: '♾️ Sopravvivenza Infinita',
+        en: '♾️ Infinite Survival',
+        es: '♾️ Supervivencia Infinita',
+        fr: '♾️ Survie Infinie',
+        de: '♾️ Endlos-Überleben',
+        pt: '♾️ Sobrevivência Infinita',
+      );
+  String get challengeNowBtn => _t(
+        it: '⚔️ SFIDA',
+        en: '⚔️ DUEL',
+        es: '⚔️ RETAR',
+        fr: '⚔️ DÉFIER',
+        de: '⚔️ DUELL',
+        pt: '⚔️ DESAFIAR',
+      );
+  String get onlineStatusLabel => _t(
+        it: 'ONLINE',
+        en: 'ONLINE',
+        es: 'EN LÍNEA',
+        fr: 'EN LIGNE',
+        de: 'ONLINE',
+        pt: 'ONLINE',
+      );
+  String incomingChallengeBanner(String name, String mode) => _t(
+        it: '⚔️ $name ti sfida in $mode!',
+        en: '⚔️ $name challenges you to $mode!',
+        es: '⚔️ ¡$name te reta en $mode!',
+        fr: '⚔️ $name vous défie en $mode !',
+        de: '⚔️ $name fordert dich heraus ($mode)!',
+        pt: '⚔️ $name desafia você em $mode!',
+      );
+  String get acceptChallengeBtn => _t(
+        it: 'ACCETTA',
+        en: 'ACCEPT',
+        es: 'ACEPTAR',
+        fr: 'ACCEPTER',
+        de: 'ANNEHMEN',
+        pt: 'ACEITAR',
+      );
+  String get declineChallengeBtn => _t(
+        it: 'RIFIUTA',
+        en: 'DECLINE',
+        es: 'RECHAZAR',
+        fr: 'REFUSER',
+        de: 'ABLEHNEN',
+        pt: 'RECUSAR',
+      );
+  String spectatingBannerTitle(String opponentName) => _t(
+        it: '👁️ MODALITÀ SPETTATORE • Stai seguendo $opponentName',
+        en: '👁️ SPECTATOR MODE • Watching $opponentName',
+        es: '👁️ MODO ESPECTADOR • Siguiendo a $opponentName',
+        fr: '👁️ MODE SPECTATEUR • Vous suivez $opponentName',
+        de: '👁️ ZUSCHAUERMODUS • Du folgst $opponentName',
+        pt: '👁️ MODO ESPECTADOR • Seguindo $opponentName',
+      );
+  String opponentSpectatingYouBadge(String opponentName, String meters) => _t(
+        it: '👁️ $opponentName caduto a ${meters}m • Ti osserva!',
+        en: '👁️ $opponentName fell at ${meters}m • Watching you!',
+        es: '👁️ $opponentName cayó a ${meters}m • ¡Te observa!',
+        fr: '👁️ $opponentName tombé à ${meters}m • Vous regarde !',
+        de: '👁️ $opponentName fiel bei ${meters}m • Schaut dir zu!',
+        pt: '👁️ $opponentName caiu em ${meters}m • Observando você!',
+      );
+  String get finishSpectatingBtn => _t(
+        it: 'TERMINA E VEDI RISULTATO',
+        en: 'FINISH & VIEW RESULT',
+        es: 'TERMINAR Y VER RESULTADO',
+        fr: 'TERMINER & VOIR RÉSULTAT',
+        de: 'BEENDEN & ERGEBNIS SEHEN',
+        pt: 'ENCERRAR E VER RESULTADO',
+      );
+  String p2pVictoryTitle(String opponentName) => _t(
+        it: 'HAI BATTUTO $opponentName!',
+        en: 'YOU DEFEATED $opponentName!',
+        es: '¡VENCISTE A $opponentName!',
+        fr: 'VOUS AVEZ BATTU $opponentName !',
+        de: 'DU HAST $opponentName BESIEGT!',
+        pt: 'VOCÊ VENCEU $opponentName!',
+      );
+  String p2pDefeatTitle(String opponentName) => _t(
+        it: '$opponentName HA VINTO IL DUELLO',
+        en: '$opponentName WON THE DUEL',
+        es: '$opponentName GANÓ EL DUELO',
+        fr: '$opponentName A GAGNÉ LE DUEL',
+        de: '$opponentName HAT DAS DUELL GEWONNEN',
+        pt: '$opponentName VENCEU O DUELO',
+      );
+  String get rematchFriendBtn => _t(
+        it: '⚔️ RIVINCITA IMMEDIATA',
+        en: '⚔️ INSTANT REMATCH',
+        es: '⚔️ REVANCHA INMEDIATA',
+        fr: '⚔️ REVANCHE IMMÉDIATE',
+        de: '⚔️ SOFORT-REVANCHE',
+        pt: '⚔️ REVANCHE IMEDIATA',
+      );
+  String get simulateInviteBtn => _t(
+        it: '🔔 Ricevi Invito Test da Amico',
+        en: '🔔 Simulate Incoming Friend Invite',
+        es: '🔔 Simular Invitación de Amigo',
+        fr: '🔔 Simuler Invitation d\'un Ami',
+        de: '🔔 Freundeseinladung simulieren',
+        pt: '🔔 Simular Convite de Amigo',
+      );
+  String get friendCodeCopied => _t(
+        it: 'Codice Amico copiato negli appunti!',
+        en: 'Friend Code copied to clipboard!',
+        es: '¡Código de Amigo copiado!',
+        fr: 'Code Ami copié !',
+        de: 'Freundescode kopiert!',
+        pt: 'Código de Amigo copiado!',
+      );
+  String get friendsEmptyHint => _t(
+        it: 'Aggiungi il codice di un amico per sfidarlo con 1 tocco!',
+        en: 'Add a friend code once to challenge them with 1 tap!',
+        es: '¡Añade el código de un amigo para retarlo con 1 toque!',
+        fr: 'Ajoutez le code d\'un ami pour le défier en 1 geste !',
+        de: 'Füge einmal einen Freundescode hinzu für 1-Tap-Duelle!',
+        pt: 'Adicione o código de um amigo para desafiá-lo com 1 toque!',
+      );
+  String get abilityEquipAction => _t(
+        it: 'TOCCA PER EQUIPAGGIARE',
+        en: 'TAP TO EQUIP',
+        es: 'TOCA PARA EQUIPAR',
+        fr: 'TOUCHER POUR ÉQUIPER',
+        de: 'ZUM AUSRÜSTEN TIPPEN',
+        pt: 'TOQUE PARA EQUIPAR',
+      );
+  String get spectatorBannerTitle => _t(
+        it: '👁 MODALITÀ SPETTATORE',
+        en: '👁 SPECTATOR MODE',
+        es: '👁 MODO ESPECTADOR',
+        fr: '👁 MODE SPECTATEUR',
+        de: '👁 ZUSCHAUERMODUS',
+        pt: '👁 MODO ESPECTADOR',
+      );
+  String get friendsAndP2PTitle => friendsSectionTitle;
+  String get p2pFormatLabel => duelFormatLabel;
+  String get p2pFormat100m => duelFormatRace100m;
+  String get p2pFormatInfinite => duelFormatInfinite;
+  String get addFriendNameHint => friendNameHint;
+  String get addFriendCodeHint => friendCodeHint;
+  String get friendOnlineReady => '🟢 $onlineStatusLabel';
+  String get challengeOneTapBtn => challengeNowBtn;
+  String get abilitiesSectionTitle => abilitiesTitle;
+  String get abilitiesSectionSubtitle => abilitiesSubtitle;
+  String abilityCooldownBadge(int sec) => '⏱ ${sec}s';
+  String abilityUnlockLevelLabel(int lvl) => skinReachLevelReq(lvl);
+  String get abilityEquippedBadge => _t(
+        it: 'EQUIPAGGIATA',
+        en: 'EQUIPPED',
+        es: 'EQUIPADA',
+        fr: 'ÉQUIPÉE',
+        de: 'AUSGERÜSTET',
+        pt: 'EQUIPADA',
+      );
+  String spectatorBannerSub(String opponentName) =>
+      spectatingBannerTitle(opponentName);
+  String get spectatorLeaveBtn => finishSpectatingBtn;
+  String incomingInviteTitle(String name) => '⚔️ $name';
+  String incomingInviteSub(String mode) => mode;
+  String get friendsP2PBtn => friendsAndP2PBtn;
+  String get abilitiesNavBtn => abilitiesTitle;
+  String get ignoredTrailing => _t(
+        it: '',
+        en: '',
+        es: '',
+        fr: '',
+        de: '',
+        pt: '',
+      );
 }

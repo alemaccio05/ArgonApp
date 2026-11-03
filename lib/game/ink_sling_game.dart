@@ -16,6 +16,9 @@ import 'components/ink_flood_wave.dart';
 import 'components/ink_particle_pool.dart';
 import 'components/obstacle_block.dart';
 import 'components/player_core.dart';
+import '../core/climb_abilities.dart';
+import '../services/p2p_multiplayer_service.dart';
+import 'components/ghost_opponent.dart';
 
 /// Macchia d'inchiostro permanente ("Ink Stamp") lasciata ad ogni rimbalzo sul muro
 /// o atterraggio su piattaforma mentre si scala la torre.
@@ -61,6 +64,10 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   late InkFloodWave inkFlood = InkFloodWave(startY: 115);
   final InkParticlePool particlePool = InkParticlePool();
   final FramePerformanceMonitor perfMonitor = FramePerformanceMonitor();
+  late final P2PMultiplayerService p2pService =
+      P2PMultiplayerService(storage: storage)
+        ..onIncomingSabotage = triggerIncomingP2PSabotage;
+  GhostOpponentComponent? ghostOpponent;
 
   // Transizione fluida tra i temi (600ms con curva easeInOutCubic)
   late RisographPalette _fromPalette;
@@ -84,6 +91,9 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   final ValueNotifier<bool> pauseNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isGameLoadedNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<int> menuEntryEpochNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<bool> spectatingNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<double> abilityCooldownNotifier =
+      ValueNotifier<double>(0.0);
 
   AppStrings get strings => AppStrings(languageNotifier.value);
   bool get isLowQualityMode => perfMonitor.isLowQualityMode;
@@ -101,6 +111,12 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   int currentLevel = 1;
   double currentGoalMeters = 50.0;
   bool leveledUpInLastRun = false;
+  bool isP2PMatch = false;
+  bool isSpectatingOpponent = false;
+  double abilityCooldownRemaining = 0.0;
+  double abilityCooldownMax = 14.0;
+  double chronoSealTimer = 0.0;
+  double inkSabotageBlindTimer = 0.0;
 
   // Stato Generazione Procedurale Torre Infinita (+1 ostacolo ogni 50m)
   Random _infiniteRng = Random(1);
@@ -130,6 +146,11 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   final List<Offset> _paperGrainDots = [];
   final List<ObstacleBlock> _demoPlatforms = [];
   final List<ObstacleBlock> _solidPadsCache = [];
+  List<ObstacleBlock> get solidPadsCache => _solidPadsCache;
+  final Paint _sabotageBlotchPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _sabotageStrokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.0;
   final List<InkStamp> _inkStamps = [];
 
   // Cache di TextPainter per evitare chiamate a TextPainter.layout() a 60/120 FPS
@@ -351,6 +372,9 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     pauseNotifier.dispose();
     isGameLoadedNotifier.dispose();
     menuEntryEpochNotifier.dispose();
+    spectatingNotifier.dispose();
+    abilityCooldownNotifier.dispose();
+    p2pService.dispose();
     super.onRemove();
   }
 
@@ -361,6 +385,11 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     isPaused = false;
     pauseNotifier.value = false;
     isMenuDemo = true;
+    isP2PMatch = false;
+    isSpectatingOpponent = false;
+    spectatingNotifier.value = false;
+    chronoSealTimer = 0.0;
+    inkSabotageBlindTimer = 0.0;
     isDragging = false;
     targetTimeScale = 1.0;
     timeScale = 1.0;
@@ -692,6 +721,13 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     }
 
     isMenuDemo = false;
+    isP2PMatch = false;
+    isSpectatingOpponent = false;
+    spectatingNotifier.value = false;
+    abilityCooldownRemaining = 0.0;
+    abilityCooldownNotifier.value = 0.0;
+    chronoSealTimer = 0.0;
+    inkSabotageBlindTimer = 0.0;
     isPlaying = true;
     isVictory = false;
     reviveUsed = false;
@@ -734,6 +770,231 @@ class InkSlingGame extends FlameGame with DragCallbacks {
 
   /// Funzione isolata e testabile che crea la piattaforma di recupero alla quota esatta
   /// di `targetMeters` e vi ancora deterministicamente la pallina azzerando velocità e accelerazione.
+  /// Avvia un Duello P2P 1-Tap contro un amico della Lista Amici (Traguardo 100m o Sopravvivenza Infinita)
+  void startP2PDuel({
+    required FriendRecord friend,
+    required P2PDuelFormat format,
+    int? customSeed,
+  }) {
+    p2pService.prepareDirectChallenge(
+      friend: friend,
+      format: format,
+      customSeed: customSeed,
+    );
+    _launchConfiguredP2PMatch();
+  }
+
+  /// Accetta un invito P2P in entrata ricevuto da un amico e avvia la scalata sincronizzata
+  void acceptIncomingP2PInvite(P2PChallengeInvite invite) {
+    p2pService.incomingInviteNotifier.value = null;
+    final friend = FriendRecord(
+      code: invite.challengerCode,
+      name: invite.challengerName,
+      avatarEmoji: invite.challengerAvatar,
+      skinId: invite.challengerSkinId,
+      isOnline: true,
+    );
+    p2pService.prepareDirectChallenge(
+      friend: friend,
+      format: invite.format,
+      customSeed: invite.towerSeed,
+    );
+    _launchConfiguredP2PMatch();
+  }
+
+  void _launchConfiguredP2PMatch() {
+    final isInf = p2pService.activeDuelFormat == P2PDuelFormat.infiniteSurvival;
+    activeMode = isInf ? GameMode.infiniteTower : GameMode.levelProgression;
+    currentGoalMeters = isInf ? 100000.0 : DailySeedEngine.goalMeters;
+    isPaused = false;
+    pauseNotifier.value = false;
+    audioHaptics.onPauseDucking(false);
+    _lastInfiniteMilestoneAnnounced = 0;
+
+    _buildTowerWithSeed(
+      seed: p2pService.activeMatchSeed,
+      goalMeters: currentGoalMeters,
+      difficultyLevel: 5,
+      isInfiniteTower: isInf,
+      isDailyTower: !isInf,
+    );
+
+    ghostOpponent = GhostOpponentComponent(
+      state: p2pService.opponent,
+      seed: p2pService.activeMatchSeed,
+    );
+    world.add(ghostOpponent!);
+
+    isMenuDemo = false;
+    isP2PMatch = true;
+    isSpectatingOpponent = false;
+    spectatingNotifier.value = false;
+    isPlaying = true;
+    isVictory = false;
+    reviveUsed = false;
+    lastRunWasNewDailyRecord = false;
+    leveledUpInLastRun = false;
+    targetTimeScale = 1.0;
+    timeScale = 1.0;
+    abilityCooldownRemaining = 0.0;
+    abilityCooldownNotifier.value = 0.0;
+    chronoSealTimer = 0.0;
+    inkSabotageBlindTimer = 0.0;
+
+    maxMetersReached = 0.0;
+    _savedReviveMeters = 0.0;
+    runTimeSeconds = 0.0;
+    totalBounces = 0;
+    player.isDead = false;
+    player.position.setValues(0.0, platformBaseY);
+    player.prevPosition.setValues(0.0, platformBaseY);
+    player.velocity.setZero();
+    player.acceleration.setZero();
+    metersNotifier.value = 0.0;
+    chargesNotifier.value = PlayerCore.maxAirCharges;
+    comboNotifier.value = 0;
+
+    _removeOverlaySafe('MainMenu');
+    _removeOverlaySafe('GameOver');
+    _removeOverlaySafe('Pause');
+    _addOverlaySafe('Hud');
+    audioHaptics.onLaunch();
+  }
+
+  /// Attiva l'abilità equipaggiata dal giocatore durante la scalata (se non è in ricarica)
+  bool activateEquippedAbility() {
+    if (!isPlaying || isPaused || player.isDead || isSpectatingOpponent) {
+      return false;
+    }
+    if (abilityCooldownRemaining > 0.0) return false;
+
+    final ability = ClimbAbilitiesCatalog.getById(storage.selectedAbilityId);
+    if (!ability.isUnlocked(storage)) return false;
+
+    abilityCooldownMax = ability.cooldownSeconds;
+    abilityCooldownRemaining = ability.cooldownSeconds;
+    abilityCooldownNotifier.value = abilityCooldownRemaining;
+
+    switch (ability.id) {
+      case 'zen_anchor':
+        player.zenAnchorTimer = ability.activeDurationSeconds;
+        player.velocity.setZero();
+        player.acceleration.setZero();
+        player.recharge('seal');
+        spawnFloatingStampAt(
+          player.position.x,
+          player.position.y - 26,
+          '🍃 ${ability.getName(strings).toUpperCase()}!',
+        );
+        break;
+      case 'ink_aegis':
+        player.shieldTimer = 1.0; // Scudo senza timer: si rompe solo su ostacolo
+        spawnFloatingStampAt(
+          player.position.x,
+          player.position.y - 26,
+          '🛡️ ${strings.floatingShield}',
+        );
+        break;
+      case 'ink_sabotage':
+        player.airCharges =
+            min(PlayerCore.maxAirCharges, player.airCharges + 1);
+        chargesNotifier.value = player.airCharges;
+        if (isP2PMatch) {
+          p2pService.sendSabotageToOpponent();
+        }
+        ObstacleBlock? nearestHazard;
+        double bestDist = 165.0;
+        for (final child in world.children.whereType<ObstacleBlock>()) {
+          final isHaz = child.type == BlockType.vermilionHazard ||
+              child.type == BlockType.verticalPatrolHazard ||
+              child.type == BlockType.pulsingLaserHazard;
+          if (!isHaz) continue;
+          final d = (child.position - player.position).length;
+          if (d < bestDist) {
+            bestDist = d;
+            nearestHazard = child;
+          }
+        }
+        if (nearestHazard != null) {
+          spawnInkDropsAt(
+            nearestHazard.position.x,
+            nearestHazard.position.y,
+            palette.vermilionHazard,
+            count: 16,
+          );
+          nearestHazard.removeFromParent();
+        }
+        spawnFloatingStampAt(
+          player.position.x,
+          player.position.y - 26,
+          '🦑 ${ability.getName(strings).toUpperCase()}!',
+        );
+        break;
+      case 'hanko_surge':
+        player.stuckPlatform = null;
+        player.zenAnchorTimer = 0.0;
+        player.velocity.y = min(player.velocity.y, -680.0);
+        player.recharge('seal');
+        break;
+      case 'shadow_phase':
+        player.shadowPhaseTimer = ability.activeDurationSeconds;
+        spawnFloatingStampAt(
+          player.position.x,
+          player.position.y - 26,
+          '👻 ${ability.getName(strings).toUpperCase()}!',
+        );
+        break;
+      case 'chrono_seal':
+        chronoSealTimer = ability.activeDurationSeconds;
+        spawnFloatingStampAt(
+          player.position.x,
+          player.position.y - 26,
+          '⏳ ${ability.getName(strings).toUpperCase()}!',
+        );
+        break;
+    }
+
+    addCameraTrauma(0.24);
+    audioHaptics.onSealCollected(combo: max(1, comboNotifier.value));
+    return true;
+  }
+
+  /// Riceve il disturbo "Spruzzo d'Inchiostro" dall'avversario P2P (chiazze Risograph per 3.5s)
+  void triggerIncomingP2PSabotage() {
+    if (!isPlaying || isPaused || player.isDead) return;
+    inkSabotageBlindTimer = 3.5;
+    addCameraTrauma(0.32);
+    spawnFloatingStampAt(
+      player.position.x,
+      player.position.y - 30,
+      '🦑 ${strings.abilityInkSabotageName.toUpperCase()}!',
+    );
+  }
+
+  /// Invocato quando il Fantasma dell'avversario muore o raggiunge il traguardo
+  void onGhostOpponentFinishedOrDied({required bool reachedGoal}) {
+    if (!isP2PMatch || !isPlaying) return;
+    if (reachedGoal &&
+        p2pService.activeDuelFormat == P2PDuelFormat.race100m &&
+        !isSpectatingOpponent) {
+      triggerGameOver(victory: false);
+      return;
+    }
+    if (isSpectatingOpponent) {
+      isSpectatingOpponent = false;
+      spectatingNotifier.value = false;
+      triggerGameOver(victory: false);
+    }
+  }
+
+  /// Permette allo spettatore di chiudere anticipatamente la visuale e passare al riepilogo
+  void finishSpectatingEarly() {
+    if (!isSpectatingOpponent) return;
+    isSpectatingOpponent = false;
+    spectatingNotifier.value = false;
+    triggerGameOver(victory: false);
+  }
+
   ObstacleBlock spawnSecondChancePlayer({double? targetMeters}) {
     final exactMeters = DailySeedEngine.roundMeters(
       targetMeters ??
@@ -832,6 +1093,49 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   }
 
   Future<void> triggerGameOver({required bool victory}) async {
+    if (isP2PMatch &&
+        !victory &&
+        !player.isDead &&
+        !isSpectatingOpponent &&
+        !p2pService.opponent.isDead &&
+        !p2pService.opponent.hasWon) {
+      if (!isPlaying) return;
+      maxMetersReached = DailySeedEngine.roundMeters(
+        maxMetersReached,
+        maxGoal: currentGoalMeters,
+      );
+      _savedReviveMeters = maxMetersReached;
+      metersNotifier.value = maxMetersReached;
+      player.isDead = true;
+      isDragging = false;
+      targetTimeScale = 1.0;
+      timeScale = 1.0;
+      triggerHitStop(0.08);
+      addCameraTrauma(0.85);
+      final skin = BallSkinsCatalog.getById(storage.selectedBallSkinId);
+      spawnInkDeathExplosion(
+        player.position,
+        skin.getCoreColor(palette),
+        palette.vermilionHazard,
+      );
+      audioHaptics.onCrashOrVictory(victory: false);
+      p2pService.broadcastPlayerState(
+        x: player.position.x,
+        y: player.position.y,
+        vx: 0,
+        vy: 0,
+        meters: maxMetersReached,
+        isStuck: false,
+        hasShield: false,
+        isShadowPhase: false,
+        isDead: true,
+        hasWon: false,
+        force: true,
+      );
+      isSpectatingOpponent = true;
+      spectatingNotifier.value = true;
+      return;
+    }
     if (!isPlaying) return;
     isPlaying = false;
     isPaused = false;
@@ -874,6 +1178,30 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       );
     }
     audioHaptics.onCrashOrVictory(victory: victory);
+    if (isP2PMatch) {
+      p2pService.broadcastPlayerState(
+        x: player.position.x,
+        y: player.position.y,
+        vx: 0,
+        vy: 0,
+        meters: maxMetersReached,
+        isStuck: player.isStuck,
+        hasShield: player.hasShield,
+        isShadowPhase: player.isShadowPhaseActive,
+        isDead: player.isDead,
+        hasWon: victory,
+        force: true,
+      );
+      final p2pWon =
+          victory || (maxMetersReached > p2pService.opponent.maxMeters + 0.05);
+      isVictory = p2pWon;
+      await storage.recordP2PDuelResult(
+        friendCode: p2pService.opponent.code,
+        isWin: p2pWon,
+        meters: maxMetersReached,
+        bounces: totalBounces,
+      );
+    }
 
     final prevMaxLevel = storage.currentTowerLevel;
     lastRunWasNewDailyRecord = await storage.recordRunResult(
@@ -1043,7 +1371,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
-    if (!isPlaying || isPaused || player.airCharges <= 0) return;
+    if (!isPlaying || isPaused || player.isDead || isSpectatingOpponent || player.airCharges <= 0) return;
 
     isDragging = true;
     dragStart.setFrom(event.canvasPosition);
@@ -1188,6 +1516,35 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       _updateMenuDemo(scaledDt);
     } else if (isPlaying) {
       runTimeSeconds += dt;
+      if (abilityCooldownRemaining > 0.0) {
+        final prevTenths = (abilityCooldownRemaining * 10).round();
+        abilityCooldownRemaining = max(0.0, abilityCooldownRemaining - dt);
+        final nextTenths = (abilityCooldownRemaining * 10).round();
+        if (nextTenths != prevTenths || abilityCooldownRemaining == 0.0) {
+          abilityCooldownNotifier.value = abilityCooldownRemaining;
+        }
+      }
+      if (chronoSealTimer > 0.0) {
+        chronoSealTimer = max(0.0, chronoSealTimer - dt);
+      }
+      if (inkSabotageBlindTimer > 0.0) {
+        inkSabotageBlindTimer = max(0.0, inkSabotageBlindTimer - dt);
+      }
+      if (isP2PMatch && !player.isDead) {
+        p2pService.updateLocalPlayerSync(
+          dt: dt,
+          x: player.position.x,
+          y: player.position.y,
+          vx: player.velocity.x,
+          vy: player.velocity.y,
+          meters: maxMetersReached,
+          isStuck: player.isStuck,
+          hasShield: player.hasShield,
+          isShadowPhase: player.isShadowPhaseActive,
+          isDead: player.isDead,
+          hasWon: isVictory,
+        );
+      }
 
       final currentMeters = computeCurrentHeightMeters();
       if (currentMeters > maxMetersReached) {
@@ -1204,7 +1561,10 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       // Gestione Torre Infinita: generazione continua dei segmenti superiori
       // e notifica di sblocco nuovo ostacolo ogni 50m!
       if (activeMode == GameMode.infiniteTower) {
-        if (currentMeters + 125.0 > _infiniteGeneratedUpToMeter) {
+        final highestClimberMeters = isP2PMatch
+            ? max(currentMeters, p2pService.opponent.maxMeters)
+            : currentMeters;
+        if (highestClimberMeters + 125.0 > _infiniteGeneratedUpToMeter) {
           _generateTowerSpan(
             upToMeters: _infiniteGeneratedUpToMeter + 160.0,
             difficultyLevel: 1,
@@ -1238,7 +1598,11 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     }
 
     // Camera follow verticale + Shake
-    final targetCamY = min(player.position.y - 115.0, -180.0);
+    final followY =
+        (isSpectatingOpponent && ghostOpponent != null)
+            ? ghostOpponent!.position.y
+            : player.position.y;
+    final targetCamY = min(followY - 115.0, -180.0);
     final currentCamPos = camera.viewfinder.position;
     final smoothY = currentCamPos.y +
         (targetCamY - currentCamPos.y) * (dt * 7.5).clamp(0.0, 1.0);
@@ -1263,6 +1627,28 @@ class InkSlingGame extends FlameGame with DragCallbacks {
 
     if (isPlaying && !isPaused && isDragging && player.airCharges > 0) {
       _renderPredictiveTrajectory(canvas);
+    }
+    if (inkSabotageBlindTimer > 0.0) {
+      _renderSabotageInkBlotches(canvas);
+    }
+  }
+
+  void _renderSabotageInkBlotches(Canvas canvas) {
+    if (inkSabotageBlindTimer > 0.0) {
+    final alpha = ((inkSabotageBlindTimer / 3.5).clamp(0.0, 1.0) * 0.84 * 255)
+        .round();
+    _sabotageBlotchPaint.color = palette.inkPrimary.withAlpha(alpha);
+    _sabotageStrokePaint.color = palette.vermilionHazard.withAlpha(alpha);
+
+    final cx = size.x * 0.5;
+    final cy = size.y * 0.42;
+    canvas.drawCircle(Offset(cx - 52, cy - 38), 44, _sabotageBlotchPaint);
+    canvas.drawCircle(Offset(cx - 52, cy - 38), 44, _sabotageStrokePaint);
+    canvas.drawCircle(Offset(cx + 58, cy + 18), 52, _sabotageBlotchPaint);
+    canvas.drawCircle(Offset(cx + 58, cy + 18), 52, _sabotageStrokePaint);
+    canvas.drawCircle(Offset(cx - 18, cy + 68), 38, _sabotageBlotchPaint);
+    canvas.drawCircle(Offset(cx + 24, cy - 72), 34, _sabotageBlotchPaint);
+
     }
   }
 

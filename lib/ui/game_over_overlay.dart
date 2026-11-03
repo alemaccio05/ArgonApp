@@ -200,6 +200,127 @@ class GameOverOverlay extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
 
+                        if (game.isP2PMatch) ...[
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: game.isVictory
+                                  ? p.matchaSafe.withAlpha(36)
+                                  : p.vermilionHazard.withAlpha(32),
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(
+                                color: game.isVictory
+                                    ? p.matchaSafe
+                                    : p.vermilionHazard,
+                                width: 2.2,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  game.isVictory
+                                      ? s.p2pVictoryTitle(
+                                          game.p2pService.opponent.name,
+                                        )
+                                      : s.p2pDefeatTitle(
+                                          game.p2pService.opponent.name,
+                                        ),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: game.isVictory
+                                        ? p.matchaSafe
+                                        : p.vermilionHazard,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildMiniStatBox(
+                                        label: game.storage.playerName,
+                                        value: '${formattedMeters}m',
+                                        p: p,
+                                      ),
+                                    ),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: Text(
+                                        'VS',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _buildMiniStatBox(
+                                        label:
+                                            '👻 ${game.p2pService.opponent.name}',
+                                        value:
+                                            '${game.p2pService.opponent.maxMeters.toStringAsFixed(1)}m',
+                                        p: p,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: p.vermilionHazard,
+                                    foregroundColor: p.paperBg,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(
+                                        color: p.inkPrimary,
+                                        width: 1.8,
+                                      ),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    game.audioHaptics.onButtonTap();
+                                    final opp = game.p2pService.opponent;
+                                    final matchingFriend = game
+                                        .storage
+                                        .friendsList
+                                        .where((f) => f.code == opp.code)
+                                        .firstOrNull;
+                                    if (matchingFriend != null) {
+                                      game.startP2PDuel(
+                                        friend: matchingFriend,
+                                        format:
+                                            game.p2pService.activeDuelFormat,
+                                      );
+                                    } else {
+                                      game.startRun(
+                                        mode: game.activeMode,
+                                        level: game.currentLevel,
+                                      );
+                                    }
+                                  },
+                                  child: Text(
+                                    s.rematchFriendBtn,
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         // Banner motivazionale contestuale (senza "mancano tot metri alla vetta" in modalità infinita!)
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -576,7 +697,9 @@ class GameOverOverlay extends StatelessWidget {
                         const SizedBox(height: 14),
 
                         // REWARDED AD REVIVE: Riparti dal metro esatto dell'impatto su una piattaforma verde con Scudo!
-                        if (!game.isVictory &&
+
+                        if (!game.isP2PMatch &&
+                            !game.isVictory &&
                             !game.reviveUsed &&
                             meters >= 5.0 &&
                             game.monetization.isAdReady)

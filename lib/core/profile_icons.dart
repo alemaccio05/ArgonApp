@@ -151,6 +151,73 @@ class ProfileIconsCatalog {
           ? s.unlockedLabel
           : '${st.totalBouncesAllTime}/500',
     ),
+
+    // 5. Icone Hardcore & Multiplayer P2P
+    ProfileIconItem(
+      id: 'oni_mask',
+      emoji: '👹',
+      iconData: Icons.whatshot_rounded,
+      getName: (s) => s.iconOniMaskName,
+      getRequirement: (s) => s.iconReachLevelReq(50),
+      isUnlocked: (st) => st.currentTowerLevel >= 50,
+      getProgress: (st, s) => st.currentTowerLevel >= 50
+          ? s.unlockedLabel
+          : '${st.currentTowerLevel}/50',
+    ),
+    ProfileIconItem(
+      id: 'kitsune_fox',
+      emoji: '🦊',
+      iconData: Icons.auto_awesome_rounded,
+      getName: (s) => s.iconKitsuneFoxName,
+      getRequirement: (s) => s.skinInfiniteMetersReq(150),
+      isUnlocked: (st) => st.infiniteBestMeters >= 150.0,
+      getProgress: (st, s) => st.infiniteBestMeters >= 150.0
+          ? s.unlockedLabel
+          : '${st.infiniteBestMeters.toInt()}/150m',
+    ),
+    ProfileIconItem(
+      id: 'duel_champion',
+      emoji: '⚔️',
+      iconData: Icons.sports_kabaddi_rounded,
+      getName: (s) => s.iconDuelChampionName,
+      getRequirement: (s) => s.skinP2PWinsReq(5),
+      isUnlocked: (st) => st.p2pWinsCount >= 5,
+      getProgress: (st, s) =>
+          st.p2pWinsCount >= 5 ? s.unlockedLabel : '${st.p2pWinsCount}/5',
+    ),
+    ProfileIconItem(
+      id: 'sun_sovereign',
+      emoji: '☀️',
+      iconData: Icons.wb_sunny_rounded,
+      getName: (s) => s.iconSunSovereignName,
+      getRequirement: (s) => s.iconDailyFirstReq(5),
+      isUnlocked: (st) => st.dailyFirstPlaceCount >= 5,
+      getProgress: (st, s) => st.dailyFirstPlaceCount >= 5
+          ? s.unlockedLabel
+          : '${st.dailyFirstPlaceCount}/5',
+    ),
+    ProfileIconItem(
+      id: 'ink_comet',
+      emoji: '☄️',
+      iconData: Icons.rocket_launch_rounded,
+      getName: (s) => s.iconInkCometName,
+      getRequirement: (s) => s.iconBouncesReq(3000),
+      isUnlocked: (st) => st.totalBouncesAllTime >= 3000,
+      getProgress: (st, s) => st.totalBouncesAllTime >= 3000
+          ? s.unlockedLabel
+          : '${st.totalBouncesAllTime}/3000',
+    ),
+    ProfileIconItem(
+      id: 'peak_deity',
+      emoji: '🏔️',
+      iconData: Icons.terrain_rounded,
+      getName: (s) => s.iconPeakDeityName,
+      getRequirement: (s) => s.iconReachLevelReq(75),
+      isUnlocked: (st) => st.currentTowerLevel >= 75,
+      getProgress: (st, s) => st.currentTowerLevel >= 75
+          ? s.unlockedLabel
+          : '${st.currentTowerLevel}/75',
+    ),
   ];
 
   static ProfileIconItem getById(String id) {
@@ -162,10 +229,14 @@ class ProfileIconsCatalog {
 
   /// Restituisce un titolo onorifico del giocatore basato sul livello e sui record
   static String getPlayerHonorTitle(StorageService storage, AppStrings s) {
+    if (storage.p2pWinsCount >= 5) {
+      return s.titleDuelMaster;
+    }
     if (storage.dailyFirstPlaceCount >= 1) {
       return s.titleDailyChampion;
     }
     final lvl = storage.currentTowerLevel;
+    if (lvl >= 50) return s.titleGrandShogun;
     if (lvl >= 30) return s.titleLegend;
     if (lvl >= 20) return s.titleBounceMaster;
     if (lvl >= 10) return s.titleRisographSentinel;

@@ -113,7 +113,8 @@ class ObstacleBlock extends PositionComponent
     super.update(dt);
     if (_consumed || (!game.isPlaying && !game.isMenuDemo)) return;
 
-    _sealPulse += dt * (type == BlockType.pulsingLaserHazard ? 1.0 : 3.5);
+    final effDt = game.chronoSealTimer > 0.0 ? dt * 0.35 : dt;
+    _sealPulse += effDt * (type == BlockType.pulsingLaserHazard ? 1.0 : 3.5);
     if (_pressOffset > 0) {
       _pressOffset = max(0.0, _pressOffset - dt * 24.0);
     }
@@ -124,7 +125,7 @@ class ObstacleBlock extends PositionComponent
     // 1. Movimento orizzontale (oppure confinamento entro le mura della torre su schermi stretti)
     final limit = max(16.0, game.towerHalfWidth - size.x / 2 - 8.0);
     if (movingSpeed > 0) {
-      position.x += movingSpeed * _moveDir * dt;
+      position.x += movingSpeed * _moveDir * (game.chronoSealTimer > 0.0 ? dt * 0.35 : dt);
       if (position.x > limit) {
         position.x = limit;
         _moveDir = -1.0;
@@ -138,7 +139,7 @@ class ObstacleBlock extends PositionComponent
 
     // 2. Movimento verticale (per verticalPatrolHazard)
     if (verticalSpeed > 0) {
-      position.y += verticalSpeed * _vertDir * dt;
+      position.y += verticalSpeed * _vertDir * (game.chronoSealTimer > 0.0 ? dt * 0.35 : dt);
       const patrolRange = 54.0;
       if (position.y > _originY + patrolRange) {
         position.y = _originY + patrolRange;
@@ -150,7 +151,7 @@ class ObstacleBlock extends PositionComponent
     }
 
     final p = game.player;
-    if (p.isDead) return;
+    if (p.isDead || (p.isShadowPhaseActive && (type == BlockType.vermilionHazard || type == BlockType.verticalPatrolHazard || type == BlockType.pulsingLaserHazard))) return;
 
     // 3. Se la palla è incollata a una piattaforma fragile (crumblingPad), avvia il conto alla rovescia!
     if (p.stuckPlatform == this) {
@@ -315,6 +316,8 @@ class ObstacleBlock extends PositionComponent
       }
       // Durante il freeze di invulnerabilità post-respawn o con scudo attivo il giocatore è protetto
       if (p.isRespawnFrozen || p.shieldTimer > 0) {
+        p.breakShield();
+        game.addCameraTrauma(0.35);
         _consumed = true;
         game.spawnInkDropsAt(
           position.x,

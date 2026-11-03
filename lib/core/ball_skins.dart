@@ -44,6 +44,10 @@ class BallSkinItem {
 class BallSkinsCatalog {
   static const Color _inkDark = Color(0xFF161920);
   static const Color _warmIvory = Color(0xFFFFFDF8);
+  static final Paint _skinFill = Paint()..style = PaintingStyle.fill;
+  static final Paint _skinStroke = Paint()..style = PaintingStyle.stroke;
+  static final Path _skinPathA = Path();
+  static final Path _skinPathB = Path();
 
   static final List<BallSkinItem> allSkins = [
     // 1. Sfera Inchiostro Classica (Default)
@@ -543,6 +547,248 @@ class BallSkinsCatalog {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.0,
         );
+      },
+    ),
+
+
+    // 11. Sfera Oni Cremisi (Livello 50 - Hardcore)
+    BallSkinItem(
+      id: 'crimson_oni',
+      emoji: '👹',
+      getName: (s) => s.skinCrimsonOniName,
+      getDescription: (s) => s.skinCrimsonOniDesc,
+      getRequirement: (s) => s.skinReachLevelReq(50),
+      isUnlocked: (st) => st.currentTowerLevel >= 50,
+      getProgress: (st, s) => st.currentTowerLevel >= 50
+          ? s.unlockedLabel
+          : '${st.currentTowerLevel}/50',
+      getCoreColor: (_) => const Color(0xFF7A1418),
+      getStrokeColor: (p) =>
+          p.isDark ? const Color(0xFFFFF3D6) : const Color(0xFF141115),
+      getTrailColor: (_) => const Color(0xFFD92B2B),
+      renderCustomSkin: (canvas, radius, p, rot) {
+        _skinFill.color = _warmIvory;
+        _skinStroke
+          ..color = _inkDark
+          ..strokeWidth = 1.2;
+
+        _skinPathA
+          ..reset()
+          ..moveTo(-radius * 0.55, -radius * 0.15)
+          ..quadraticBezierTo(
+            -radius * 0.72,
+            -radius * 0.75,
+            -radius * 0.22,
+            -radius * 0.68,
+          )
+          ..close();
+        _skinPathB
+          ..reset()
+          ..moveTo(radius * 0.55, -radius * 0.15)
+          ..quadraticBezierTo(
+            radius * 0.72,
+            -radius * 0.75,
+            radius * 0.22,
+            -radius * 0.68,
+          )
+          ..close();
+
+        canvas.drawPath(_skinPathA, _skinFill);
+        canvas.drawPath(_skinPathA, _skinStroke);
+        canvas.drawPath(_skinPathB, _skinFill);
+        canvas.drawPath(_skinPathB, _skinStroke);
+
+        _skinFill.color = const Color(0xFFFFD166);
+        canvas.drawCircle(
+          Offset(-radius * 0.28, radius * 0.05),
+          radius * 0.14,
+          _skinFill,
+        );
+        canvas.drawCircle(
+          Offset(radius * 0.28, radius * 0.05),
+          radius * 0.14,
+          _skinFill,
+        );
+      },
+    ),
+
+    // 12. Sfera Vortice Kitsune (150m Torre Infinita - Hardcore)
+    BallSkinItem(
+      id: 'kitsune_spirit',
+      emoji: '🦊',
+      getName: (s) => s.skinKitsuneSpiritName,
+      getDescription: (s) => s.skinKitsuneSpiritDesc,
+      getRequirement: (s) => s.skinInfiniteMetersReq(150),
+      isUnlocked: (st) => st.infiniteBestMeters >= 150.0,
+      getProgress: (st, s) => st.infiniteBestMeters >= 150.0
+          ? s.unlockedLabel
+          : '${st.infiniteBestMeters.toInt()}/150m',
+      getCoreColor: (_) => const Color(0xFF124559),
+      getStrokeColor: (p) =>
+          p.isDark ? const Color(0xFFFFE6A7) : const Color(0xFF0B1D26),
+      getTrailColor: (_) => const Color(0xFF38A3A5),
+      renderCustomSkin: (canvas, radius, p, rot) {
+        canvas.save();
+        canvas.rotate(rot * 1.6);
+        for (int i = 0; i < 3; i++) {
+          final a = i * (2 * pi / 3);
+          final cx = cos(a) * radius * 0.44;
+          final cy = sin(a) * radius * 0.44;
+          _skinFill.color = const Color(0xFFFFD166);
+          canvas.drawCircle(Offset(cx, cy), radius * 0.20, _skinFill);
+          _skinFill.color = _warmIvory;
+          canvas.drawCircle(Offset(cx, cy), radius * 0.11, _skinFill);
+        }
+        canvas.restore();
+        _skinFill.color = const Color(0xFFFF7B00);
+        canvas.drawCircle(Offset.zero, radius * 0.22, _skinFill);
+      },
+    ),
+
+    // 13. Sfera Ossidiana Shogun (3000 Rimbalzi Totali - Hardcore)
+    BallSkinItem(
+      id: 'shogun_obsidian',
+      emoji: '💎',
+      getName: (s) => s.skinShogunObsidianName,
+      getDescription: (s) => s.skinShogunObsidianDesc,
+      getRequirement: (s) => s.skinBouncesReq(3000),
+      isUnlocked: (st) => st.totalBouncesAllTime >= 3000,
+      getProgress: (st, s) => st.totalBouncesAllTime >= 3000
+          ? s.unlockedLabel
+          : '${st.totalBouncesAllTime}/3000',
+      getCoreColor: (_) => const Color(0xFF141821),
+      getStrokeColor: (p) =>
+          p.isDark ? const Color(0xFF64DFDF) : const Color(0xFF2B313E),
+      getTrailColor: (_) => const Color(0xFF48BFE3),
+      renderCustomSkin: (canvas, radius, p, rot) {
+        canvas.save();
+        canvas.rotate(-rot * 1.2);
+        _skinPathA.reset();
+        for (int i = 0; i < 6; i++) {
+          final a = i * pi / 3;
+          final r = i.isEven ? radius * 0.68 : radius * 0.36;
+          if (i == 0) {
+            _skinPathA.moveTo(cos(a) * r, sin(a) * r);
+          } else {
+            _skinPathA.lineTo(cos(a) * r, sin(a) * r);
+          }
+        }
+        _skinPathA.close();
+        _skinFill.color = const Color(0xFF64DFDF);
+        canvas.drawPath(_skinPathA, _skinFill);
+        _skinStroke
+          ..color = _warmIvory
+          ..strokeWidth = 1.2;
+        canvas.drawPath(_skinPathA, _skinStroke);
+        canvas.restore();
+      },
+    ),
+
+    // 14. Sfera Imperatore del Sole (5x 1° Posto Giornaliero - Hardcore)
+    BallSkinItem(
+      id: 'sun_emperor',
+      emoji: '☀️',
+      getName: (s) => s.skinSunEmperorName,
+      getDescription: (s) => s.skinSunEmperorDesc,
+      getRequirement: (s) => s.skinDailyFirstReq(5),
+      isUnlocked: (st) => st.dailyFirstPlaceCount >= 5,
+      getProgress: (st, s) => st.dailyFirstPlaceCount >= 5
+          ? s.unlockedLabel
+          : '${st.dailyFirstPlaceCount}/5',
+      getCoreColor: (_) => const Color(0xFFD95D1E),
+      getStrokeColor: (p) =>
+          p.isDark ? const Color(0xFFFFF8E7) : const Color(0xFF1D1611),
+      getTrailColor: (_) => const Color(0xFFFFB703),
+      renderCustomSkin: (canvas, radius, p, rot) {
+        canvas.save();
+        canvas.rotate(rot * 1.4);
+        _skinStroke
+          ..color = const Color(0xFFFFEAA7)
+          ..strokeWidth = 1.8;
+        for (int i = 0; i < 8; i++) {
+          final a = i * pi / 4;
+          canvas.drawLine(
+            Offset(cos(a) * radius * 0.30, sin(a) * radius * 0.30),
+            Offset(cos(a) * radius * 0.72, sin(a) * radius * 0.72),
+            _skinStroke,
+          );
+        }
+        canvas.restore();
+        _skinFill.color = _warmIvory;
+        canvas.drawCircle(Offset.zero, radius * 0.32, _skinFill);
+      },
+    ),
+
+    // 15. Sfera Spettro Duellante (5 Vittorie P2P - Hardcore)
+    BallSkinItem(
+      id: 'phantom_duelist',
+      emoji: '⚔️',
+      getName: (s) => s.skinPhantomDuelistName,
+      getDescription: (s) => s.skinPhantomDuelistDesc,
+      getRequirement: (s) => s.skinP2PWinsReq(5),
+      isUnlocked: (st) => st.p2pWinsCount >= 5,
+      getProgress: (st, s) =>
+          st.p2pWinsCount >= 5 ? s.unlockedLabel : '${st.p2pWinsCount}/5',
+      getCoreColor: (_) => const Color(0xFF3A1C54),
+      getStrokeColor: (p) =>
+          p.isDark ? const Color(0xFFE0AAFF) : const Color(0xFF170B24),
+      getTrailColor: (_) => const Color(0xFF9D4EDD),
+      renderCustomSkin: (canvas, radius, p, rot) {
+        canvas.save();
+        canvas.rotate(rot * 2.2);
+        _skinStroke
+          ..color = _warmIvory
+          ..strokeWidth = 2.2;
+        canvas.drawLine(
+          Offset(-radius * 0.55, -radius * 0.55),
+          Offset(radius * 0.55, radius * 0.55),
+          _skinStroke,
+        );
+        canvas.drawLine(
+          Offset(radius * 0.55, -radius * 0.55),
+          Offset(-radius * 0.55, radius * 0.55),
+          _skinStroke,
+        );
+        _skinFill.color = const Color(0xFFE0AAFF);
+        canvas.drawCircle(Offset.zero, radius * 0.22, _skinFill);
+        canvas.restore();
+      },
+    ),
+
+    // 16. Sfera Singolarità Zen (Livello 75 - End-Game Hardcore)
+    BallSkinItem(
+      id: 'void_singularity',
+      emoji: '🕳️',
+      getName: (s) => s.skinVoidSingularityName,
+      getDescription: (s) => s.skinVoidSingularityDesc,
+      getRequirement: (s) => s.skinReachLevelReq(75),
+      isUnlocked: (st) => st.currentTowerLevel >= 75,
+      getProgress: (st, s) => st.currentTowerLevel >= 75
+          ? s.unlockedLabel
+          : '${st.currentTowerLevel}/75',
+      getCoreColor: (_) => const Color(0xFF0D0F14),
+      getStrokeColor: (p) =>
+          p.isDark ? const Color(0xFFFFB703) : const Color(0xFF282D3C),
+      getTrailColor: (_) => const Color(0xFFFFB703),
+      renderCustomSkin: (canvas, radius, p, rot) {
+        canvas.save();
+        canvas.rotate(rot * 2.5);
+        _skinStroke
+          ..color = const Color(0xFFFFB703)
+          ..strokeWidth = 1.9;
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: radius * 1.45,
+            height: radius * 0.58,
+          ),
+          _skinStroke,
+        );
+        canvas.restore();
+        _skinStroke
+          ..color = _warmIvory
+          ..strokeWidth = 1.4;
+        canvas.drawCircle(Offset.zero, radius * 0.28, _skinStroke);
       },
     ),
   ];

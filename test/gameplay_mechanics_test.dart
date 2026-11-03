@@ -9,6 +9,7 @@ import 'package:ink_sling_daily/game/components/player_core.dart';
 import 'package:ink_sling_daily/game/ink_sling_game.dart';
 import 'package:ink_sling_daily/services/audio_haptics_service.dart';
 import 'package:ink_sling_daily/services/monetization_service.dart';
+import 'package:ink_sling_daily/services/p2p_multiplayer_service.dart';
 import 'package:ink_sling_daily/services/storage_service.dart';
 import 'package:ink_sling_daily/services/trusted_time_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -297,6 +298,31 @@ void main() {
         game.update(0.025);
       }
       expect(game.player.isRespawnFrozen, isFalse);
+      // Lo scudo della Seconda Chance non scade mai col passare del tempo
+      for (int i = 0; i < 400; i++) {
+        game.player.update(0.025); // +10 secondi
+      }
+      expect(game.player.hasShield, isTrue);
+      expect(game.player.shieldTimer, greaterThan(0.0));
+
+      // Quando impatta un ostacolo, lo scudo si rompe e protegge il giocatore
+      final hazard = ObstacleBlock(
+        type: BlockType.vermilionHazard,
+        position: Vector2(0, game.player.position.y - 40.0),
+        size: Vector2(80, 16),
+      );
+      game.world.add(hazard);
+      await game.ready();
+      final hitY = game.player.position.y - 40.0;
+      game.player.stuckPlatform = null;
+      game.player.prevPosition.setValues(0, hitY + 20.0);
+      game.player.position.setValues(0, hitY);
+      hazard.update(0.016);
+
+      expect(game.player.isDead, isFalse);
+      expect(game.player.hasShield, isFalse);
+      expect(game.player.shieldTimer, equals(0.0));
+      game.player.stickToPlatform(rescuePad);
       game.player.launch(Vector2(100, -450), silent: true);
       expect(game.player.velocity.y, lessThan(0.0));
     });
@@ -536,6 +562,39 @@ void main() {
 
       await game.triggerGameOver(victory: false);
       expect(storage.infiniteBestMeters, closeTo(180.0, 1.0));
+      expect(storage.currentTowerLevel, equals(18));
+
+      // 4. Abilità Attiva con Cooldown e Duello P2P + Modalità Spettatore
+      await storage.setSelectedAbility('ink_aegis');
+      game.startP2PDuel(
+        friend: const FriendRecord(
+          code: 'INK-RONIN',
+          name: 'Maestro Kaze',
+          skinId: 'kitsune_spirit',
+        ),
+        format: P2PDuelFormat.race100m,
+      );
+      expect(game.isP2PMatch, isTrue);
+      expect(game.ghostOpponent, isNotNull);
+
+      final usedAbility = game.activateEquippedAbility();
+      expect(usedAbility, isTrue);
+      expect(game.player.hasShield, isTrue);
+      expect(game.abilityCooldownRemaining, closeTo(18.0, 0.1));
+      expect(game.activateEquippedAbility(), isFalse); // In cooldown!
+
+      // Quando il giocatore muore ma il Fantasma avversario è ancora vivo,
+      // entra automaticamente in Modalità Spettatore senza chiudere la partita!
+      await game.triggerGameOver(victory: false);
+      expect(game.player.isDead, isTrue);
+      expect(game.isSpectatingOpponent, isTrue);
+      expect(game.spectatingNotifier.value, isTrue);
+      expect(game.isPlaying, isTrue);
+
+      // L'utente può terminare l'osservazione o attendere la fine della corsa dell'avversario
+      game.finishSpectatingEarly();
+      expect(game.isSpectatingOpponent, isFalse);
+      expect(game.isPlaying, isFalse);
       expect(storage.currentTowerLevel, equals(18));
     });
   });

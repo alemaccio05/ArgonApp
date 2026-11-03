@@ -46,7 +46,7 @@ class InkFloodWave extends PositionComponent
     if (!game.isPlaying || game.isPaused) return;
 
     // Durante il freeze temporaneo di respawn ("Seconda Chance"), l'onda resta sospesa
-    if (game.player.isRespawnFrozen) return;
+    if (game.player.isRespawnFrozen || game.chronoSealTimer > 0.0) return;
 
     // Parte subito appena il giocatore fa il primo salto (0.8m) o dopo 1.1 secondi!
     if (game.maxMetersReached < 0.8 && game.runTimeSeconds < 1.1) return;
@@ -55,13 +55,18 @@ class InkFloodWave extends PositionComponent
         ? min(20.0, (game.currentLevel - 1) * 1.8)
         : 6.0;
 
-    final distanceAhead = position.y - game.player.position.y;
+    final targetY = (game.isSpectatingOpponent && game.ghostOpponent != null)
+        ? game.ghostOpponent!.position.y
+        : game.player.position.y;
+    final distanceAhead = position.y - targetY;
     final baseSpeed = (game.player.isStuck ? 44.0 : 62.0) + levelSpeedBonus;
     final catchUpSpeed =
         distanceAhead > 260 ? (distanceAhead - 260) * 0.60 : 0.0;
     position.y -= (baseSpeed + catchUpSpeed) * dt;
 
-    if (game.player.position.y > position.y + 8) {
+    if (!game.player.isDead &&
+        !game.isSpectatingOpponent &&
+        game.player.position.y > position.y + 8) {
       game.triggerGameOver(victory: false);
     }
   }
