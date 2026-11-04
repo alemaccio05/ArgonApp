@@ -73,6 +73,8 @@ class GhostOpponentComponent extends PositionComponent
     position.setValues(0.0, InkSlingGame.platformBaseY);
     state.x = 0.0;
     state.y = InkSlingGame.platformBaseY;
+    state.targetX = 0.0;
+    state.targetY = InkSlingGame.platformBaseY;
     state.vx = 0.0;
     state.vy = 0.0;
     state.meters = 0.0;
@@ -91,16 +93,9 @@ class GhostOpponentComponent extends PositionComponent
     _trailLength = 0;
     _cachedTagKey = '';
 
-    // Determina una quota realistica di eventuale errore dell'avversario (così le sfide
-    // sono combattute: a volte cade prima lui e ti osserva, a volte arriva fino in cima!)
-    final roll = _peerRng.nextDouble();
-    if (roll < 0.38) {
-      _targetDeathMeters = 28.0 + _peerRng.nextDouble() * 48.0;
-    } else if (roll < 0.72) {
-      _targetDeathMeters = 68.0 + _peerRng.nextDouble() * 55.0;
-    } else {
-      _targetDeathMeters = 135.0 + _peerRng.nextDouble() * 120.0;
-    }
+    // Nella modalità 🏁 Traguardo 100m il bot scala con salti regolari puntando al traguardo (84–120m)
+    // senza morire d'infarto a 30m.
+    _targetDeathMeters = 84.0 + _peerRng.nextDouble() * 36.0;
   }
 
   void _pushTrailPoint(double x, double y) {
@@ -117,14 +112,22 @@ class GhostOpponentComponent extends PositionComponent
   @override
   void update(double dt) {
     super.update(dt);
-    if (!game.isPlaying || game.isPaused || !game.isP2PMatch) return;
+    if (!game.isPlaying ||
+        game.isPaused ||
+        !game.isP2PMatch ||
+        state.hasLeftMatch) {
+      return;
+    }
 
     _ringRotation += dt * 2.2;
     if (state.isDead || state.hasReachedGoal) return;
 
-    // 1. Se connesso a un secondo dispositivo reale via Socket UDP, interpola fluidamente a 120 FPS
-    if (state.isRemoteSocketPeer) {
-      final lerpFactor = (dt * 14.0).clamp(0.0, 1.0);
+    // 1. Contro giocatori reali (!game.isBotTrainingMatch) il fantasma esegue SOLO interpolazione
+    //    di rete in tempo reale (nessun bot sostitutivo autonomo).
+    if (!game.isBotTrainingMatch || state.isRemoteSocketPeer) {
+      final realDt = game.timeScale > 0.001 ? (dt / game.timeScale) : dt;
+      _ringRotation += (realDt - dt) * 2.2;
+      final lerpFactor = (realDt * 14.0).clamp(0.0, 1.0);
       position.x += (state.targetX - position.x) * lerpFactor;
       position.y += (state.targetY - position.y) * lerpFactor;
       state.x = position.x;
@@ -133,7 +136,7 @@ class GhostOpponentComponent extends PositionComponent
       return;
     }
 
-    // 2. Peer P2P autonomo: fisica balistica reale sulla stessa torre
+    // 2. Solo in Modalità Allenamento esplicita (game.isBotTrainingMatch): fisica balistica del Bot
     _abilityCooldown -= dt;
     if (_abilityCooldown <= 0.0 && state.maxMeters > 12.0) {
       _abilityCooldown = 14.0 + _peerRng.nextDouble() * 6.0;
@@ -333,7 +336,7 @@ class GhostOpponentComponent extends PositionComponent
 
   @override
   void render(Canvas canvas) {
-    if (!game.isP2PMatch) return;
+    if (!game.isP2PMatch || state.hasLeftMatch) return;
     final p = game.palette;
     final lowQuality = game.isLowQualityMode;
     final center = Offset(size.x / 2, size.y / 2);

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -66,8 +68,14 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   final FramePerformanceMonitor perfMonitor = FramePerformanceMonitor();
   late final P2PMultiplayerService p2pService =
       P2PMultiplayerService(storage: storage)
-        ..onIncomingSabotage = triggerIncomingP2PSabotage;
+        ..onIncomingSabotage = triggerIncomingP2PSabotage
+        ..onIncomingPauseChanged = _onRemoteP2PPauseChanged
+        ..onRemoteOpponentFinishedOrDied = _onRemoteOpponentFinishedOrDied
+        ..onHandshakeLaunchMatch = _onHandshakeLaunchMatch
+        ..onRemoteOpponentLeft = _onRemoteOpponentLeft
+        ..onRematchAgreed = _onRematchAgreed;
   GhostOpponentComponent? ghostOpponent;
+  GlobalKey<NavigatorState>? navigatorKey;
 
   // Transizione fluida tra i temi (600ms con curva easeInOutCubic)
   late RisographPalette _fromPalette;
@@ -89,13 +97,24 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   final ValueNotifier<bool> soundNotifier = ValueNotifier<bool>(true);
   final ValueNotifier<bool> musicNotifier = ValueNotifier<bool>(true);
   final ValueNotifier<bool> pauseNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<String?> pausedByPlayerNameNotifier =
+      ValueNotifier<String?>(null);
   final ValueNotifier<bool> isGameLoadedNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<int> menuEntryEpochNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> spectatingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<double> abilityCooldownNotifier =
       ValueNotifier<double>(0.0);
 
-  AppStrings get strings => AppStrings(languageNotifier.value);
+  AppLanguage? _cachedStringsLang;
+  AppStrings? _cachedStrings;
+  AppStrings get strings {
+    final lang = languageNotifier.value;
+    if (_cachedStrings == null || _cachedStringsLang != lang) {
+      _cachedStringsLang = lang;
+      _cachedStrings = AppStrings(lang);
+    }
+    return _cachedStrings!;
+  }
   bool get isLowQualityMode => perfMonitor.isLowQualityMode;
 
   // Controllo Bullet-Time, Pausa e Drag
@@ -112,7 +131,9 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   double currentGoalMeters = 50.0;
   bool leveledUpInLastRun = false;
   bool isP2PMatch = false;
+  bool isBotTrainingMatch = false;
   bool isSpectatingOpponent = false;
+  bool _pausedByRemote = false;
   double abilityCooldownRemaining = 0.0;
   double abilityCooldownMax = 14.0;
   double chronoSealTimer = 0.0;
@@ -142,6 +163,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
 
   double _pathRecordTimer = 0.0;
   final List<Vector2> flightPath = [];
+  final List<Vector2> opponentFlightPath = [];
   final List<double> communityHotspotMeters = [];
   final List<Offset> _paperGrainDots = [];
   final List<ObstacleBlock> _demoPlatforms = [];
@@ -189,6 +211,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     ..strokeWidth = 1.2;
   final Vector2 _simPos = Vector2.zero();
   final Vector2 _simVel = Vector2.zero();
+  final Vector2 _launchVecTmp = Vector2.zero();
+  final Vector2 _camPosTmp = Vector2.zero();
 
   // Camera Shake & Hit-Stop
   double _shakeTrauma = 0.0;
@@ -216,6 +240,15 @@ class InkSlingGame extends FlameGame with DragCallbacks {
 
     currentLevel = storage.currentTowerLevel;
     currentGoalMeters = DailySeedEngine.getLevelGoalMeters(currentLevel);
+    storage.onProfileChanged = p2pService.broadcastProfileUpdate;
+  }
+
+  /// Chiude eventuali dialog modali aperti (Lista Amici, Profilo, Negozio) prima di entrare in partita
+  void closeAllModalDialogs() {
+    final nav = navigatorKey?.currentState;
+    if (nav != null && nav.canPop()) {
+      nav.popUntil((route) => route.isFirst);
+    }
   }
 
   @override
@@ -318,11 +351,105 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     } catch (_) {}
   }
 
-  /// Congela il game loop e la fisica, attenua l'audio e apre il Menu di Pausa
-  void pauseGame() {
+  void _onHandshakeLaunchMatch(
+    FriendRecord friend,
+    P2PDuelFormat format,
+    int agreedSeed,
+  ) {
+    closeAllModalDialogs();
+    startP2PDuel(
+      friend: friend,
+      format: format,
+      customSeed: agreedSeed,
+      alreadyHandshaked: true,
+    );
+  }
+
+  void _onRemoteOpponentLeft() {
+    if (!isP2PMatch || isBotTrainingMatch) return;
+    // Il fantasma dell'avversario scompare immediatamente quando abbandona la partita
+    ghostOpponent?.removeFromParent();
+    ghostOpponent = null;
+
+    if (isPlaying) {
+      spawnFloatingStampAt(
+        player.position.x,
+        player.position.y - 34.0,
+        strings.opponentLeftMatchStamp(p2pService.opponent.name),
+      );
+      if (isPaused && _pausedByRemote) {
+        resumeGame(fromRemote: true);
+      }
+      if (isSpectatingOpponent) {
+        isSpectatingOpponent = false;
+        spectatingNotifier.value = false;
+        unawaited(triggerGameOver(victory: false));
+      }
+    }
+  }
+
+  void _onRematchAgreed(int agreedSeed, P2PDuelFormat format) {
+    closeAllModalDialogs();
+    final opp = p2pService.opponent;
+    final matchingFriend = storage.friendsList
+            .where((f) => f.code.toUpperCase() == opp.code.toUpperCase())
+            .firstOrNull ??
+        FriendRecord(
+          code: opp.code,
+          name: opp.name,
+          avatarEmoji: opp.avatarEmoji,
+          skinId: opp.skinId,
+          isOnline: true,
+        );
+    startP2PDuel(
+      friend: matchingFriend,
+      format: format,
+      customSeed: agreedSeed,
+      alreadyHandshaked: true,
+    );
+  }
+
+  void _onRemoteP2PPauseChanged(bool remotePaused, String byPlayerName) {
+    if (!isP2PMatch || isBotTrainingMatch || !isPlaying) return;
+    if (remotePaused) {
+      pauseGame(fromRemote: true, pausedByName: byPlayerName);
+    } else {
+      resumeGame(fromRemote: true);
+    }
+  }
+
+  void _onRemoteOpponentFinishedOrDied(bool reachedGoal) {
+    if (!isP2PMatch || !isPlaying) return;
+    if (!reachedGoal && ghostOpponent != null) {
+      final skin = BallSkinsCatalog.getById(p2pService.opponent.skinId);
+      spawnInkDeathExplosion(
+        ghostOpponent!.position,
+        skin.getCoreColor(palette),
+        palette.vermilionHazard,
+      );
+    }
+    onGhostOpponentFinishedOrDied(reachedGoal: reachedGoal);
+  }
+
+  /// Congela il game loop e la fisica, attenua l'audio e apre il Menu di Pausa (con Pausa Condivisa in P2P)
+  void pauseGame({bool fromRemote = false, String? pausedByName}) {
     if (!isPlaying || isPaused) return;
     isPaused = true;
+    _pausedByRemote = fromRemote;
     pauseNotifier.value = true;
+    if (isP2PMatch && !isBotTrainingMatch) {
+      pausedByPlayerNameNotifier.value = fromRemote
+          ? (pausedByName ?? p2pService.opponent.name)
+          : storage.playerName;
+      if (!fromRemote) {
+        p2pService.sendPauseState(
+          isPaused: true,
+          byPlayerName: storage.playerName,
+        );
+      }
+    } else {
+      pausedByPlayerNameNotifier.value = null;
+    }
     isDragging = false;
     timeScale = 0.0;
     targetTimeScale = 0.0;
@@ -330,11 +457,19 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     _addOverlaySafe('Pause');
   }
 
-  /// Riprende il game loop e la fisica e ripristina il volume audio
-  void resumeGame() {
+  /// Riprende il game loop e la fisica e ripristina il volume audio (sincronizzando in P2P)
+  void resumeGame({bool fromRemote = false}) {
     if (!isPaused) return;
     isPaused = false;
+    _pausedByRemote = false;
     pauseNotifier.value = false;
+    pausedByPlayerNameNotifier.value = null;
+    if (isP2PMatch && !isBotTrainingMatch && !fromRemote) {
+      p2pService.sendPauseState(
+        isPaused: false,
+        byPlayerName: storage.playerName,
+      );
+    }
     timeScale = 1.0;
     targetTimeScale = 1.0;
     audioHaptics.onPauseDucking(false);
@@ -356,6 +491,9 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     _startMenuDemo();
     isGameLoadedNotifier.value = true;
     menuEntryEpochNotifier.value += 1;
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      unawaited(p2pService.initNetworkSocket());
+    }
   }
 
   @override
@@ -370,6 +508,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     soundNotifier.dispose();
     musicNotifier.dispose();
     pauseNotifier.dispose();
+    pausedByPlayerNameNotifier.dispose();
     isGameLoadedNotifier.dispose();
     menuEntryEpochNotifier.dispose();
     spectatingNotifier.dispose();
@@ -384,8 +523,11 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     isPlaying = false;
     isPaused = false;
     pauseNotifier.value = false;
+    pausedByPlayerNameNotifier.value = null;
     isMenuDemo = true;
     isP2PMatch = false;
+    isBotTrainingMatch = false;
+    _pausedByRemote = false;
     isSpectatingOpponent = false;
     spectatingNotifier.value = false;
     chronoSealTimer = 0.0;
@@ -418,6 +560,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   }) {
     world.removeAll(world.children.where((c) => c != particlePool).toList());
     flightPath.clear();
+    opponentFlightPath.clear();
     communityHotspotMeters.clear();
     _demoPlatforms.clear();
     _solidPadsCache.clear();
@@ -521,10 +664,22 @@ class InkSlingGame extends FlameGame with DragCallbacks {
 
       final canBeSpecialPad =
           !isDemoTower && currentMeter > 11.0 && stepIndex > 1;
+      // In Torre Infinita le piattaforme a Spuntoni Retrattili (spikeTrapPad) si sbloccano a 350m (tier50 >= 7)
+      final canSpawnSpikeTrap = isInfiniteTower
+          ? (tier50 >= 7)
+          : (effectiveDifficulty >= 8 && currentMeter > 20.0);
+      final spikeTrapChance = !canSpawnSpikeTrap
+          ? 0.0
+          : (0.16 + subLevelInTier * 0.015).clamp(0.16, 0.30);
+      final isSpikeTrapPad = canBeSpecialPad &&
+          canSpawnSpikeTrap &&
+          rng.nextDouble() < spikeTrapChance;
       final isCrumblingPad = canBeSpecialPad &&
+          !isSpikeTrapPad &&
           canSpawnCrumbling &&
           rng.nextDouble() < crumblingChance;
       final isMovingPad = canBeSpecialPad &&
+          !isSpikeTrapPad &&
           !isCrumblingPad &&
           canSpawnMovingPad &&
           rng.nextDouble() < movingPadChance;
@@ -532,10 +687,13 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       final pad = ObstacleBlock(
         position: Vector2(padX, yPos),
         size: Vector2(basePadWidth, 18),
-        type: isCrumblingPad ? BlockType.crumblingPad : BlockType.matchaPad,
+        type: isSpikeTrapPad
+            ? BlockType.spikeTrapPad
+            : (isCrumblingPad ? BlockType.crumblingPad : BlockType.matchaPad),
         movingSpeed: isMovingPad
             ? 40.0 + levelFactor * 2.2 + subLevelInTier * 2.0
             : 0.0,
+        phaseOffset: isSpikeTrapPad ? rng.nextDouble() * 2.6 : 0.0,
       );
       world.add(pad);
       _solidPadsCache.add(pad);
@@ -571,16 +729,21 @@ class InkSlingGame extends FlameGame with DragCallbacks {
           rng.nextDouble() < hazardSpawnChance) {
         final speedBonus = levelFactor * 3.5 + subLevelInTier * 3.0;
 
-        // Sblocco progressivo degli ostacoli ogni 50m nella Torre Infinita:
-        // - 0-50m (tier50 == 0): [0] Blocchi Rossi
-        // - 50m+ (tier50 >= 1): + [1] Blocchi Rossi Mobili Centrali
+        // Sblocco progressivo degli ostacoli ogni 50m nella Torre Infinita (fino al Cap MAX a 350m+):
+        // - 0-49m (tier50 == 0): [0] Blocchi Rossi
+        // - 50m+ (tier50 >= 1): + [1] Blocchi Rossi Mobili Centrali + Respingenti
+        // - 100m+ (tier50 >= 2): + Piattaforme Fragili
+        // - 150m+ (tier50 >= 3): + Piattaforme Verdi Mobili
         // - 200m+ (tier50 >= 4): + [2] Pattuglie Verticali
         // - 250m+ (tier50 >= 5): + [3] Laser a Impulsi
+        // - 300m+ (tier50 >= 6): + [4] Ruote Shuriken Ninja Rotanti
+        // - 350m+ (tier50 >= 7): + Piattaforme a Spuntoni Retrattili (Cap MAX raggiunto!)
         final unlockedHazards = <int>[0];
         if (isInfiniteTower) {
           if (tier50 >= 1) unlockedHazards.add(1);
           if (tier50 >= 4) unlockedHazards.add(2);
           if (tier50 >= 5) unlockedHazards.add(3);
+          if (tier50 >= 6) unlockedHazards.add(4);
         } else {
           if (effectiveDifficulty >= 2 && currentMeter > 12.0) {
             unlockedHazards.add(1);
@@ -590,6 +753,9 @@ class InkSlingGame extends FlameGame with DragCallbacks {
           }
           if (effectiveDifficulty >= 6 && currentMeter > 16.0) {
             unlockedHazards.add(3);
+          }
+          if (effectiveDifficulty >= 7 && currentMeter > 18.0) {
+            unlockedHazards.add(4);
           }
         }
 
@@ -641,6 +807,23 @@ class InkSlingGame extends FlameGame with DragCallbacks {
               size: Vector2(148, 16),
               type: BlockType.pulsingLaserHazard,
               phaseOffset: rng.nextDouble() * 2.5,
+            ),
+          );
+          if (communityHotspotMeters.length < 3) {
+            communityHotspotMeters.add(currentMeter + 2);
+          }
+        } else if (hazardType == 4) {
+          final shurikenX = padX > 0
+              ? -64.0 + (rng.nextDouble() - 0.5) * 32.0
+              : 64.0 + (rng.nextDouble() - 0.5) * 32.0;
+          final shouldSlide = rng.nextDouble() < 0.45;
+          world.add(
+            ObstacleBlock(
+              position: Vector2(shurikenX, yPos - 88),
+              size: Vector2(44, 44),
+              type: BlockType.shurikenSpinner,
+              movingSpeed: shouldSlide ? 52.0 + speedBonus * 0.65 : 0.0,
+              phaseOffset: rng.nextDouble() * pi * 2,
             ),
           );
           if (communityHotspotMeters.length < 3) {
@@ -770,22 +953,53 @@ class InkSlingGame extends FlameGame with DragCallbacks {
 
   /// Funzione isolata e testabile che crea la piattaforma di recupero alla quota esatta
   /// di `targetMeters` e vi ancora deterministicamente la pallina azzerando velocità e accelerazione.
-  /// Avvia un Duello P2P 1-Tap contro un amico della Lista Amici (Traguardo 100m o Sopravvivenza Infinita)
+  /// Avvia un Duello P2P reale contro un amico della Lista Amici (senza mai usare un bot sostitutivo)
   void startP2PDuel({
     required FriendRecord friend,
     required P2PDuelFormat format,
     int? customSeed,
+    bool alreadyHandshaked = false,
   }) {
+    closeAllModalDialogs();
+    isBotTrainingMatch = false;
     p2pService.prepareDirectChallenge(
       friend: friend,
       format: format,
       customSeed: customSeed,
+      alreadyHandshaked: alreadyHandshaked,
     );
+    p2pService.opponent.isRemoteSocketPeer = true;
     _launchConfiguredP2PMatch();
   }
 
-  /// Accetta un invito P2P in entrata ricevuto da un amico e avvia la scalata sincronizzata
+  /// Avvia una sessione di Allenamento esplicita contro il Bot locale (unica modalità in cui il Bot è visibile)
+  void startBotTrainingDuel({
+    required P2PDuelFormat format,
+    int? customSeed,
+  }) {
+    closeAllModalDialogs();
+    isBotTrainingMatch = true;
+    p2pService.activeDuelFormat = format;
+    p2pService.activeMatchSeed =
+        customSeed ?? (DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF);
+    p2pService.opponent.resetForMatch(
+      friendCode: 'BOT-TRAINING',
+      friendName: strings.trainingBotName,
+      friendAvatar: '🤖',
+      friendSkinId: 'shinobi_star',
+    );
+    p2pService.opponent.isRemoteSocketPeer = false;
+    p2pService.opponentMetersNotifier.value = 0.0;
+    p2pService.opponentDeadNotifier.value = false;
+    p2pService.opponentLeftNotifier.value = false;
+    p2pService.resetRematchVote();
+    _launchConfiguredP2PMatch();
+  }
+
+  /// Accetta un invito P2P in entrata ricevuto da un amico, chiude ogni dialog aperto e avvia la scalata
   void acceptIncomingP2PInvite(P2PChallengeInvite invite) {
+    closeAllModalDialogs();
+    isBotTrainingMatch = false;
     p2pService.incomingInviteNotifier.value = null;
     final friend = FriendRecord(
       code: invite.challengerCode,
@@ -798,9 +1012,37 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       friend: friend,
       format: invite.format,
       customSeed: invite.towerSeed,
+      isAcceptingInvite: true,
     );
     _launchConfiguredP2PMatch();
   }
+
+  /// Invia la proposta di Rivincita a votazione (1/2) in P2P reale, o riavvia subito in Allenamento Bot
+  void proposeP2PRematch() {
+    if (isBotTrainingMatch) {
+      startBotTrainingDuel(format: p2pService.activeDuelFormat);
+      return;
+    }
+    p2pService.proposeRematch();
+  }
+
+  /// Accetta la proposta di Rivincita dell'avversario (2/2) avviando la nuova partita per entrambi
+  void acceptP2PRematch() {
+    if (isBotTrainingMatch) {
+      startBotTrainingDuel(format: p2pService.activeDuelFormat);
+      return;
+    }
+    p2pService.acceptRematch();
+  }
+
+  /// Rifiuta la proposta di Rivincita ricevuta dall'avversario
+  void declineP2PRematch() {
+    if (isBotTrainingMatch) return;
+    p2pService.declineRematch();
+  }
+
+  /// Compatibilità: delega al sistema di rivincita a votazione (o riavvio immediato per Allenamento Bot)
+  void rematchCurrentP2PDuel() => proposeP2PRematch();
 
   void _launchConfiguredP2PMatch() {
     final isInf = p2pService.activeDuelFormat == P2PDuelFormat.infiniteSurvival;
@@ -808,6 +1050,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     currentGoalMeters = isInf ? 100000.0 : DailySeedEngine.goalMeters;
     isPaused = false;
     pauseNotifier.value = false;
+    pausedByPlayerNameNotifier.value = null;
     audioHaptics.onPauseDucking(false);
     _lastInfiniteMilestoneAnnounced = 0;
 
@@ -848,6 +1091,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     player.isDead = false;
     player.position.setValues(0.0, platformBaseY);
     player.prevPosition.setValues(0.0, platformBaseY);
+    flightPath.add(Vector2(0.0, platformBaseY));
+    opponentFlightPath.add(Vector2(0.0, platformBaseY));
     player.velocity.setZero();
     player.acceleration.setZero();
     metersNotifier.value = 0.0;
@@ -899,7 +1144,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
         player.airCharges =
             min(PlayerCore.maxAirCharges, player.airCharges + 1);
         chargesNotifier.value = player.airCharges;
-        if (isP2PMatch) {
+        if (isP2PMatch && !isBotTrainingMatch) {
           p2pService.sendSabotageToOpponent();
         }
         ObstacleBlock? nearestHazard;
@@ -907,7 +1152,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
         for (final child in world.children.whereType<ObstacleBlock>()) {
           final isHaz = child.type == BlockType.vermilionHazard ||
               child.type == BlockType.verticalPatrolHazard ||
-              child.type == BlockType.pulsingLaserHazard;
+              child.type == BlockType.pulsingLaserHazard ||
+              child.type == BlockType.shurikenSpinner;
           if (!isHaz) continue;
           final d = (child.position - player.position).length;
           if (d < bestDist) {
@@ -959,11 +1205,18 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     return true;
   }
 
-  /// Riceve il disturbo "Spruzzo d'Inchiostro" dall'avversario P2P (chiazze Risograph per 3.5s)
+  /// Riceve il disturbo "Spruzzo d'Inchiostro" dall'avversario P2P (chiazze Risograph viscose e colanti per 4.8s)
   void triggerIncomingP2PSabotage() {
     if (!isPlaying || isPaused || player.isDead) return;
-    inkSabotageBlindTimer = 3.5;
-    addCameraTrauma(0.32);
+    inkSabotageBlindTimer = 4.8;
+    addCameraTrauma(0.55);
+    spawnInkDropsAt(
+      player.position.x,
+      player.position.y,
+      palette.inkPrimary,
+      count: 24,
+    );
+    audioHaptics.onShieldBreak();
     spawnFloatingStampAt(
       player.position.x,
       player.position.y - 30,
@@ -1018,10 +1271,12 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       final isHazardOrBumper = block.type == BlockType.vermilionHazard ||
           block.type == BlockType.verticalPatrolHazard ||
           block.type == BlockType.pulsingLaserHazard ||
+          block.type == BlockType.shurikenSpinner ||
           block.type == BlockType.bumperPin;
 
       final isPlatform = block.type == BlockType.matchaPad ||
-          block.type == BlockType.crumblingPad;
+          block.type == BlockType.crumblingPad ||
+          block.type == BlockType.spikeTrapPad;
 
       if (isHazardOrBumper) {
         if (maxY >= reviveBallCenterY - 185.0 &&
@@ -1079,6 +1334,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     isPlaying = true;
     isPaused = false;
     pauseNotifier.value = false;
+    isDragging = false;
     _hitStopTimer = 0.0;
     timeScale = 1.0;
     targetTimeScale = 1.0;
@@ -1097,6 +1353,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
         !victory &&
         !player.isDead &&
         !isSpectatingOpponent &&
+        !p2pService.opponent.hasLeftMatch &&
         !p2pService.opponent.isDead &&
         !p2pService.opponent.hasWon) {
       if (!isPlaying) return;
@@ -1119,27 +1376,34 @@ class InkSlingGame extends FlameGame with DragCallbacks {
         palette.vermilionHazard,
       );
       audioHaptics.onCrashOrVictory(victory: false);
-      p2pService.broadcastPlayerState(
-        x: player.position.x,
-        y: player.position.y,
-        vx: 0,
-        vy: 0,
-        meters: maxMetersReached,
-        isStuck: false,
-        hasShield: false,
-        isShadowPhase: false,
-        isDead: true,
-        hasWon: false,
-        force: true,
-      );
+      if (!isBotTrainingMatch) {
+        p2pService.broadcastPlayerState(
+          x: player.position.x,
+          y: player.position.y,
+          vx: 0,
+          vy: 0,
+          meters: maxMetersReached,
+          isStuck: false,
+          hasShield: false,
+          isShadowPhase: false,
+          isDead: true,
+          hasWon: false,
+          force: true,
+        );
+      }
       isSpectatingOpponent = true;
       spectatingNotifier.value = true;
       return;
     }
     if (!isPlaying) return;
+    final wasAlreadyDeadSpectating = player.isDead;
     isPlaying = false;
     isPaused = false;
+    _pausedByRemote = false;
     pauseNotifier.value = false;
+    pausedByPlayerNameNotifier.value = null;
+    isSpectatingOpponent = false;
+    spectatingNotifier.value = false;
     isVictory = victory;
     isDragging = false;
     targetTimeScale = 1.0;
@@ -1158,7 +1422,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
         palette.ochreSeal,
         count: 30,
       );
-    } else {
+      audioHaptics.onCrashOrVictory(victory: true);
+    } else if (!wasAlreadyDeadSpectating) {
       // Memorizza il valore esatto arrotondato al momento dell'impatto per la Seconda Chance
       maxMetersReached = DailySeedEngine.roundMeters(
         maxMetersReached,
@@ -1176,53 +1441,64 @@ class InkSlingGame extends FlameGame with DragCallbacks {
         skin.getCoreColor(palette),
         palette.vermilionHazard,
       );
+      audioHaptics.onCrashOrVictory(victory: false);
     }
-    audioHaptics.onCrashOrVictory(victory: victory);
+
     if (isP2PMatch) {
-      p2pService.broadcastPlayerState(
-        x: player.position.x,
-        y: player.position.y,
-        vx: 0,
-        vy: 0,
-        meters: maxMetersReached,
-        isStuck: player.isStuck,
-        hasShield: player.hasShield,
-        isShadowPhase: player.isShadowPhaseActive,
-        isDead: player.isDead,
-        hasWon: victory,
-        force: true,
-      );
-      final p2pWon =
-          victory || (maxMetersReached > p2pService.opponent.maxMeters + 0.05);
+      if (!isBotTrainingMatch) {
+        p2pService.broadcastPlayerState(
+          x: player.position.x,
+          y: player.position.y,
+          vx: 0,
+          vy: 0,
+          meters: maxMetersReached,
+          isStuck: player.isStuck,
+          hasShield: player.hasShield,
+          isShadowPhase: player.isShadowPhaseActive,
+          isDead: player.isDead,
+          hasWon: victory,
+          force: true,
+        );
+        if (p2pService.opponent.hasLeftMatch) {
+          p2pService.rematchStatusNotifier.value = P2PRematchVoteStatus.peerLeft;
+        }
+      }
+      final oppAbandoned = p2pService.opponent.hasLeftMatch;
+      final p2pWon = victory ||
+          (!p2pService.opponent.hasWon &&
+              (oppAbandoned ||
+                  maxMetersReached > p2pService.opponent.maxMeters + 0.05));
       isVictory = p2pWon;
-      await storage.recordP2PDuelResult(
-        friendCode: p2pService.opponent.code,
-        isWin: p2pWon,
-        meters: maxMetersReached,
-        bounces: totalBounces,
-      );
+      if (!isBotTrainingMatch) {
+        await storage.recordP2PDuelResult(
+          friendCode: p2pService.opponent.code,
+          isWin: p2pWon,
+          meters: maxMetersReached,
+          bounces: totalBounces,
+        );
+      }
     }
 
     final prevMaxLevel = storage.currentTowerLevel;
+    final singlePlayerVictory = !isP2PMatch && victory;
     lastRunWasNewDailyRecord = await storage.recordRunResult(
       mode: activeMode,
       playedLevel: currentLevel,
       meters: maxMetersReached,
-      isVictory: victory,
+      isVictory: singlePlayerVictory,
       consumeOfficialAttempt:
           activeMode == GameMode.dailyTower && isOfficialRun && !reviveUsed,
       bounces: totalBounces,
       isOfficialAttempt:
           activeMode == GameMode.dailyTower ? isOfficialRun : true,
     );
-    leveledUpInLastRun =
-        activeMode == GameMode.levelProgression &&
-        victory &&
+    leveledUpInLastRun = activeMode == GameMode.levelProgression &&
+        singlePlayerVictory &&
         storage.currentTowerLevel > prevMaxLevel;
 
     monetization.recordRunCompleted();
 
-    if (!victory) {
+    if (!victory && !wasAlreadyDeadSpectating) {
       await Future<void>.delayed(const Duration(milliseconds: 1100));
     }
 
@@ -1234,6 +1510,9 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   }
 
   void returnToMainMenu() {
+    if (isP2PMatch && !isBotTrainingMatch && !p2pService.opponent.hasLeftMatch) {
+      p2pService.sendLeaveMatch();
+    }
     _startMenuDemo();
     menuEntryEpochNotifier.value += 1;
     _removeOverlaySafe('Hud');
@@ -1406,11 +1685,16 @@ class InkSlingGame extends FlameGame with DragCallbacks {
     if (isPaused) return;
     targetTimeScale = 1.0;
 
-    final pullVector = dragStart - dragCurrent;
-    if (pullVector.length > 10.0 && player.airCharges > 0) {
-      final launchVector = pullVector.normalized() *
-          (pullVector.length * 6.8).clamp(440.0, 900.0);
-      player.launch(launchVector);
+    final pullDx = dragStart.x - dragCurrent.x;
+    final pullDy = dragStart.y - dragCurrent.y;
+    final pullLen = sqrt(pullDx * pullDx + pullDy * pullDy);
+    if (pullLen > 10.0 && player.airCharges > 0) {
+      final speed = (pullLen * 6.8).clamp(440.0, 900.0);
+      _launchVecTmp.setValues(
+        (pullDx / pullLen) * speed,
+        (pullDy / pullLen) * speed,
+      );
+      player.launch(_launchVecTmp, fromManualSling: true);
     }
   }
 
@@ -1530,7 +1814,7 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       if (inkSabotageBlindTimer > 0.0) {
         inkSabotageBlindTimer = max(0.0, inkSabotageBlindTimer - dt);
       }
-      if (isP2PMatch && !player.isDead) {
+      if (isP2PMatch && !isBotTrainingMatch && !player.isDead) {
         p2pService.updateLocalPlayerSync(
           dt: dt,
           x: player.position.x,
@@ -1574,10 +1858,16 @@ class InkSlingGame extends FlameGame with DragCallbacks {
         }
         if (maxMetersReached >= _lastInfiniteMilestoneAnnounced + 50) {
           _lastInfiniteMilestoneAnnounced += 50;
+          final isMaxTier = DailySeedEngine.isInfiniteMilestonePastCap(
+            _lastInfiniteMilestoneAnnounced,
+          );
           spawnFloatingStampAt(
             player.position.x,
             player.position.y - 38.0,
-            strings.infiniteNewObstacleStamp(_lastInfiniteMilestoneAnnounced),
+            strings.infiniteNewObstacleStamp(
+              _lastInfiniteMilestoneAnnounced,
+              isMaxTier: isMaxTier,
+            ),
           );
           audioHaptics.onSealCollected(
             combo: (_lastInfiniteMilestoneAnnounced ~/ 50).clamp(1, 8),
@@ -1588,7 +1878,14 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       _pathRecordTimer += dt;
       if (_pathRecordTimer >= 0.08) {
         _pathRecordTimer = 0.0;
-        flightPath.add(player.position.clone());
+        if (!player.isDead) {
+          flightPath.add(player.position.clone());
+        }
+        if (isP2PMatch &&
+            ghostOpponent != null &&
+            !p2pService.opponent.isDead) {
+          opponentFlightPath.add(ghostOpponent!.position.clone());
+        }
       }
 
       if (activeMode != GameMode.infiniteTower &&
@@ -1616,7 +1913,8 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       _shakeTrauma = max(0.0, _shakeTrauma - dt * 2.5);
     }
 
-    camera.viewfinder.position = Vector2(shakeX, smoothY + shakeY);
+    _camPosTmp.setValues(shakeX, smoothY + shakeY);
+    camera.viewfinder.position = _camPosTmp;
   }
 
   @override
@@ -1634,21 +1932,84 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   }
 
   void _renderSabotageInkBlotches(Canvas canvas) {
-    if (inkSabotageBlindTimer > 0.0) {
-    final alpha = ((inkSabotageBlindTimer / 3.5).clamp(0.0, 1.0) * 0.84 * 255)
-        .round();
+    if (inkSabotageBlindTimer <= 0.0) return;
+
+    // Opacità nitida per i primi 3.6s, poi sfuma negli ultimi 1.2s
+    final fadeRatio = (inkSabotageBlindTimer / 1.2).clamp(0.0, 1.0);
+    final alpha = (fadeRatio * 0.90 * 255).round();
+    final dripElapsed = (4.8 - inkSabotageBlindTimer).clamp(0.0, 4.8);
+    final dripLen = dripElapsed * 11.0;
+
     _sabotageBlotchPaint.color = palette.inkPrimary.withAlpha(alpha);
-    _sabotageStrokePaint.color = palette.vermilionHazard.withAlpha(alpha);
+    _sabotageStrokePaint
+      ..color = palette.vermilionHazard.withAlpha(alpha)
+      ..strokeWidth = 2.2;
 
     final cx = size.x * 0.5;
-    final cy = size.y * 0.42;
-    canvas.drawCircle(Offset(cx - 52, cy - 38), 44, _sabotageBlotchPaint);
-    canvas.drawCircle(Offset(cx - 52, cy - 38), 44, _sabotageStrokePaint);
-    canvas.drawCircle(Offset(cx + 58, cy + 18), 52, _sabotageBlotchPaint);
-    canvas.drawCircle(Offset(cx + 58, cy + 18), 52, _sabotageStrokePaint);
-    canvas.drawCircle(Offset(cx - 18, cy + 68), 38, _sabotageBlotchPaint);
-    canvas.drawCircle(Offset(cx + 24, cy - 72), 34, _sabotageBlotchPaint);
+    final cy = size.y * 0.44;
 
+    // 1. Sottili colature verticali che scendono da alcune macchie sparse
+    const dripOffsets = <double>[-96.0, -28.0, 42.0, 102.0];
+    const dripWidths = <double>[7.0, 8.5, 8.0, 6.5];
+    const dripStartsY = <double>[-135.0, -52.0, -162.0, 18.0];
+    for (int i = 0; i < dripOffsets.length; i++) {
+      final dx = cx + dripOffsets[i];
+      final startY = cy + dripStartsY[i];
+      final currentDripH = dripLen * (0.70 + (i % 3) * 0.20);
+      final w = dripWidths[i];
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(dx - w * 0.5, startY, w, currentDripH),
+          Radius.circular(w * 0.5),
+        ),
+        _sabotageBlotchPaint,
+      );
+      canvas.drawCircle(
+        Offset(dx, startY + currentDripH),
+        w * 0.65,
+        _sabotageBlotchPaint,
+      );
+    }
+
+    // 2. Cerchi d'inchiostro più piccoli (raggio 16..26) e ben distanziati su tutto lo schermo
+    const mainBlotches = <(double, double, double)>[
+      (-96.0, -142.0, 22.0),
+      (42.0, -168.0, 24.0),
+      (-18.0, -96.0, 20.0),
+      (98.0, -84.0, 21.0),
+      (-108.0, -26.0, 23.0),
+      (-28.0, -48.0, 25.0),
+      (56.0, -12.0, 22.0),
+      (-78.0, 68.0, 21.0),
+      (14.0, 52.0, 19.0),
+      (102.0, 22.0, 20.0),
+      (-32.0, 142.0, 22.0),
+      (68.0, 126.0, 18.0),
+    ];
+
+    for (final (ox, oy, r) in mainBlotches) {
+      final c = Offset(cx + ox, cy + oy);
+      canvas.drawCircle(c, r, _sabotageBlotchPaint);
+      canvas.drawCircle(c, r, _sabotageStrokePaint);
+    }
+
+    // 3. Piccole goccioline satellite sparse negli spazi vuoti (raggio 6..11)
+    const satellites = <(double, double, double)>[
+      (-48.0, -188.0, 9.0),
+      (112.0, -148.0, 8.0),
+      (-126.0, -88.0, 10.0),
+      (22.0, -118.0, 7.5),
+      (-68.0, 16.0, 8.5),
+      (16.0, -6.0, 9.5),
+      (124.0, -34.0, 8.0),
+      (-118.0, 114.0, 9.0),
+      (-4.0, 98.0, 7.0),
+      (116.0, 86.0, 8.5),
+      (-86.0, 168.0, 7.5),
+      (28.0, 178.0, 8.0),
+    ];
+    for (final (ox, oy, r) in satellites) {
+      canvas.drawCircle(Offset(cx + ox, cy + oy), r, _sabotageBlotchPaint);
     }
   }
 
@@ -1689,7 +2050,12 @@ class InkSlingGame extends FlameGame with DragCallbacks {
 
     final text = isGoal
         ? strings.goalLineMarker(m)
-        : (isInfiniteMilestone ? strings.infiniteMilestoneMarker(m) : '${m}m');
+        : (isInfiniteMilestone
+            ? strings.infiniteMilestoneMarker(
+                m,
+                isMaxTier: DailySeedEngine.isInfiniteMilestonePastCap(m),
+              )
+            : '${m}m');
 
     final tp = TextPainter(
       text: TextSpan(
@@ -2064,22 +2430,35 @@ class InkSlingGame extends FlameGame with DragCallbacks {
   }
 
   void _renderPredictiveTrajectory(Canvas canvas) {
-    final pullVector = dragStart - dragCurrent;
-    if (pullVector.length <= 10.0) return;
+    final pullDx = dragStart.x - dragCurrent.x;
+    final pullDy = dragStart.y - dragCurrent.y;
+    final pullLen = sqrt(pullDx * pullDx + pullDy * pullDy);
+    if (pullLen <= 10.0) return;
 
-    final rawLaunchVel = pullVector.normalized() *
-        (pullVector.length * 6.8).clamp(440.0, 900.0);
-    final launchVel = player.sanitizeLaunchVelocity(rawLaunchVel);
+    final launchSpeed = (pullLen * 6.8).clamp(440.0, 900.0);
+    _launchVecTmp.setValues(
+      (pullDx / pullLen) * launchSpeed,
+      (pullDy / pullLen) * launchSpeed,
+    );
+    final launchVel = player.sanitizeLaunchVelocity(_launchVecTmp);
 
-    final screenCenter = size / 2;
+    final screenCenterX = size.x * 0.5;
+    final screenCenterY = size.y * 0.5;
     final camPos = camera.viewfinder.position;
     _simPos.setFrom(player.position);
     _simVel.setFrom(launchVel);
     const simDt = 0.024;
     final halfWidth = towerHalfWidth - PlayerCore.radius;
-    const hitRadSq = (PlayerCore.radius + 1.0) * (PlayerCore.radius + 1.0);
+    const hitRad = PlayerCore.radius + 1.0;
+    const hitRadSq = hitRad * hitRad;
 
-    for (int i = 1; i <= 22; i++) {
+    // Durante il sabotaggio d'inchiostro la traiettoria predittiva si accorcia drasticamente e si offusca!
+    final blindRatio = (inkSabotageBlindTimer / 4.8).clamp(0.0, 1.0);
+    final maxVisibleDots =
+        (22 * (1.0 - blindRatio * 0.75)).round().clamp(4, 22);
+    final blindAlphaFactor = 1.0 - blindRatio * 0.55;
+
+    for (int i = 1; i <= maxVisibleDots; i++) {
       _simVel.y += PlayerCore.gravity * simDt;
       _simPos.x += _simVel.x * simDt;
       _simPos.y += _simVel.y * simDt;
@@ -2096,8 +2475,10 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       for (int pIdx = 0; pIdx < _solidPadsCache.length; pIdx++) {
         final pad = _solidPadsCache[pIdx];
         if (pad == player.stuckPlatform || pad.parent == null) continue;
-        final halfW = pad.size.x / 2;
-        final halfH = pad.size.y / 2;
+        final halfH = pad.size.y * 0.5;
+        if ((_simPos.y - pad.position.y).abs() > halfH + hitRad) continue;
+        final halfW = pad.size.x * 0.5;
+        if ((_simPos.x - pad.position.x).abs() > halfW + hitRad) continue;
         final cx =
             _simPos.x.clamp(pad.position.x - halfW, pad.position.x + halfW);
         final cy =
@@ -2111,10 +2492,10 @@ class InkSlingGame extends FlameGame with DragCallbacks {
       }
 
       final screenPt = Offset(
-        screenCenter.x + (_simPos.x - camPos.x),
-        screenCenter.y + (_simPos.y - camPos.y),
+        screenCenterX + (_simPos.x - camPos.x),
+        screenCenterY + (_simPos.y - camPos.y),
       );
-      final alpha = (1.0 - i / 23.0) * 0.88;
+      final alpha = (1.0 - i / 23.0) * 0.88 * blindAlphaFactor;
       final radius = 4.2 - (i * 0.12);
 
       _trajFillPaint.color =

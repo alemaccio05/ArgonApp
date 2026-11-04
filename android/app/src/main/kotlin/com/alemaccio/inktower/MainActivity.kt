@@ -1,8 +1,11 @@
 package com.alemaccio.inktower
 
+import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.SoundPool
+import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -17,11 +20,76 @@ class MainActivity : FlutterActivity() {
     private val soundIds = ConcurrentHashMap<String, Int>()
     private val loadedSampleIds = ConcurrentHashMap.newKeySet<Int>()
     private val audioExecutor = Executors.newSingleThreadExecutor()
+    private var multicastLock: WifiManager.MulticastLock? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Assicura che i tasti volume del telefono regolino il volume Media del gioco
         volumeControlStream = AudioManager.STREAM_MUSIC
+        // Richiede il refresh rate nativo più alto disponibile (es. 120Hz Smooth Display su Pixel 9)
+        enableHighestRefreshRate()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        acquireWifiMulticastLock()
+    }
+
+    override fun onPause() {
+        releaseWifiMulticastLock()
+        super.onPause()
+    }
+
+    private fun acquireWifiMulticastLock() {
+        try {
+            if (multicastLock == null) {
+                val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                multicastLock = wifi?.createMulticastLock("inktower_p2p_lan")?.apply {
+                    setReferenceCounted(false)
+                }
+            }
+            if (multicastLock?.isHeld == false) {
+                multicastLock?.acquire()
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun releaseWifiMulticastLock() {
+        try {
+            if (multicastLock?.isHeld == true) {
+                multicastLock?.release()
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun enableHighestRefreshRate() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val currentDisplay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    display
+                } else {
+                    @Suppress("DEPRECATION")
+                    windowManager.defaultDisplay
+                }
+                currentDisplay?.let { d ->
+                    val activeMode = d.mode
+                    val bestMode = d.supportedModes
+                        .filter {
+                            it.physicalWidth == activeMode.physicalWidth &&
+                                it.physicalHeight == activeMode.physicalHeight
+                        }
+                        .maxByOrNull { it.refreshRate }
+                    if (bestMode != null && bestMode.modeId != activeMode.modeId) {
+                        val params = window.attributes
+                        params.preferredDisplayModeId = bestMode.modeId
+                        window.attributes = params
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -106,6 +174,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        releaseWifiMulticastLock()
         audioExecutor.shutdownNow()
         soundPool?.release()
         soundPool = null

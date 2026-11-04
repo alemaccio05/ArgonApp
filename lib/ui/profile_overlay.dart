@@ -614,7 +614,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
     );
   }
 
-  /// Vista Tab 2: Griglia Icone Profilo & Avatar Sbloccabili
+  /// Vista Tab 2: Griglia Icone Profilo & Avatar Sbloccabili (2 colonne spaziose multilingua)
   Widget _buildIconsView(StorageService storage, RisographPalette p, AppStrings s) {
     final icons = ProfileIconsCatalog.allIcons;
 
@@ -622,10 +622,10 @@ class _ProfileDialogState extends State<ProfileDialog> {
       physics: const BouncingScrollPhysics(),
       itemCount: icons.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.88,
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.05,
       ),
       itemBuilder: (context, index) {
         final icon = icons[index];
@@ -634,7 +634,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
         final progress = icon.getProgress(storage, s);
 
         return Container(
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: isEquipped
                 ? p.matchaSafe.withAlpha((0.12 * 255).round())
@@ -655,8 +655,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 alignment: Alignment.center,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
                       color: isUnlocked ? p.paperCard : p.paperBg,
                       shape: BoxShape.circle,
@@ -671,12 +671,12 @@ class _ProfileDialogState extends State<ProfileDialog> {
                       child: isUnlocked
                           ? Icon(
                               icon.iconData,
-                              size: 24,
+                              size: 25,
                               color: isEquipped ? p.matchaSafe : p.inkPrimary,
                             )
                           : Icon(
                               Icons.lock_outline_rounded,
-                              size: 20,
+                              size: 21,
                               color: p.inkSecondary.withAlpha(160),
                             ),
                     ),
@@ -704,8 +704,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
                   icon.getName(s),
                   style: TextStyle(
                     color: isUnlocked ? p.inkPrimary : p.inkSecondary,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
@@ -713,7 +713,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
               // Requisito / Progresso o Pulsante Equipaggia
               if (isEquipped)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: p.matchaSafe,
                     borderRadius: BorderRadius.circular(5),
@@ -722,19 +722,19 @@ class _ProfileDialogState extends State<ProfileDialog> {
                     s.equippedBadge,
                     style: TextStyle(
                       color: p.onMatchaSafe,
-                      fontSize: 8.5,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                 )
               else if (isUnlocked)
                 SizedBox(
-                  height: 22,
+                  height: 24,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: p.inkPrimary,
                       side: BorderSide(color: p.inkPrimary, width: 1.4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -746,7 +746,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                     child: Text(
                       s.equipBtn,
                       style: const TextStyle(
-                        fontSize: 9,
+                        fontSize: 10,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -755,24 +755,24 @@ class _ProfileDialogState extends State<ProfileDialog> {
               else
                 Column(
                   children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        icon.getRequirement(s),
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: p.inkSecondary,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    Text(
+                      icon.getRequirement(s),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: p.inkSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 2),
                     Text(
                       progress,
                       style: TextStyle(
                         color: p.vermilionHazard,
-                        fontSize: 8.5,
+                        fontSize: 10,
                         fontWeight: FontWeight.w900,
                       ),
                     ),

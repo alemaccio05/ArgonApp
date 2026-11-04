@@ -3,9 +3,12 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/app_strings.dart';
+import 'core/palette_theme.dart';
 import 'game/ink_sling_game.dart';
 import 'services/audio_haptics_service.dart';
 import 'services/monetization_service.dart';
+import 'services/p2p_multiplayer_service.dart';
 import 'services/storage_service.dart';
 import 'ui/game_over_overlay.dart';
 import 'ui/hud_overlay.dart';
@@ -38,27 +41,63 @@ Future<void> main() async {
   runApp(InkSlingApp(game: game));
 }
 
-class InkSlingApp extends StatelessWidget {
+class InkSlingApp extends StatefulWidget {
   final InkSlingGame game;
   const InkSlingApp({super.key, required this.game});
 
   @override
+  State<InkSlingApp> createState() => _InkSlingAppState();
+}
+
+class _InkSlingAppState extends State<InkSlingApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.game.navigatorKey = _navigatorKey;
+    _lifecycleListener = AppLifecycleListener(
+      onStateChange: widget.game.p2pService.onAppLifecycleStateChanged,
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    if (widget.game.navigatorKey == _navigatorKey) {
+      widget.game.navigatorKey = null;
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final initialBg = game.paletteNotifier.value.paperBg;
+    final initialBg = widget.game.paletteNotifier.value.paperBg;
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'INK TOWER: Climb & Stick',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: initialBg,
       ),
+      builder: (context, navigatorChild) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (navigatorChild != null) navigatorChild,
+            _GlobalP2PInvitePopupOverlay(game: widget.game),
+          ],
+        );
+      },
       home: Scaffold(
         backgroundColor: initialBg,
         body: Stack(
           fit: StackFit.expand,
           children: [
             GameWidget<InkSlingGame>(
-              game: game,
+              game: widget.game,
               overlayBuilderMap: {
                 'MainMenu': (context, game) => MainMenuOverlay(game: game),
                 'Hud': (context, game) => HudOverlay(game: game),
@@ -67,10 +106,197 @@ class InkSlingApp extends StatelessWidget {
               },
               initialActiveOverlays: const ['MainMenu'],
             ),
-            _StartupRevealCurtain(game: game),
+            _StartupRevealCurtain(game: widget.game),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Pop-up globale per gli inviti P2P in entrata: viene montato sopra il Navigator
+/// così è SEMPRE visibile e cliccabile anche quando il giocatore è nella Lista Amici o in altri dialog.
+class _GlobalP2PInvitePopupOverlay extends StatelessWidget {
+  final InkSlingGame game;
+  const _GlobalP2PInvitePopupOverlay({required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<P2PIncomingInvite?>(
+      valueListenable: game.p2pService.incomingInviteNotifier,
+      builder: (context, invite, _) {
+        if (invite == null || game.isPlaying) {
+          return const SizedBox.shrink();
+        }
+        return ValueListenableBuilder<RisographPalette>(
+          valueListenable: game.paletteNotifier,
+          builder: (context, p, _) {
+            return ValueListenableBuilder<AppLanguage>(
+              valueListenable: game.languageNotifier,
+              builder: (context, lang, _) {
+                final s = AppStrings(lang);
+                final modeName = invite.format == P2PDuelFormat.infiniteSurvival
+                    ? s.p2pFormatInfinite
+                    : s.p2pFormat100m;
+                return SafeArea(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: p.paperCard,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: p.vermilionHazard,
+                                width: 2.6,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: p.shadowColor,
+                                  offset: const Offset(4, 5),
+                                  blurRadius: 0,
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      invite.challengerAvatar,
+                                      style: const TextStyle(fontSize: 22),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            s.incomingInviteTitle(
+                                              invite.senderName,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: p.vermilionHazard,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            s.incomingInviteSub(
+                                              modeName,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: p.inkPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          game.audioHaptics.onButtonTap();
+                                          game.acceptIncomingP2PInvite(invite);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: p.matchaSafe,
+                                          foregroundColor: p.onMatchaSafe,
+                                          elevation: 0,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 9,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            side: BorderSide(
+                                              color: p.inkPrimary,
+                                              width: 1.8,
+                                            ),
+                                          ),
+                                        ),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            s.acceptChallengeBtn,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () {
+                                          game.audioHaptics.onButtonTap();
+                                          game.p2pService
+                                              .declineIncomingInvite();
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                          backgroundColor: p.paperBg,
+                                          foregroundColor: p.inkPrimary,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 9,
+                                          ),
+                                          side: BorderSide(
+                                            color: p.inkPrimary,
+                                            width: 1.8,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                          ),
+                                        ),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            s.declineChallengeBtn,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -114,20 +114,33 @@ class DailySeedEngine {
   }
 
   /// Altezza traguardo del livello: parte da 50m e cresce di +10m ogni 10 livelli superati!
-  /// Liv. 1-10: 50m | Liv. 11-20: 60m | Liv. 21-30: 70m | Liv. 31-40: 80m...
+  /// Liv. 1-10: 50m | Liv. 11-20: 60m | Liv. 21-30: 70m | Liv. 31-40: 80m... fino al cap di 500m!
   static double getLevelGoalMeters(int level) {
     final safeLevel = level < 1 ? 1 : level;
     final tier = (safeLevel - 1) ~/ 10;
-    return (50.0 + tier * 10.0).clamp(50.0, 300.0);
+    return (50.0 + tier * 10.0).clamp(50.0, 500.0);
   }
 
-  /// Nella modalità Torre Infinita, ogni 50m scalati si sblocca un nuovo tipo di ostacolo!
-  /// 0-49.9m -> Tier 1 | 50-99.9m -> Tier 2 | 100-149.9m -> Tier 3 | 150-199.9m -> Tier 4 | 200-249.9m -> Tier 5 | 250m+ -> Tier 6+
+  /// Numero massimo di tipologie distinte di ostacoli sbloccabili nella Torre Infinita (Tier 8 a 350m+).
+  static const int maxInfiniteObstacleTier = 8;
+
+  /// Restituisce true se il giocatore ha già sbloccato tutte le tipologie di ostacoli (Tier 8, da 350m in su).
+  static bool isInfiniteMaxTier(double meters) =>
+      getInfiniteObstacleTier(meters) >= maxInfiniteObstacleTier;
+
+  /// Restituisce true per i traguardi ogni 50m oltre il cap degli ostacoli (da 400m in poi),
+  /// dove non si aggiungono nuovi tipi di ostacoli ma aumentano velocità e densità.
+  static bool isInfiniteMilestonePastCap(int milestoneMeters) =>
+      milestoneMeters >= 400;
+
+  /// Nella modalità Torre Infinita, ogni 50m scalati si sblocca un nuovo tipo di ostacolo fino al Cap Massimo (Tier 8).
+  /// 0-49.9m -> Tier 1 | 50-99.9m -> Tier 2 | ... | 350m+ -> Tier 8 (Tutti gli 8 tipi sbloccati, Cap MAX)
   static int getInfiniteObstacleTier(double meters) {
-    return (max(0.0, meters) / 50.0).floor() + 1;
+    final tier = (max(0.0, meters) / 50.0).floor() + 1;
+    return min(tier, maxInfiniteObstacleTier);
   }
 
-  /// Restituisce la prossima soglia (multiplo di 50m) in cui verrà aggiunto un nuovo ostacolo nella Torre Infinita.
+  /// Restituisce la prossima soglia (multiplo di 50m) nella Torre Infinita.
   static int getInfiniteNextObstacleMeters(double meters) {
     return ((max(0.0, meters) / 50.0).floor() + 1) * 50;
   }

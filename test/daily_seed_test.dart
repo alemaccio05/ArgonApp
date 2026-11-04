@@ -33,13 +33,43 @@ void main() {
     expect(receipt, contains("Can you climb today's tower?"));
   });
 
-  test('Level goal height grows by +10m every 10 levels starting from 50m', () {
+  test('Level goal height grows by +10m every 10 levels starting from 50m up to the 500m cap', () {
     expect(DailySeedEngine.getLevelGoalMeters(1), equals(50.0));
     expect(DailySeedEngine.getLevelGoalMeters(10), equals(50.0));
     expect(DailySeedEngine.getLevelGoalMeters(11), equals(60.0));
     expect(DailySeedEngine.getLevelGoalMeters(20), equals(60.0));
     expect(DailySeedEngine.getLevelGoalMeters(21), equals(70.0));
     expect(DailySeedEngine.getLevelGoalMeters(30), equals(70.0));
+    expect(DailySeedEngine.getLevelGoalMeters(260), equals(300.0));
+    expect(DailySeedEngine.getLevelGoalMeters(350), equals(390.0));
+    expect(DailySeedEngine.getLevelGoalMeters(451), equals(500.0));
+    expect(DailySeedEngine.getLevelGoalMeters(600), equals(500.0));
+  });
+
+  test('Infinite Tower obstacle tiers cap at Tier 8 (350m+) and milestone markers past 400m stop claiming +NEW OBSTACLE', () {
+    expect(DailySeedEngine.getInfiniteObstacleTier(0.0), equals(1));
+    expect(DailySeedEngine.getInfiniteObstacleTier(50.0), equals(2));
+    expect(DailySeedEngine.getInfiniteObstacleTier(300.0), equals(7));
+    expect(DailySeedEngine.getInfiniteObstacleTier(350.0), equals(8));
+    expect(DailySeedEngine.getInfiniteObstacleTier(500.0), equals(8));
+    expect(DailySeedEngine.isInfiniteMaxTier(349.9), isFalse);
+    expect(DailySeedEngine.isInfiniteMaxTier(350.0), isTrue);
+    expect(DailySeedEngine.isInfiniteMilestonePastCap(350), isFalse);
+    expect(DailySeedEngine.isInfiniteMilestonePastCap(400), isTrue);
+
+    const s = AppStrings(AppLanguage.it);
+    expect(
+      s.infiniteMilestoneMarker(350, isMaxTier: false),
+      contains('+NUOVO OSTACOLO'),
+    );
+    expect(
+      s.infiniteMilestoneMarker(400, isMaxTier: true),
+      isNot(contains('+NUOVO OSTACOLO')),
+    );
+    expect(
+      s.infiniteMilestoneMarker(400, isMaxTier: true),
+      contains('VELOCITÀ & DENSITÀ +'),
+    );
   });
 
   test('Daily and Global Leaderboards sort by meters/level/percent/bounces and use realistic bounce counts', () {

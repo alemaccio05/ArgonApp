@@ -23,7 +23,7 @@ class FriendRecord {
     this.skinId = 'shinobi_star',
     this.winsAgainst = 0,
     this.lossesAgainst = 0,
-    this.isOnline = true,
+    this.isOnline = false,
   });
 
   FriendRecord copyWith({
@@ -52,18 +52,53 @@ class FriendRecord {
         'skinId': skinId,
         'winsAgainst': winsAgainst,
         'lossesAgainst': lossesAgainst,
-        'isOnline': isOnline,
+        'isOnline': false,
       };
 
   factory FriendRecord.fromJson(Map<String, dynamic> json) {
     return FriendRecord(
-      code: (json['code'] as String?) ?? 'INK-1000',
+      code: (json['code'] as String?) ?? 'INK-10000000',
       name: (json['name'] as String?) ?? 'Rival',
       avatarEmoji: (json['avatarEmoji'] as String?) ?? '🥷',
       skinId: (json['skinId'] as String?) ?? 'shinobi_star',
       winsAgainst: (json['winsAgainst'] as int?) ?? 0,
       lossesAgainst: (json['lossesAgainst'] as int?) ?? 0,
-      isOnline: (json['isOnline'] as bool?) ?? true,
+      isOnline: false,
+    );
+  }
+}
+
+/// Rappresenta una richiesta di amicizia inviata o ricevuta (con conferma reciproca obbligatoria).
+class FriendRequestRecord {
+  final String code;
+  final String name;
+  final String avatarEmoji;
+  final String skinId;
+  final int timestampMs;
+
+  const FriendRequestRecord({
+    required this.code,
+    required this.name,
+    this.avatarEmoji = '🥷',
+    this.skinId = 'shinobi_star',
+    this.timestampMs = 0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'name': name,
+        'avatarEmoji': avatarEmoji,
+        'skinId': skinId,
+        'timestampMs': timestampMs,
+      };
+
+  factory FriendRequestRecord.fromJson(Map<String, dynamic> json) {
+    return FriendRequestRecord(
+      code: (json['code'] as String?) ?? 'INK-10000000',
+      name: (json['name'] as String?) ?? 'Climber',
+      avatarEmoji: (json['avatarEmoji'] as String?) ?? '🥷',
+      skinId: (json['skinId'] as String?) ?? 'shinobi_star',
+      timestampMs: (json['timestampMs'] as int?) ?? 0,
     );
   }
 }
@@ -119,6 +154,8 @@ class StorageService {
   static const _keyP2PMatchesPlayed = 'p2p_matches_played_all_time';
   static const _keyMyFriendCode = 'my_unique_friend_code';
   static const _keyFriendsListJson = 'saved_friends_list_json_v1';
+  static const _keyIncomingFriendReqsJson = 'incoming_friend_requests_json_v1';
+  static const _keyOutgoingFriendReqsJson = 'outgoing_friend_requests_json_v1';
 
   SharedPreferences? _prefs;
 
@@ -156,30 +193,34 @@ class StorageService {
   String selectedAbilityId = 'zen_anchor';
   int p2pWinsCount = 0;
   int p2pMatchesPlayed = 0;
-  String myFriendCode = 'INK-4829';
-  List<FriendRecord> friendsList = [
-    const FriendRecord(
-      code: 'INK-9042',
-      name: 'Kenji_Zen',
-      avatarEmoji: '🥷',
-      skinId: 'shinobi_star',
-      isOnline: true,
-    ),
-    const FriendRecord(
-      code: 'INK-3188',
-      name: 'Sakura_Up',
-      avatarEmoji: '🕊️',
-      skinId: 'paper_origami',
-      isOnline: true,
-    ),
-    const FriendRecord(
-      code: 'INK-7714',
-      name: 'Ryu_Dragon',
-      avatarEmoji: '🐉',
-      skinId: 'dragon_ember',
-      isOnline: true,
-    ),
-  ];
+  String myFriendCode = 'INK-48291037';
+  List<FriendRecord> friendsList = <FriendRecord>[];
+  List<FriendRequestRecord> incomingFriendRequests = <FriendRequestRecord>[];
+  List<FriendRequestRecord> outgoingFriendRequests = <FriendRequestRecord>[];
+
+  /// Callback invocato automaticamente quando il giocatore modifica nome, icona o skin
+  void Function()? onProfileChanged;
+
+  /// Genera un Codice Amico univoco a 8 cifre nel formato `INK-XXXXXXXX` (10000000..99999999)
+  static String generateEightDigitFriendCode([Random? rng]) {
+    final r = rng ?? Random();
+    final numPart = 10000000 + r.nextInt(90000000);
+    return 'INK-$numPart';
+  }
+
+  /// Normalizza un codice amico inserito (es. `84729103` -> `INK-84729103`)
+  static String normalizeFriendCode(String rawCode) {
+    final cleaned = rawCode.trim().toUpperCase();
+    if (cleaned.isEmpty) return 'INK-55218490';
+    final digitsOnly = cleaned.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.length == 8) {
+      return 'INK-$digitsOnly';
+    }
+    if (cleaned.startsWith('INK-')) {
+      return cleaned;
+    }
+    return 'INK-$cleaned';
+  }
 
   // Lingua & Volume Audio Unificato
   AppLanguage selectedLanguage = AppLanguage.en;
@@ -307,15 +348,14 @@ class StorageService {
       );
       final savedCode = _prefs?.getString(_keyMyFriendCode) ??
           (backup['myFriendCode'] as String?);
-      if (savedCode != null && savedCode.isNotEmpty) {
+      if (savedCode != null && RegExp(r'^INK-\d{8}$').hasMatch(savedCode)) {
         myFriendCode = savedCode;
       } else {
-        final rng = Random();
-        final numPart = 1000 + rng.nextInt(9000);
-        myFriendCode = 'INK-$numPart';
+        myFriendCode = generateEightDigitFriendCode();
         await _prefs?.setString(_keyMyFriendCode, myFriendCode);
       }
       _loadFriendsList(backup);
+      _loadFriendRequests(backup);
 
       // Carica subito i dati giornalieri esistenti prima della verifica oraria
       bestMetersToday = _prefs?.getDouble(_keyBestMetersToday) ?? 0.0;
@@ -391,30 +431,67 @@ class StorageService {
     return const <String, dynamic>{};
   }
 
+  /// Salvaguardia High-Water Mark: garantisce che livelli e record su disco non vengano mai retrocessi
+  Future<void> enforceHighWaterMark() async {
+    try {
+      _prefs ??= await SharedPreferences.getInstance();
+    } catch (_) {}
+    final backup = _readBackupSnapshot();
+    final diskLevel = max(
+      _prefs?.getInt(_keyCurrentTowerLevel) ?? 1,
+      (backup['currentTowerLevel'] as int?) ?? 1,
+    );
+    if (diskLevel > currentTowerLevel) {
+      currentTowerLevel = diskLevel;
+    } else if (currentTowerLevel > diskLevel) {
+      await _prefs?.setInt(_keyCurrentTowerLevel, currentTowerLevel);
+    }
+
+    final diskBestMeters = max(
+      _prefs?.getDouble(_keyAllTimeBestMeters) ?? 0.0,
+      (backup['allTimeBestMeters'] as num?)?.toDouble() ?? 0.0,
+    );
+    if (diskBestMeters > allTimeBestMeters) {
+      allTimeBestMeters = diskBestMeters;
+    } else if (allTimeBestMeters > diskBestMeters) {
+      await _prefs?.setDouble(_keyAllTimeBestMeters, allTimeBestMeters);
+    }
+
+    final diskInfMeters = max(
+      _prefs?.getDouble(_keyInfiniteBestMeters) ?? 0.0,
+      (backup['infiniteBestMeters'] as num?)?.toDouble() ?? 0.0,
+    );
+    if (diskInfMeters > infiniteBestMeters) {
+      infiniteBestMeters = diskInfMeters;
+    } else if (infiniteBestMeters > diskInfMeters) {
+      await _prefs?.setDouble(_keyInfiniteBestMeters, infiniteBestMeters);
+    }
+
+    final diskBounces = max(
+      _prefs?.getInt(_keyTotalBouncesAllTime) ?? 0,
+      (backup['totalBouncesAllTime'] as int?) ?? 0,
+    );
+    if (diskBounces > totalBouncesAllTime) {
+      totalBouncesAllTime = diskBounces;
+    } else if (totalBouncesAllTime > diskBounces) {
+      await _prefs?.setInt(_keyTotalBouncesAllTime, totalBouncesAllTime);
+    }
+
+    final diskP2PWins = max(
+      _prefs?.getInt(_keyP2PWinsCount) ?? 0,
+      (backup['p2pWinsCount'] as int?) ?? 0,
+    );
+    if (diskP2PWins > p2pWinsCount) {
+      p2pWinsCount = diskP2PWins;
+    } else if (p2pWinsCount > diskP2PWins) {
+      await _prefs?.setInt(_keyP2PWinsCount, p2pWinsCount);
+    }
+  }
+
   Future<void> _saveBackupSnapshot() async {
     try {
       if (_prefs == null) return;
-      // Garantisce che currentTowerLevel e i record non scendano mai sotto i valori già salvati su disco
-      final savedLevel = _prefs?.getInt(_keyCurrentTowerLevel) ?? 1;
-      if (savedLevel > currentTowerLevel) {
-        currentTowerLevel = savedLevel;
-      } else if (currentTowerLevel > savedLevel) {
-        await _prefs?.setInt(_keyCurrentTowerLevel, currentTowerLevel);
-      }
-
-      final savedBestMeters = _prefs?.getDouble(_keyAllTimeBestMeters) ?? 0.0;
-      if (savedBestMeters > allTimeBestMeters) {
-        allTimeBestMeters = savedBestMeters;
-      } else if (allTimeBestMeters > savedBestMeters) {
-        await _prefs?.setDouble(_keyAllTimeBestMeters, allTimeBestMeters);
-      }
-
-      final savedInfMeters = _prefs?.getDouble(_keyInfiniteBestMeters) ?? 0.0;
-      if (savedInfMeters > infiniteBestMeters) {
-        infiniteBestMeters = savedInfMeters;
-      } else if (infiniteBestMeters > savedInfMeters) {
-        await _prefs?.setDouble(_keyInfiniteBestMeters, infiniteBestMeters);
-      }
+      await enforceHighWaterMark();
 
       final snapshot = <String, dynamic>{
         'currentTowerLevel': currentTowerLevel,
@@ -440,6 +517,10 @@ class StorageService {
         'p2pMatchesPlayed': p2pMatchesPlayed,
         'myFriendCode': myFriendCode,
         'friendsList': friendsList.map((f) => f.toJson()).toList(),
+        'incomingFriendRequests':
+            incomingFriendRequests.map((r) => r.toJson()).toList(),
+        'outgoingFriendRequests':
+            outgoingFriendRequests.map((r) => r.toJson()).toList(),
         'proUnlocked': proUnlocked,
       };
       await _prefs?.setString(_keyProgressBackupSnapshot, jsonEncode(snapshot));
@@ -669,12 +750,14 @@ class StorageService {
     selectedProfileIconId = iconId;
     await _prefs?.setString(_keySelectedProfileIcon, selectedProfileIconId);
     await _saveBackupSnapshot();
+    onProfileChanged?.call();
   }
 
   Future<void> setSelectedBallSkin(String skinId) async {
     selectedBallSkinId = skinId;
     await _prefs?.setString(_keySelectedBallSkin, selectedBallSkinId);
     await _saveBackupSnapshot();
+    onProfileChanged?.call();
   }
 
   /// Aggiunge 1 vita extra oggi (es. dopo Rewarded Ad)
@@ -690,6 +773,7 @@ class StorageService {
     playerName = cleaned;
     await _prefs?.setString(_keyPlayerName, playerName);
     await _saveBackupSnapshot();
+    onProfileChanged?.call();
   }
 
   Future<void> setLanguage(AppLanguage lang) async {
@@ -736,10 +820,42 @@ class StorageService {
       } else if (backup['friendsList'] is List<dynamic>) {
         decoded = backup['friendsList'] as List<dynamic>;
       }
-      if (decoded != null && decoded.isNotEmpty) {
+      if (decoded != null) {
         friendsList = decoded
             .whereType<Map<String, dynamic>>()
             .map(FriendRecord.fromJson)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  void _loadFriendRequests(Map<String, dynamic> backup) {
+    try {
+      final rawIn = _prefs?.getString(_keyIncomingFriendReqsJson);
+      List<dynamic>? decodedIn;
+      if (rawIn != null && rawIn.isNotEmpty) {
+        decodedIn = jsonDecode(rawIn) as List<dynamic>?;
+      } else if (backup['incomingFriendRequests'] is List<dynamic>) {
+        decodedIn = backup['incomingFriendRequests'] as List<dynamic>;
+      }
+      if (decodedIn != null) {
+        incomingFriendRequests = decodedIn
+            .whereType<Map<String, dynamic>>()
+            .map(FriendRequestRecord.fromJson)
+            .toList();
+      }
+
+      final rawOut = _prefs?.getString(_keyOutgoingFriendReqsJson);
+      List<dynamic>? decodedOut;
+      if (rawOut != null && rawOut.isNotEmpty) {
+        decodedOut = jsonDecode(rawOut) as List<dynamic>?;
+      } else if (backup['outgoingFriendRequests'] is List<dynamic>) {
+        decodedOut = backup['outgoingFriendRequests'] as List<dynamic>;
+      }
+      if (decodedOut != null) {
+        outgoingFriendRequests = decodedOut
+            .whereType<Map<String, dynamic>>()
+            .map(FriendRequestRecord.fromJson)
             .toList();
       }
     } catch (_) {}
@@ -753,6 +869,18 @@ class StorageService {
     } catch (_) {}
   }
 
+  Future<void> _saveFriendRequests() async {
+    try {
+      final encIn =
+          jsonEncode(incomingFriendRequests.map((r) => r.toJson()).toList());
+      final encOut =
+          jsonEncode(outgoingFriendRequests.map((r) => r.toJson()).toList());
+      await _prefs?.setString(_keyIncomingFriendReqsJson, encIn);
+      await _prefs?.setString(_keyOutgoingFriendReqsJson, encOut);
+      await _saveBackupSnapshot();
+    } catch (_) {}
+  }
+
   Future<void> setSelectedAbility(String abilityId) async {
     selectedAbilityId = abilityId;
     await _prefs?.setString(_keySelectedAbility, selectedAbilityId);
@@ -761,36 +889,205 @@ class StorageService {
 
   Future<FriendRecord> addFriend({
     required String code,
-    required String name,
+    String name = '',
     String avatarEmoji = '🥷',
     String skinId = 'shinobi_star',
+    bool isOnline = false,
   }) async {
-    final cleanCode = code.trim().toUpperCase();
-    final cleanName = name.trim().isEmpty ? 'Climber' : name.trim();
+    final cleanCode = normalizeFriendCode(code);
     final existingIdx =
         friendsList.indexWhere((f) => f.code.toUpperCase() == cleanCode);
+    final shortSuffix = cleanCode.length >= 4
+        ? cleanCode.substring(cleanCode.length - 4)
+        : cleanCode;
+    final cleanName = name.trim().isEmpty
+        ? (existingIdx >= 0 ? friendsList[existingIdx].name : 'Climber #$shortSuffix')
+        : name.trim();
+    final effectiveAvatar = avatarEmoji.trim().isEmpty
+        ? (existingIdx >= 0 ? friendsList[existingIdx].avatarEmoji : '🥷')
+        : avatarEmoji.trim();
+    final effectiveSkin = skinId.trim().isEmpty
+        ? (existingIdx >= 0 ? friendsList[existingIdx].skinId : 'shinobi_star')
+        : skinId.trim();
     final record = FriendRecord(
-      code: cleanCode.isEmpty ? 'INK-5521' : cleanCode,
+      code: cleanCode,
       name: cleanName,
-      avatarEmoji: avatarEmoji,
-      skinId: skinId,
-      isOnline: true,
+      avatarEmoji: effectiveAvatar,
+      skinId: effectiveSkin,
+      isOnline: isOnline,
     );
     if (existingIdx >= 0) {
       friendsList[existingIdx] = friendsList[existingIdx].copyWith(
         name: cleanName,
-        isOnline: true,
+        avatarEmoji: effectiveAvatar,
+        skinId: effectiveSkin,
+        isOnline: isOnline,
       );
+      await _saveFriendsList();
+      return friendsList[existingIdx];
     } else {
       friendsList.insert(0, record);
+      await _saveFriendsList();
+      return record;
     }
-    await _saveFriendsList();
-    return record;
+  }
+
+  /// Sincronizza in modo non distruttivo nome, avatar, skin e stato online di un amico già in lista
+  Future<bool> syncFriendProfile({
+    required String code,
+    String? name,
+    String? avatarEmoji,
+    String? skinId,
+    bool? isOnline,
+  }) async {
+    final cleanCode = normalizeFriendCode(code);
+    bool changedAny = false;
+
+    final idx =
+        friendsList.indexWhere((f) => f.code.toUpperCase() == cleanCode);
+    if (idx >= 0) {
+      final old = friendsList[idx];
+      final newName =
+          (name != null && name.trim().isNotEmpty) ? name.trim() : old.name;
+      final newAvatar = (avatarEmoji != null && avatarEmoji.trim().isNotEmpty)
+          ? avatarEmoji.trim()
+          : old.avatarEmoji;
+      final newSkin =
+          (skinId != null && skinId.trim().isNotEmpty) ? skinId.trim() : old.skinId;
+      final newOnline = isOnline ?? old.isOnline;
+
+      final persistentDiff = newName != old.name ||
+          newAvatar != old.avatarEmoji ||
+          newSkin != old.skinId;
+      final runtimeDiff = persistentDiff || newOnline != old.isOnline;
+
+      if (runtimeDiff) {
+        friendsList[idx] = old.copyWith(
+          name: newName,
+          avatarEmoji: newAvatar,
+          skinId: newSkin,
+          isOnline: newOnline,
+        );
+        changedAny = true;
+        if (persistentDiff) {
+          await _saveFriendsList();
+        }
+      }
+    }
+
+    final reqIdx = incomingFriendRequests
+        .indexWhere((r) => r.code.toUpperCase() == cleanCode);
+    if (reqIdx >= 0) {
+      final oldReq = incomingFriendRequests[reqIdx];
+      final newName =
+          (name != null && name.trim().isNotEmpty) ? name.trim() : oldReq.name;
+      final newAvatar = (avatarEmoji != null && avatarEmoji.trim().isNotEmpty)
+          ? avatarEmoji.trim()
+          : oldReq.avatarEmoji;
+      final newSkin = (skinId != null && skinId.trim().isNotEmpty)
+          ? skinId.trim()
+          : oldReq.skinId;
+      if (newName != oldReq.name ||
+          newAvatar != oldReq.avatarEmoji ||
+          newSkin != oldReq.skinId) {
+        incomingFriendRequests[reqIdx] = FriendRequestRecord(
+          code: oldReq.code,
+          name: newName,
+          avatarEmoji: newAvatar,
+          skinId: newSkin,
+          timestampMs: oldReq.timestampMs,
+        );
+        changedAny = true;
+        await _saveFriendRequests();
+      }
+    }
+
+    return changedAny;
   }
 
   Future<void> removeFriend(String code) async {
     friendsList.removeWhere((f) => f.code.toUpperCase() == code.toUpperCase());
     await _saveFriendsList();
+  }
+
+  Future<void> clearAllFriends() async {
+    friendsList.clear();
+    await _saveFriendsList();
+  }
+
+  bool isAlreadyFriend(String code) {
+    final norm = normalizeFriendCode(code);
+    return friendsList.any((f) => f.code.toUpperCase() == norm);
+  }
+
+  Future<FriendRequestRecord> addIncomingFriendRequest({
+    required String code,
+    String name = '',
+    String avatarEmoji = '🥷',
+    String skinId = 'shinobi_star',
+  }) async {
+    final cleanCode = normalizeFriendCode(code);
+    final shortSuffix = cleanCode.length >= 4
+        ? cleanCode.substring(cleanCode.length - 4)
+        : cleanCode;
+    final cleanName =
+        name.trim().isEmpty ? 'Climber #$shortSuffix' : name.trim();
+    final record = FriendRequestRecord(
+      code: cleanCode,
+      name: cleanName,
+      avatarEmoji: avatarEmoji,
+      skinId: skinId,
+      timestampMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    final idx = incomingFriendRequests
+        .indexWhere((r) => r.code.toUpperCase() == cleanCode);
+    if (idx >= 0) {
+      incomingFriendRequests[idx] = record;
+    } else {
+      incomingFriendRequests.insert(0, record);
+    }
+    await _saveFriendRequests();
+    return record;
+  }
+
+  Future<void> removeIncomingFriendRequest(String code) async {
+    final cleanCode = normalizeFriendCode(code);
+    incomingFriendRequests
+        .removeWhere((r) => r.code.toUpperCase() == cleanCode);
+    await _saveFriendRequests();
+  }
+
+  Future<FriendRequestRecord> addOutgoingFriendRequest({
+    required String code,
+    String name = '',
+  }) async {
+    final cleanCode = normalizeFriendCode(code);
+    final shortSuffix = cleanCode.length >= 4
+        ? cleanCode.substring(cleanCode.length - 4)
+        : cleanCode;
+    final cleanName =
+        name.trim().isEmpty ? 'Climber #$shortSuffix' : name.trim();
+    final record = FriendRequestRecord(
+      code: cleanCode,
+      name: cleanName,
+      timestampMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    final idx = outgoingFriendRequests
+        .indexWhere((r) => r.code.toUpperCase() == cleanCode);
+    if (idx >= 0) {
+      outgoingFriendRequests[idx] = record;
+    } else {
+      outgoingFriendRequests.insert(0, record);
+    }
+    await _saveFriendRequests();
+    return record;
+  }
+
+  Future<void> removeOutgoingFriendRequest(String code) async {
+    final cleanCode = normalizeFriendCode(code);
+    outgoingFriendRequests
+        .removeWhere((r) => r.code.toUpperCase() == cleanCode);
+    await _saveFriendRequests();
   }
 
   Future<void> recordP2PDuelResult({

@@ -80,6 +80,11 @@ class PlayerCore extends PositionComponent
   /// Flag di freeze/invulnerabilità temporaneo attivo subito dopo la Seconda Chance (0.5s)
   bool get isRespawnFrozen => respawnFreezeTimer > 0.0;
 
+  /// Sblocca immediatamente il freeze post-respawn quando il giocatore esegue un lancio manuale
+  void clearRespawnFreeze() {
+    respawnFreezeTimer = 0.0;
+  }
+
   /// Lo scudo della Seconda Chance non ha timer: resta attivo finché non colpisce un ostacolo
   bool get hasShield => shieldTimer > 0.0;
 
@@ -308,8 +313,15 @@ class PlayerCore extends PositionComponent
     return true;
   }
 
-  void launch(Vector2 launchVelocity, {bool silent = false}) {
+  void launch(
+    Vector2 launchVelocity, {
+    bool silent = false,
+    bool fromManualSling = false,
+  }) {
     zenAnchorTimer = 0.0;
+    if (fromManualSling && isRespawnFrozen) {
+      respawnFreezeTimer = 0.0;
+    }
     if (isRespawnFrozen) return;
     final safeVelocity = sanitizeLaunchVelocity(launchVelocity);
 
@@ -365,8 +377,14 @@ class PlayerCore extends PositionComponent
 
     _ringRotation += dt * 1.8;
     // Lo scudo non scade più a tempo: resta attivo finché non colpisce un ostacolo!
+    // Usa il dt reale non rallentato dal Bullet-Time (0.15x), così il freeze di 0.5s
+    // non si dilata a ~3.3s se il giocatore carica subito la mira dopo la Seconda Chance.
     if (respawnFreezeTimer > 0) {
-      respawnFreezeTimer = max(0.0, respawnFreezeTimer - dt);
+      final unscaledDt =
+          (!game.isPaused && game.timeScale > 0.01 && game.timeScale < 0.999)
+              ? (dt / game.timeScale)
+              : dt;
+      respawnFreezeTimer = max(0.0, respawnFreezeTimer - unscaledDt);
     }
     if (shadowPhaseTimer > 0) {
       shadowPhaseTimer = max(0.0, shadowPhaseTimer - dt);
@@ -437,6 +455,16 @@ class PlayerCore extends PositionComponent
       velocity.setZero();
       acceleration.setZero();
       prevPosition.setFrom(position);
+      return;
+    }
+
+    // Se la palla è già ferma a riposo sul pavimento iniziale a 0.0m, evita integrazione e scia superflua
+    if (position.y >= InkSlingGame.platformBaseY &&
+        velocity.x == 0.0 &&
+        velocity.y == 0.0) {
+      position.y = InkSlingGame.platformBaseY;
+      prevPosition.setFrom(position);
+      _popOldestTrailPoint();
       return;
     }
 

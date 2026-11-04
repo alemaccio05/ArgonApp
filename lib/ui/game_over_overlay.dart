@@ -7,6 +7,7 @@ import '../core/daily_seed.dart';
 import '../core/palette_theme.dart';
 import '../core/profile_icons.dart';
 import '../game/ink_sling_game.dart';
+import '../services/p2p_multiplayer_service.dart';
 
 /// Schermata di Fine Partita (Vittoria o Sconfitta) dal design accattivante,
 /// con 5 settori grafici di avanzamento, Mini-Mappa, statistiche dettagliate,
@@ -270,98 +271,107 @@ class GameOverOverlay extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 10),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: p.vermilionHazard,
-                                    foregroundColor: p.paperBg,
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      side: BorderSide(
-                                        color: p.inkPrimary,
-                                        width: 1.8,
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        color: p.playerFill,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: p.inkPrimary,
+                                          width: 1.2,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  onPressed: () {
-                                    game.audioHaptics.onButtonTap();
-                                    final opp = game.p2pService.opponent;
-                                    final matchingFriend = game
-                                        .storage
-                                        .friendsList
-                                        .where((f) => f.code == opp.code)
-                                        .firstOrNull;
-                                    if (matchingFriend != null) {
-                                      game.startP2PDuel(
-                                        friend: matchingFriend,
-                                        format:
-                                            game.p2pService.activeDuelFormat,
-                                      );
-                                    } else {
-                                      game.startRun(
-                                        mode: game.activeMode,
-                                        level: game.currentLevel,
-                                      );
-                                    }
-                                  },
-                                  child: Text(
-                                    s.rematchFriendBtn,
-                                    style: const TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w900,
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      s.p2pYourTrailLabel,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: p.inkPrimary,
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 14),
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        color: p.vermilionHazard,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: p.inkPrimary,
+                                          width: 1.2,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Flexible(
+                                      child: Text(
+                                        s.p2pRivalTrailLabel(
+                                          game.p2pService.opponent.name,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: p.vermilionHazard,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
                         ],
                         // Banner motivazionale contestuale (senza "mancano tot metri alla vetta" in modalità infinita!)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 11,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: game.isVictory
-                                ? p.matchaSafe.withAlpha((0.15 * 255).round())
-                                : p.ochreSeal.withAlpha((0.16 * 255).round()),
-                            borderRadius: BorderRadius.circular(9),
-                            border: Border.all(
-                              color:
-                                  game.isVictory ? p.matchaSafe : p.ochreSeal,
-                              width: 1.5,
+                        if (!game.isP2PMatch) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 11,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: game.isVictory
+                                  ? p.matchaSafe.withAlpha((0.15 * 255).round())
+                                  : p.ochreSeal.withAlpha((0.16 * 255).round()),
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(
+                                color:
+                                    game.isVictory ? p.matchaSafe : p.ochreSeal,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Text(
+                              s.motivatingSubtitle(
+                                meters: meters,
+                                targetMeters: targetMeters,
+                                isVictory: game.isVictory,
+                                isLevelMode: isLevelMode,
+                                nextLevel: game.currentLevel + 1,
+                                isInfiniteMode: isInfiniteMode,
+                                isNewRecord: game.lastRunWasNewDailyRecord,
+                                bestInfiniteMeters:
+                                    game.storage.infiniteBestMeters,
+                              ),
+                              style: TextStyle(
+                                color: p.inkPrimary,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            s.motivatingSubtitle(
-                              meters: meters,
-                              targetMeters: targetMeters,
-                              isVictory: game.isVictory,
-                              isLevelMode: isLevelMode,
-                              nextLevel: game.currentLevel + 1,
-                              isInfiniteMode: isInfiniteMode,
-                              isNewRecord: game.lastRunWasNewDailyRecord,
-                              bestInfiniteMeters:
-                                  game.storage.infiniteBestMeters,
-                            ),
-                            style: TextStyle(
-                              color: p.inkPrimary,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
+                          const SizedBox(height: 14),
+                        ],
 
                         // Scheda Grafica Risultato:
-                        // - In Torre Infinita: riepilogo dedicato senza grafico della vetta
-                        // - In Livelli / Giornaliero: Mini-Mappa + 5 Settori Vetta + Statistiche
+                        // - In Torre Infinita Singolo: riepilogo dedicato senza grafico della vetta
+                        // - In Livelli / Giornaliero / P2P: Mini-Mappa (a 2 colori in P2P) + Settori + Statistiche
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -370,7 +380,7 @@ class GameOverOverlay extends StatelessWidget {
                             border:
                                 Border.all(color: p.inkPrimary, width: 1.8),
                           ),
-                          child: isInfiniteMode
+                          child: (isInfiniteMode && !game.isP2PMatch)
                               ? Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
@@ -429,16 +439,25 @@ class GameOverOverlay extends StatelessWidget {
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: Text(
-                                              s.infiniteObstacleTierInfo(
-                                                DailySeedEngine
-                                                    .getInfiniteObstacleTier(
-                                                  meters,
-                                                ),
-                                                DailySeedEngine
-                                                    .getInfiniteNextObstacleMeters(
-                                                  meters,
-                                                ),
-                                              ),
+                                              DailySeedEngine.isInfiniteMaxTier(
+                                                meters,
+                                              )
+                                                  ? s.infiniteObstacleTierMaxInfo(
+                                                      DailySeedEngine
+                                                          .getInfiniteObstacleTier(
+                                                        meters,
+                                                      ),
+                                                    )
+                                                  : s.infiniteObstacleTierInfo(
+                                                      DailySeedEngine
+                                                          .getInfiniteObstacleTier(
+                                                        meters,
+                                                      ),
+                                                      DailySeedEngine
+                                                          .getInfiniteNextObstacleMeters(
+                                                        meters,
+                                                      ),
+                                                    ),
                                               style: TextStyle(
                                                 color: p.inkPrimary,
                                                 fontSize: 10.5,
@@ -534,8 +553,24 @@ class GameOverOverlay extends StatelessWidget {
                                         child: CustomPaint(
                                           painter: RisographFlightMapPainter(
                                             flightPath: game.flightPath,
+                                            opponentFlightPath: game.isP2PMatch
+                                                ? game.opponentFlightPath
+                                                : const <Vector2>[],
                                             isVictory: game.isVictory,
-                                            targetMeters: targetMeters,
+                                            targetMeters: isInfiniteMode
+                                                ? (meters >
+                                                        game.p2pService.opponent
+                                                            .maxMeters
+                                                    ? (meters > 100.0
+                                                        ? meters
+                                                        : 100.0)
+                                                    : (game.p2pService.opponent
+                                                                .maxMeters >
+                                                            100.0
+                                                        ? game.p2pService
+                                                            .opponent.maxMeters
+                                                        : 100.0))
+                                                : targetMeters,
                                             palette: p,
                                           ),
                                         ),
@@ -750,138 +785,456 @@ class GameOverOverlay extends StatelessWidget {
                             ),
                           ),
 
-                        // Pulsanti Condividi & Riprova / Livello Successivo
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: p.inkPrimary,
+                        // Pulsanti Azione:
+                        // - In P2P Reale: Rivincita a votazione (1/2 propone -> 2/2 accetta) + "TORNA AL MENU"
+                        // - In Allenamento Bot: Rivincita immediata contro il Bot + "TORNA AL MENU"
+                        // - In Singolo: "Condividi" + "Riprova / Livello Successivo" + "Torna al Menu"
+                        if (game.isP2PMatch) ...[
+                          if (game.isBotTrainingMatch)
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: p.vermilionHazard,
+                                foregroundColor: p.onVermilionHazard,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                  horizontal: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                   side: BorderSide(
                                     color: p.inkPrimary,
-                                    width: 2.0,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 13,
-                                    horizontal: 8,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                onPressed: () async {
-                                  game.audioHaptics.onButtonTap();
-                                  await Clipboard.setData(
-                                    ClipboardData(text: receiptText),
-                                  );
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        backgroundColor: p.inkPrimary,
-                                        content: Text(
-                                          s.shareCopiedSnack,
-                                          style: TextStyle(color: p.paperCard),
-                                        ),
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                  try {
-                                    await SharePlus.instance
-                                        .share(ShareParams(text: receiptText));
-                                  } catch (_) {}
-                                },
-                                icon: const Icon(
-                                  Icons.ios_share_rounded,
-                                  size: 16,
-                                ),
-                                label: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    s.shareBtn,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                    ),
+                                    width: 2.2,
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: game.isVictory
-                                      ? p.matchaSafe
-                                      : p.playerFill,
-                                  foregroundColor: game.isVictory
-                                      ? p.onMatchaSafe
-                                      : p.onPlayerFill,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 13,
-                                    horizontal: 8,
+                              onPressed: () {
+                                game.audioHaptics.onButtonTap();
+                                game.proposeP2PRematch();
+                              },
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  s.rematchFriendBtn,
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w900,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            )
+                          else
+                            ValueListenableBuilder<P2PRematchVoteStatus>(
+                              valueListenable:
+                                  game.p2pService.rematchStatusNotifier,
+                              builder: (context, voteStatus, _) {
+                                final oppName = game.p2pService.opponent.name;
+                                switch (voteStatus) {
+                                  case P2PRematchVoteStatus.idle:
+                                    return ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: p.vermilionHazard,
+                                        foregroundColor: p.onVermilionHazard,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                          horizontal: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          side: BorderSide(
+                                            color: p.inkPrimary,
+                                            width: 2.2,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: () {
+                                        game.audioHaptics.onButtonTap();
+                                        game.proposeP2PRematch();
+                                      },
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          s.proposeRematchBtn,
+                                          style: const TextStyle(
+                                            fontFamily: 'monospace',
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  case P2PRematchVoteStatus.waitingPeerAccept:
+                                  case P2PRematchVoteStatus.acceptedLaunching:
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                        horizontal: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: p.ochreSeal.withAlpha(45),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: p.inkPrimary,
+                                          width: 1.8,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        s.rematchWaitingVoteLabel(oppName),
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: 'monospace',
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: p.inkPrimary,
+                                        ),
+                                      ),
+                                    );
+                                  case P2PRematchVoteStatus.incomingPeerRequest:
+                                    return Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: p.paperBg,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: p.vermilionHazard,
+                                          width: 2.2,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            s.rematchIncomingVoteTitle(oppName),
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontFamily: 'monospace',
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: p.vermilionHazard,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                flex: 3,
+                                                child: ElevatedButton(
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        p.matchaSafe,
+                                                    foregroundColor:
+                                                        p.onMatchaSafe,
+                                                    elevation: 0,
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      vertical: 10,
+                                                      horizontal: 8,
+                                                    ),
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                        8,
+                                                      ),
+                                                      side: BorderSide(
+                                                        color: p.inkPrimary,
+                                                        width: 1.8,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  onPressed: () {
+                                                    game.audioHaptics
+                                                        .onButtonTap();
+                                                    game.acceptP2PRematch();
+                                                  },
+                                                  child: FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    child: Text(
+                                                      s.acceptRematchVoteBtn,
+                                                      style: const TextStyle(
+                                                        fontFamily: 'monospace',
+                                                        fontSize: 11.5,
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                flex: 2,
+                                                child: OutlinedButton(
+                                                  style:
+                                                      OutlinedButton.styleFrom(
+                                                    foregroundColor:
+                                                        p.inkPrimary,
+                                                    side: BorderSide(
+                                                      color: p.inkPrimary,
+                                                      width: 1.8,
+                                                    ),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      vertical: 10,
+                                                      horizontal: 8,
+                                                    ),
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                        8,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  onPressed: () {
+                                                    game.audioHaptics
+                                                        .onButtonTap();
+                                                    game.declineP2PRematch();
+                                                  },
+                                                  child: FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    child: Text(
+                                                      s.declineRematchVoteBtn,
+                                                      style: const TextStyle(
+                                                        fontFamily: 'monospace',
+                                                        fontSize: 11.5,
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  case P2PRematchVoteStatus.peerDeclined:
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10,
+                                        horizontal: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: p.paperBg,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: p.vermilionHazard,
+                                          width: 1.6,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        s.rematchDeclinedLabel(oppName),
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: 'monospace',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: p.vermilionHazard,
+                                        ),
+                                      ),
+                                    );
+                                  case P2PRematchVoteStatus.peerLeft:
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10,
+                                        horizontal: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: p.paperBg,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: p.inkSecondary,
+                                          width: 1.6,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        s.rematchOpponentLeftLabel(oppName),
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: 'monospace',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: p.inkSecondary,
+                                        ),
+                                      ),
+                                    );
+                                }
+                              },
+                            ),
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: p.inkPrimary,
+                              side: BorderSide(
+                                color: p.inkPrimary,
+                                width: 1.8,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 11,
+                                horizontal: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () {
+                              game.audioHaptics.onButtonTap();
+                              game.returnToMainMenu();
+                            },
+                            child: Text(
+                              s.backToMenuBtn,
+                              style: TextStyle(
+                                color: p.inkPrimary,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: p.inkPrimary,
                                     side: BorderSide(
                                       color: p.inkPrimary,
                                       width: 2.0,
                                     ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 13,
+                                      horizontal: 8,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
-                                ),
-                                onPressed: () {
-                                  game.audioHaptics.onButtonTap();
-                                  if (game.isVictory && isLevelMode) {
-                                    game.startRun(
-                                      mode: GameMode.levelProgression,
-                                      level: game.currentLevel + 1,
+                                  onPressed: () async {
+                                    game.audioHaptics.onButtonTap();
+                                    await Clipboard.setData(
+                                      ClipboardData(text: receiptText),
                                     );
-                                  } else {
-                                    game.startRun(
-                                      mode: game.activeMode,
-                                      level: game.currentLevel,
-                                    );
-                                  }
-                                },
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    game.isVictory && isLevelMode
-                                        ? s.nextLevelBtn(game.currentLevel + 1)
-                                        : (game.isVictory &&
-                                                !isLevelMode &&
-                                                game.storage
-                                                        .officialAttemptsLeft >
-                                                    0
-                                            ? s.improveDailyRecordBtn(
-                                                game.storage
-                                                    .officialAttemptsLeft,
-                                              )
-                                            : s.retryNowBtn),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          backgroundColor: p.inkPrimary,
+                                          content: Text(
+                                            s.shareCopiedSnack,
+                                            style:
+                                                TextStyle(color: p.paperCard),
+                                          ),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                    try {
+                                      await SharePlus.instance.share(
+                                        ShareParams(text: receiptText),
+                                      );
+                                    } catch (_) {}
+                                  },
+                                  icon: const Icon(
+                                    Icons.ios_share_rounded,
+                                    size: 16,
+                                  ),
+                                  label: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      s.shareBtn,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        TextButton(
-                          onPressed: () {
-                            game.audioHaptics.onButtonTap();
-                            game.returnToMainMenu();
-                          },
-                          child: Text(
-                            s.backToMenuBtn,
-                            style: TextStyle(
-                              color: p.inkSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: game.isVictory
+                                        ? p.matchaSafe
+                                        : p.playerFill,
+                                    foregroundColor: game.isVictory
+                                        ? p.onMatchaSafe
+                                        : p.onPlayerFill,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 13,
+                                      horizontal: 8,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      side: BorderSide(
+                                        color: p.inkPrimary,
+                                        width: 2.0,
+                                      ),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    game.audioHaptics.onButtonTap();
+                                    if (game.isVictory && isLevelMode) {
+                                      game.startRun(
+                                        mode: GameMode.levelProgression,
+                                        level: game.currentLevel + 1,
+                                      );
+                                    } else {
+                                      game.startRun(
+                                        mode: game.activeMode,
+                                        level: game.currentLevel,
+                                      );
+                                    }
+                                  },
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      game.isVictory && isLevelMode
+                                          ? s.nextLevelBtn(
+                                              game.currentLevel + 1,
+                                            )
+                                          : (game.isVictory &&
+                                                  !isLevelMode &&
+                                                  game.storage
+                                                          .officialAttemptsLeft >
+                                                      0
+                                              ? s.improveDailyRecordBtn(
+                                                  game.storage
+                                                      .officialAttemptsLeft,
+                                                )
+                                              : s.retryNowBtn),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          TextButton(
+                            onPressed: () {
+                              game.audioHaptics.onButtonTap();
+                              game.returnToMainMenu();
+                            },
+                            child: Text(
+                              s.backToMenuBtn,
+                              style: TextStyle(
+                                color: p.inkSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -938,14 +1291,17 @@ class GameOverOverlay extends StatelessWidget {
 }
 
 /// Disegna la mini-mappa della traiettoria percorsa fino al traguardo del livello
+/// (in modalità P2P disegna anche il tracciato dell'avversario in ROSSO RISOGRAPH `palette.vermilionHazard`).
 class RisographFlightMapPainter extends CustomPainter {
   final List<Vector2> flightPath;
+  final List<Vector2> opponentFlightPath;
   final bool isVictory;
   final double targetMeters;
   final RisographPalette palette;
 
   RisographFlightMapPainter({
     required this.flightPath,
+    this.opponentFlightPath = const <Vector2>[],
     required this.isVictory,
     required this.targetMeters,
     required this.palette,
@@ -961,9 +1317,61 @@ class RisographFlightMapPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
+    final maxPixels = targetMeters * DailySeedEngine.metersToPixels;
+
+    // 1. Tracciato dell'avversario P2P disegnato in ROSSO RISOGRAPH (vermilionHazard)
+    if (opponentFlightPath.isNotEmpty) {
+      final oppPath = Path();
+      for (int i = 0; i < opponentFlightPath.length; i++) {
+        final pt = opponentFlightPath[i];
+        final normX = ((pt.x + DailySeedEngine.worldWidth / 2) /
+                DailySeedEngine.worldWidth)
+            .clamp(0.08, 0.92);
+        final normY = (1.0 - (-pt.y / maxPixels)).clamp(0.06, 0.94);
+
+        final x = normX * size.width;
+        final y = normY * size.height;
+        if (i == 0) {
+          oppPath.moveTo(x, y);
+        } else {
+          oppPath.lineTo(x, y);
+        }
+      }
+
+      canvas.drawPath(
+        oppPath,
+        Paint()
+          ..color = palette.vermilionHazard
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2,
+      );
+
+      final oppLast = opponentFlightPath.last;
+      final oppEndX = ((oppLast.x + DailySeedEngine.worldWidth / 2) /
+              DailySeedEngine.worldWidth)
+          .clamp(0.08, 0.92) *
+          size.width;
+      final oppEndY =
+          (1.0 - (-oppLast.y / maxPixels)).clamp(0.06, 0.94) * size.height;
+
+      canvas.drawCircle(
+        Offset(oppEndX, oppEndY),
+        4.2,
+        Paint()..color = palette.vermilionHazard,
+      );
+      canvas.drawCircle(
+        Offset(oppEndX, oppEndY),
+        4.2,
+        Paint()
+          ..color = palette.inkPrimary
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.3,
+      );
+    }
+
     if (flightPath.isEmpty) return;
 
-    final maxPixels = targetMeters * DailySeedEngine.metersToPixels;
+    // 2. Tracciato del giocatore locale
     final path = Path();
     for (int i = 0; i < flightPath.length; i++) {
       final pt = flightPath[i];
@@ -1000,7 +1408,7 @@ class RisographFlightMapPainter extends CustomPainter {
       Offset(endX, endY),
       4.5,
       Paint()
-        ..color = isVictory ? palette.matchaSafe : palette.vermilionHazard,
+        ..color = isVictory ? palette.matchaSafe : palette.playerFill,
     );
     canvas.drawCircle(
       Offset(endX, endY),
@@ -1015,6 +1423,7 @@ class RisographFlightMapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant RisographFlightMapPainter oldDelegate) {
     return oldDelegate.flightPath.length != flightPath.length ||
+        oldDelegate.opponentFlightPath.length != opponentFlightPath.length ||
         oldDelegate.isVictory != isVictory ||
         oldDelegate.palette != palette ||
         oldDelegate.targetMeters != targetMeters;

@@ -55,9 +55,13 @@ class InkFloodWave extends PositionComponent
         ? min(20.0, (game.currentLevel - 1) * 1.8)
         : 6.0;
 
-    final targetY = (game.isSpectatingOpponent && game.ghostOpponent != null)
-        ? game.ghostOpponent!.position.y
-        : game.player.position.y;
+    // Ogni giocatore gioca nella propria partita indipendente sullo stesso seed:
+    // l'onda di inchiostro sale autonomamente seguendo solo il giocatore locale
+    // (oppure il fantasma dell'avversario solo se siamo entrati in Modalità Spettatore dopo la morte).
+    final double targetY =
+        (game.isSpectatingOpponent && game.ghostOpponent != null)
+            ? game.ghostOpponent!.position.y
+            : game.player.position.y;
     final distanceAhead = position.y - targetY;
     final baseSpeed = (game.player.isStuck ? 44.0 : 62.0) + levelSpeedBonus;
     final catchUpSpeed =

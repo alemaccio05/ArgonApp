@@ -70,21 +70,12 @@ class BallSkinsCatalog {
         final innerRingColor = p.isDark
             ? _inkDark.withAlpha((0.55 * 255).round())
             : _warmIvory.withAlpha((0.55 * 255).round());
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.52,
-          Paint()
-            ..color = innerRingColor
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.6,
-        );
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.22,
-          Paint()
-            ..color = p.isDark ? const Color(0xFFE07A5F) : p.ochreSeal
-            ..style = PaintingStyle.fill,
-        );
+        _skinStroke
+          ..color = innerRingColor
+          ..strokeWidth = 1.6;
+        canvas.drawCircle(Offset.zero, radius * 0.52, _skinStroke);
+        _skinFill.color = p.isDark ? const Color(0xFFE07A5F) : p.ochreSeal;
+        canvas.drawCircle(Offset.zero, radius * 0.22, _skinFill);
       },
     ),
 
@@ -109,40 +100,31 @@ class BallSkinsCatalog {
           p.isDark ? const Color(0xFF52B788) : const Color(0xFF195E43),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Aureola interna chiara per separare la sfera dalle piattaforme verdi
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.80,
-          Paint()
-            ..color = _warmIvory.withAlpha((0.40 * 255).round())
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.2,
-        );
+        _skinStroke
+          ..color = _warmIvory.withAlpha((0.40 * 255).round())
+          ..strokeWidth = 1.2;
+        canvas.drawCircle(Offset.zero, radius * 0.80, _skinStroke);
 
         // Foglia Matcha Zen in avorio luminoso con nervatura centrale scura
-        final path = Path()
+        _skinPathA
+          ..reset()
           ..moveTo(0, -radius * 0.58)
           ..quadraticBezierTo(radius * 0.48, 0, 0, radius * 0.58)
           ..quadraticBezierTo(-radius * 0.48, 0, 0, -radius * 0.58);
 
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = _warmIvory
-            ..style = PaintingStyle.fill,
-        );
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = _inkDark
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.2,
-        );
+        _skinFill.color = _warmIvory;
+        canvas.drawPath(_skinPathA, _skinFill);
+        _skinStroke
+          ..color = _inkDark
+          ..strokeWidth = 1.2;
+        canvas.drawPath(_skinPathA, _skinStroke);
+        _skinStroke
+          ..color = const Color(0xFF195E43)
+          ..strokeWidth = 1.3;
         canvas.drawLine(
           Offset(0, -radius * 0.42),
           Offset(0, radius * 0.42),
-          Paint()
-            ..color = const Color(0xFF195E43)
-            ..strokeWidth = 1.3,
+          _skinStroke,
         );
       },
     ),
@@ -167,19 +149,15 @@ class BallSkinsCatalog {
           p.isDark ? const Color(0xFFE07A5F) : const Color(0xFF2B3344),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Anello perimetrale cremisi shinobi
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.78,
-          Paint()
-            ..color = p.vermilionHazard.withAlpha((0.75 * 255).round())
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.3,
-        );
+        _skinStroke
+          ..color = p.vermilionHazard.withAlpha((0.75 * 255).round())
+          ..strokeWidth = 1.3;
+        canvas.drawCircle(Offset.zero, radius * 0.78, _skinStroke);
 
         // Shuriken rotante a 4 punte in acciaio chiaro ad altissimo contrasto
         canvas.save();
         canvas.rotate(rot * 2.0);
-        final path = Path();
+        _skinPathA.reset();
         for (int i = 0; i < 4; i++) {
           final ang = i * pi / 2;
           final xOuter = cos(ang) * (radius * 0.68);
@@ -187,24 +165,17 @@ class BallSkinsCatalog {
           final xInner = cos(ang + pi / 4) * (radius * 0.24);
           final yInner = sin(ang + pi / 4) * (radius * 0.24);
           if (i == 0) {
-            path.moveTo(xOuter, yOuter);
+            _skinPathA.moveTo(xOuter, yOuter);
           } else {
-            path.lineTo(xOuter, yOuter);
+            _skinPathA.lineTo(xOuter, yOuter);
           }
-          path.lineTo(xInner, yInner);
+          _skinPathA.lineTo(xInner, yInner);
         }
-        path.close();
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = const Color(0xFFF4F1EA)
-            ..style = PaintingStyle.fill,
-        );
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.17,
-          Paint()..color = p.vermilionHazard,
-        );
+        _skinPathA.close();
+        _skinFill.color = const Color(0xFFF4F1EA);
+        canvas.drawPath(_skinPathA, _skinFill);
+        _skinFill.color = p.vermilionHazard;
+        canvas.drawCircle(Offset.zero, radius * 0.17, _skinFill);
         canvas.restore();
       },
     ),
@@ -231,49 +202,43 @@ class BallSkinsCatalog {
           p.isDark ? const Color(0xFFF2CC8F) : const Color(0xFFD98A4E),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Facce ombreggiate dell'origami per staccare dallo sfondo chiaro di Sabbia/Salvia
-        final shadeFacet = Path()
+        _skinPathA
+          ..reset()
           ..moveTo(0, -radius * 0.82)
           ..lineTo(radius * 0.78, radius * 0.18)
           ..lineTo(0, radius * 0.82)
           ..close();
-        canvas.drawPath(
-          shadeFacet,
-          Paint()
-            ..color = const Color(0xFFE4D2B4)
-            ..style = PaintingStyle.fill,
-        );
+        _skinFill.color = const Color(0xFFE4D2B4);
+        canvas.drawPath(_skinPathA, _skinFill);
 
-        final accentFacet = Path()
+        _skinPathB
+          ..reset()
           ..moveTo(-radius * 0.76, -radius * 0.15)
           ..lineTo(0, -radius * 0.82)
           ..lineTo(0, radius * 0.25)
           ..close();
-        canvas.drawPath(
-          accentFacet,
-          Paint()
-            ..color = const Color(0xFFE76F51).withAlpha((0.42 * 255).round())
-            ..style = PaintingStyle.fill,
-        );
+        _skinFill.color =
+            const Color(0xFFE76F51).withAlpha((0.42 * 255).round());
+        canvas.drawPath(_skinPathB, _skinFill);
 
         // Linee di piega geometriche nette in inchiostro scuro
-        final linePaint = Paint()
+        _skinStroke
           ..color = _inkDark
-          ..style = PaintingStyle.stroke
           ..strokeWidth = 1.45;
         canvas.drawLine(
           Offset(-radius * 0.65, -radius * 0.2),
           Offset(radius * 0.65, radius * 0.2),
-          linePaint,
+          _skinStroke,
         );
         canvas.drawLine(
           Offset(0, -radius * 0.72),
           Offset(radius * 0.35, radius * 0.52),
-          linePaint,
+          _skinStroke,
         );
         canvas.drawLine(
           Offset(-radius * 0.45, radius * 0.35),
           Offset(radius * 0.52, -radius * 0.32),
-          linePaint,
+          _skinStroke,
         );
       },
     ),
@@ -297,24 +262,14 @@ class BallSkinsCatalog {
       getTrailColor: (_) => const Color(0xFFF77F00),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Nucleo fiammeggiante ambra-oro con cuore incandescente avorio
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.56,
-          Paint()..color = const Color(0xFFFF9F1C),
-        );
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.30,
-          Paint()..color = const Color(0xFFFFF3B0),
-        );
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.56,
-          Paint()
-            ..color = _inkDark.withAlpha((0.45 * 255).round())
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.1,
-        );
+        _skinFill.color = const Color(0xFFFF9F1C);
+        canvas.drawCircle(Offset.zero, radius * 0.56, _skinFill);
+        _skinFill.color = const Color(0xFFFFF3B0);
+        canvas.drawCircle(Offset.zero, radius * 0.30, _skinFill);
+        _skinStroke
+          ..color = _inkDark.withAlpha((0.45 * 255).round())
+          ..strokeWidth = 1.1;
+        canvas.drawCircle(Offset.zero, radius * 0.56, _skinStroke);
       },
     ),
 
@@ -337,19 +292,16 @@ class BallSkinsCatalog {
       getTrailColor: (_) => const Color(0xFFF6C967),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Anello celeste dorato interno
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.80,
-          Paint()
-            ..color = const Color(0xFFF6C967).withAlpha((0.45 * 255).round())
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.1,
-        );
+        _skinStroke
+          ..color = const Color(0xFFF6C967).withAlpha((0.45 * 255).round())
+          ..strokeWidth = 1.1;
+        canvas.drawCircle(Offset.zero, radius * 0.80, _skinStroke);
 
         // Mezzaluna dorata e stelle brillanti
         canvas.save();
         canvas.rotate(rot);
-        final moonPath = Path()
+        _skinPathA
+          ..reset()
           ..addArc(
             Rect.fromCircle(center: Offset.zero, radius: radius * 0.56),
             -pi / 2,
@@ -365,19 +317,18 @@ class BallSkinsCatalog {
             false,
           )
           ..close();
-        canvas.drawPath(
-          moonPath,
-          Paint()..color = const Color(0xFFF6C967),
-        );
+        _skinFill.color = const Color(0xFFF6C967);
+        canvas.drawPath(_skinPathA, _skinFill);
+        _skinFill.color = _warmIvory;
         canvas.drawCircle(
           Offset(-radius * 0.32, -radius * 0.18),
           radius * 0.10,
-          Paint()..color = _warmIvory,
+          _skinFill,
         );
         canvas.drawCircle(
           Offset(-radius * 0.18, radius * 0.28),
           radius * 0.08,
-          Paint()..color = _warmIvory,
+          _skinFill,
         );
         canvas.restore();
       },
@@ -399,30 +350,22 @@ class BallSkinsCatalog {
       getTrailColor: (_) => const Color(0xFFC4743D),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Sigillo romboidale di bronzo con riempimento champagne e incisione scura
-        final path = Path()
+        _skinPathA
+          ..reset()
           ..moveTo(0, -radius * 0.56)
           ..lineTo(radius * 0.56, 0)
           ..lineTo(0, radius * 0.56)
           ..lineTo(-radius * 0.56, 0)
           ..close();
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = const Color(0xFFFFF4E2).withAlpha((0.35 * 255).round())
-            ..style = PaintingStyle.fill,
-        );
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = const Color(0xFFFFF4E2)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.8,
-        );
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.18,
-          Paint()..color = const Color(0xFF2B180A),
-        );
+        _skinFill.color =
+            const Color(0xFFFFF4E2).withAlpha((0.35 * 255).round());
+        canvas.drawPath(_skinPathA, _skinFill);
+        _skinStroke
+          ..color = const Color(0xFFFFF4E2)
+          ..strokeWidth = 1.8;
+        canvas.drawPath(_skinPathA, _skinStroke);
+        _skinFill.color = const Color(0xFF2B180A);
+        canvas.drawCircle(Offset.zero, radius * 0.18, _skinFill);
       },
     ),
 
@@ -443,27 +386,16 @@ class BallSkinsCatalog {
       getTrailColor: (_) => const Color(0xFF94A8B8),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Doppia armatura circolare d'argento con nucleo acciaio scuro ad alto contrasto
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.62,
-          Paint()
-            ..color = const Color(0xFFF8FAFC)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.0,
-        );
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.44,
-          Paint()
-            ..color = const Color(0xFF1E293B)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.3,
-        );
-        canvas.drawCircle(
-          Offset.zero,
-          radius * 0.28,
-          Paint()..color = const Color(0xFF1E293B),
-        );
+        _skinStroke
+          ..color = const Color(0xFFF8FAFC)
+          ..strokeWidth = 2.0;
+        canvas.drawCircle(Offset.zero, radius * 0.62, _skinStroke);
+        _skinStroke
+          ..color = const Color(0xFF1E293B)
+          ..strokeWidth = 1.3;
+        canvas.drawCircle(Offset.zero, radius * 0.44, _skinStroke);
+        _skinFill.color = const Color(0xFF1E293B);
+        canvas.drawCircle(Offset.zero, radius * 0.28, _skinFill);
       },
     ),
 
@@ -484,28 +416,24 @@ class BallSkinsCatalog {
       getTrailColor: (_) => const Color(0xFFE8A317),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Corona reale del campione a 3 punte in avorio puro con bordo inchiostro scuro
-        final crownPath = Path();
         final r = radius * 0.58;
-        crownPath.moveTo(-r, r * 0.42);
-        crownPath.lineTo(-r, -r * 0.42);
-        crownPath.lineTo(-r * 0.45, 0);
-        crownPath.lineTo(0, -r * 0.72);
-        crownPath.lineTo(r * 0.45, 0);
-        crownPath.lineTo(r, -r * 0.42);
-        crownPath.lineTo(r, r * 0.42);
-        crownPath.close();
+        _skinPathA
+          ..reset()
+          ..moveTo(-r, r * 0.42)
+          ..lineTo(-r, -r * 0.42)
+          ..lineTo(-r * 0.45, 0)
+          ..lineTo(0, -r * 0.72)
+          ..lineTo(r * 0.45, 0)
+          ..lineTo(r, -r * 0.42)
+          ..lineTo(r, r * 0.42)
+          ..close();
 
-        canvas.drawPath(
-          crownPath,
-          Paint()..color = _warmIvory,
-        );
-        canvas.drawPath(
-          crownPath,
-          Paint()
-            ..color = _inkDark
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.4,
-        );
+        _skinFill.color = _warmIvory;
+        canvas.drawPath(_skinPathA, _skinFill);
+        _skinStroke
+          ..color = _inkDark
+          ..strokeWidth = 1.4;
+        canvas.drawPath(_skinPathA, _skinStroke);
       },
     ),
 
@@ -526,27 +454,23 @@ class BallSkinsCatalog {
       getTrailColor: (_) => const Color(0xFFF5B82E),
       renderCustomSkin: (canvas, radius, p, rot) {
         // Saetta a zig-zag in antracite tempesta bordata di bianco (sempre visibile anche su Notte)
-        final boltPath = Path();
         final r = radius * 0.66;
-        boltPath.moveTo(r * 0.16, -r);
-        boltPath.lineTo(-r * 0.46, r * 0.05);
-        boltPath.lineTo(0, r * 0.05);
-        boltPath.lineTo(-r * 0.16, r);
-        boltPath.lineTo(r * 0.46, -r * 0.05);
-        boltPath.lineTo(0, -r * 0.05);
-        boltPath.close();
+        _skinPathA
+          ..reset()
+          ..moveTo(r * 0.16, -r)
+          ..lineTo(-r * 0.46, r * 0.05)
+          ..lineTo(0, r * 0.05)
+          ..lineTo(-r * 0.16, r)
+          ..lineTo(r * 0.46, -r * 0.05)
+          ..lineTo(0, -r * 0.05)
+          ..close();
 
-        canvas.drawPath(
-          boltPath,
-          Paint()..color = _inkDark,
-        );
-        canvas.drawPath(
-          boltPath,
-          Paint()
-            ..color = _warmIvory
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.0,
-        );
+        _skinFill.color = _inkDark;
+        canvas.drawPath(_skinPathA, _skinFill);
+        _skinStroke
+          ..color = _warmIvory
+          ..strokeWidth = 1.0;
+        canvas.drawPath(_skinPathA, _skinStroke);
       },
     ),
 
@@ -793,10 +717,11 @@ class BallSkinsCatalog {
     ),
   ];
 
+  static final Map<String, BallSkinItem> _skinsById = {
+    for (final s in allSkins) s.id: s,
+  };
+
   static BallSkinItem getById(String id) {
-    return allSkins.firstWhere(
-      (e) => e.id == id,
-      orElse: () => allSkins.first,
-    );
+    return _skinsById[id] ?? allSkins.first;
   }
 }

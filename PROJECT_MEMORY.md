@@ -1,6 +1,6 @@
 # PROJECT MEMORY — INK TOWER: Climb & Stick (`ArgonApp`)
 
-> **Ultimo aggiornamento:** 26 Ottobre 2026  
+> **Ultimo aggiornamento:** 3 Novembre 2026  
 > **Nome Ufficiale In-Game:** **INK TOWER: Climb & Stick** (Application ID: `com.alemaccio.inktower`, Package: `ink_sling_daily`)  
 > **Developer:** `AleMaccioDev` (`alemacciodev@gmail.com`)  
 > **Motore:** Flutter 3.44.x + Flame (`>=1.14.0 <2.0.0`) • Dart 3.12.x  
@@ -242,3 +242,77 @@ test/
   - **All'interno dell'app:** Implementato `PrivacyDialog` (`lib/ui/privacy_dialog.dart`) accessibile sia dal menu principale (icona scudo nel top header e link nel footer) sia dal profilo giocatore, con sintesi offline immediata e pulsante "Apri Norme Complete (Web)" collegato tramite `url_launcher`.
   - **Configurazione Android:** Aggiunto `<intent>` HTTPS alle `<queries>` in `AndroidManifest.xml` per compatibilità package visibility Android 11+.
   - **Pagina Web Ufficiale:** `privacy.html` e `index.html` bilingue (EN/IT) con Risograph design, conforme a tutte le policy Google Play Console (dati utente, families policy, COPPA, GDPR, assenza di tracciamento terzi, salvataggi locali `SharedPreferences`).
+
+---
+
+## 10. Aggiornamento P2P Cross-Network (4G/5G/Wi-Fi), Duello & Bilanciamento (`update_plan.md`)
+
+1. **Hybrid P2P Broker (`P2PMultiplayerService` + `mqtt_client`):**
+   - Canale Globale Internet (`broker.emqx.io` / `broker.hivemq.com`) per sfide tra reti differenti (4G/5G e Wi-Fi) con indirizzamento a 8 cifre (`inktower/inbox/INK-XXXXXXXX`) e stanza di duello deterministica (`inktower/room/CODE1_CODE2`) a 20Hz.
+   - Fallback automatico su Broadcast UDP locale (`45888`) e pulsante *Gioca contro il Bot (Allenamento)*.
+2. **Marea d'Inchiostro Equa & Bot Regolare:**
+   - In `InkFloodWave.update`, in modalità P2P `targetY` insegue il giocatore più in basso (`max(player.y, ghost.y)`), evitando che la fuga del primo giocatore affoghi a tradimento chi è dietro.
+   - In `GhostOpponentComponent`, rimossa la morte casuale a 30m: nella gara a 100m il bot scala regolarmente puntando a 84–120m.
+3. **Pausa Condivisa Simultanea (`PAUSE`):**
+   - La pressione di Pausa in P2P invia il pacchetto `PAUSE {v: true/false, by: playerName}`, congelando entrambi i dispositivi e mostrando `"PARTITA SOSPESA DA [NOME]"` in `PauseOverlay`.
+4. **Nuova Schermata GameOver P2P con Mini-Mappa a Due Colori:**
+   - In `GameOverOverlay` e `RisographFlightMapPainter`, visualizzati sia il tracciato del giocatore sia il tracciato dell'avversario in rosso Risograph (`palette.vermilionHazard`), nascosti i pulsanti *Condividi* e *Riprova Singolo*, e confermati `⚔️ RIVINCITA IMMEDIATA` e `TORNA AL MENU`.
+5. **UI, HUD, Multilingua & Protezione Dati:**
+   - Rimossi i badge numerici sui tasti secondari del menu principale (`MainMenuOverlay`).
+   - Icona `✕` (`Icons.close_rounded`) con finestra modale di conferma rimozione amico e inserimento rapido a 1 solo campo per il Codice Amico a 8 cifre (`INK-XXXXXXXX`) in `FriendsAndP2PDialog`.
+   - Griglia icone profilo a 2 colonne spaziose con requisiti a `11px` su 2 righe in `ProfileDialog`.
+   - Pulsante abilità attiva centrato in basso (`Alignment.bottomCenter`) in `HudOverlay`.
+   - Firma di debug unificata a `upload-keystore.jks` in `android/app/build.gradle.kts` e salvaguardia `enforceHighWaterMark()` in `StorageService`.
+
+---
+
+## 11. Fix Primo Lancio post-Seconda Chance & Ottimizzazioni Prestazionali 120Hz (Pixel 9)
+
+1. **Fix Bug Primo Lancio dopo Video Seconda Chance (`reviveWithShield`):**
+   - **Causa:** Dopo `reviveWithShield()`, `respawnFreezeTimer = 0.5s` veniva scalato dal Bullet-Time (`0.15x`) durante la mira (`onDragStart`), dilatandosi fino a ~3.3s reali e bloccando silenziosamente `player.launch()` al primo rilascio (`onDragEnd`). Inoltre la `DialogRoute` del video premio manteneva una barriera modale in uscita per 150ms.
+   - **Soluzione:** In `PlayerCore.launch(..., fromManualSling: true)` il rilascio manuale della fionda da `InkSlingGame.onDragEnd` azzera immediatamente `respawnFreezeTimer` facendo partire il 1° tiro sempre al primo colpo; `respawnFreezeTimer` scorre ora su `unscaledDt` reale indipendente dal Bullet-Time; in `MonetizationService.showRewardedAd` impostato `reverseTransitionDuration: Duration.zero` per rimuovere istantaneamente la barriera modale al riscatto.
+2. **Ottimizzazione Efficienza & 120 FPS Zero-GC:**
+   - **Frustum Culling & Broadphase (`ObstacleBlock`):** Saltato il rendering Canvas/clipRRect dei blocchi fuori viewport (~85% della torre a 120 FPS) e aggiunto broadphase verticale rapido prima del CCD.
+   - **Zero-GC Skin Rendering (`BallSkinsCatalog`):** Eliminate tutte le allocazioni per-frame di `Paint()` e `Path()` nelle skin 1–10 (inclusa `classic_ink` di default) riutilizzando `_skinFill`, `_skinStroke`, `_skinPathA`, `_skinPathB`, più lookup O(1) tramite mappa `_skinsById`.
+   - **Zero-Alloc Hot Loop (`InkSlingGame` & `PlayerCore`):** Pre-allocati `_launchVecTmp` e `_camPosTmp`, cachato `AppStrings`, ottimizzato il loop predittivo della traiettoria e saltata l'integrazione fisica superflua quando la sfera è ferma a riposo a `0.0m`.
+   - **120Hz Smooth Display Nativo (`MainActivity.kt`):** Richiesto automaticamente il `preferredDisplayModeId` con il refresh rate massimo nativo alla risoluzione fisica attiva (120Hz su Pixel 9).
+
+---
+
+## 12. Fix Schermo Nero Sfida P2P, Partite Parallele sullo Stesso Seed + Fantasmi, Richieste Amicizia Reciproche & Riquadri Modalità Uniformi
+
+1. **Fix Schermo Nero sull'Inviante all'Avvio della Sfida P2P (`FriendsAndP2PDialog` & `P2PMultiplayerService`):**
+   - **Causa:** Il pacchetto `ACCEPT` inviato su canale ibrido (UDP unicast + UDP broadcast + MQTT Inbox + MQTT Room) arrivava duplicato in pochi millisecondi mentre `DialogRoute` era ancora nella transizione d'uscita (`mounted == true`), invocando `Navigator.of(context).pop()` una seconda volta e rimuovendo lo `Scaffold` root di `MaterialApp` (schermo nero).
+   - **Soluzione:** Deduplicato `ACCEPT` tramite chiave `(senderCode, seed)` in `P2PMultiplayerService`, aggiunta guardia `_duelLaunched` + sgancio callback in `_FriendsAndP2PDialogState._onPeerAccepted`, chiusura sicura limitata esclusivamente alla rotta corrente del dialogo (`ModalRoute.of(context)?.isCurrent == true`), e parametro `alreadyHandshaked: true` in `InkSlingGame.startP2PDuel` per partire subito con lo stato iniziale del fantasma senza re-inviare `INVITE`.
+2. **Partite Parallele Indipendenti su Seed Condiviso + Fantasmi Live + Pausa Sincronizzata Anti-Cheat:**
+   - Ogni sfidante gioca nella propria partita locale indipendente generata dall'identico `activeMatchSeed`: `InkFloodWave` cresce autonomamente in base al solo `game.player.position.y` locale (senza interferenze dal Bullet-Time o dalla quota altrui, seguendo il fantasma solo in Modalità Spettatore post-morte).
+   - `GhostOpponentComponent` interpola le coordinate live `STATE` (20Hz) usando `realDt` non scalato dal Bullet-Time locale (`0.15x`), mantenendo il movimento del fantasma sempre fluido in tempo reale, e notifica morte/vittoria remota via `onRemoteOpponentFinishedOrDied`.
+   - Mantenuto lo **Stop/Pausa Sincronizzato** (`PAUSE`) tra i due dispositivi per impedire il cheating tramite pausa.
+3. **Sistema di Richiesta e Accettazione Amicizia Reciproca + Rimozione Completa Amici & Rimozione Tasto Test:**
+   - Rimosso il pulsante di simulazione test (`simulateInviteBtn`) da `FriendsAndP2PDialog`, eliminati i bot predefiniti non rimovibili e rimosso l'auto-add su broadcast `HELLO`.
+   - Il giocatore può ora rimuovere **tutti** gli amici fino a lista vuota (`0` amici, singolarmente con `✕` o tramite `RIMUOVI TUTTI`) con persistenza garantita al riavvio (`StorageService._loadFriendsList` accetta liste vuote `[]`).
+   - Implementato il flusso reciproco `FRIEND_REQ` -> `FRIEND_ACCEPT` / `FRIEND_DECLINE` (su MQTT retained `inktower/freq/...` e `inktower/fack/...` + Inbox + UDP) con banner immediato nel Menu Principale e sezioni dedicate *Richieste ricevute* / *Richieste inviate* nel dialogo Amici.
+4. **Riquadri Selezione Modalità a Dimensione Fissa e Leggibile in Tutte le 6 Lingue (`IT`, `EN`, `ES`, `FR`, `DE`, `PT`):**
+   - Uniformati `_ModeSelectorCard` (`fixedHeight: 68` con sottotitolo nitido su 2 righe senza rimpicciolimento `FittedBox`), i pulsanti secondari del menu (`fixedHeight: 44`) e i selettori modalità duello P2P `_FormatChoiceChip` (`height: 52` centrato su 2 righe).
+
+---
+
+## 13. Sincronizzazione Presenza/Profilo P2P, Pop-Up Globale Inviti, Rivincita a Votazione, Cap 500m, Nuovi Ostacoli & Torre Infinita Cap MAX
+
+1. **Presenza Online/Offline Reale & Sincronizzazione Nome/Profilo (`P2PMultiplayerService` & `StorageService`):**
+   - Stato online/offline calcolato in tempo reale con timeout di 22s (`presenceTimeoutMs = 22000`), Last-Will MQTT e ciclo di vita dell'app (`onAppLifecycleStateChanged`).
+   - Sincronizzazione automatica di nome, avatar e skin dell'amico tramite pacchetti `PROFILE` retained (`inktower/profile/CODE`) e `StorageService.syncFriendProfile`.
+2. **Pop-Up Globale Inviti P2P & Affidabilità Partita (`_GlobalP2PInvitePopupOverlay` in `lib/main.dart`):**
+   - Il pop-up d'invito è montato nello `Stack` globale sopra il `Navigator`, rendendolo sempre visibile anche quando ci si trova dentro il dialogo Lista Amici o Profilo.
+   - All'accettazione, chiude automaticamente eventuali dialoghi aperti e porta entrambi i giocatori in partita con ritrasmissione ridondante di `INVITE`/`ACCEPT` e auto-sottoscrizione al topic della stanza.
+3. **Pausa Condivisa, Rimozione Tasto Termina in HUD, Rivincita a Votazione (1/2 -> 2/2) & Rimozione Bot Sostitutivo:**
+   - Rimosso il pulsante di uscita anticipata dall'HUD di fine partita/spettatore: si esce dalla partita solo tramite il menu di Pausa (che blocca entrambi i giocatori in tempo reale).
+   - La rivincita è ora a **votazione** (`REMATCH_REQ` 1/2 -> `REMATCH_ACCEPT` 2/2) quando entrambi hanno concluso la scalata.
+   - Rimosso completamente il bot sostitutivo dalle partite P2P reali (visibile solo nella modalità dedicata *Allenamento Bot*); se l'avversario reale lascia la partita (`LEAVE`), il suo fantasma scompare immediatamente.
+4. **Spruzzo d'Inchiostro Potenziato (`ink_sabotage`), Cap Livelli a 500m, Nuovi Ostacoli & Torre Infinita Cap MAX:**
+   - **Abilità `ink_sabotage` molto più fastidiosa:** Durata estesa a `4.8s`, trauma camera `0.55`, grandi chiazze viscose al 96% di opacità con colature animate verticali nel corridoio di mira e accorciamento/offuscamento dei pallini predittivi della traiettoria.
+   - **Cap Livelli Progressivi portato da 300m a 500m:** `DailySeedEngine.getLevelGoalMeters` cresce di +10m ogni 10 livelli fino a `500.0m`.
+   - **Nuovi Ostacoli (`ObstacleBlock`):**
+     - `BlockType.shurikenSpinner`: Ruota Shuriken Ninja a 4 lame rotanti letali (sbloccata a 300m in Torre Infinita e nei livelli avanzati).
+     - `BlockType.spikeTrapPad`: Piattaforma verde adesiva con spuntoni retrattili a ciclo temporizzato (sicura -> avviso vibrante -> spuntoni rossi letali, sbloccata a 350m in Torre Infinita e nei livelli avanzati).
+   - **Torre Infinita Cap MAX (400m+):** Raggiunto il Tier 8 (tutti gli 8 ostacoli sbloccati a 350m+), le linee tratteggiate e i timbri ogni 50m da 400m in su non mostrano più erroneamente `+NUOVO OSTACOLO`, bensì `VELOCITÀ & DENSITÀ +` (e `Fascia Ostacoli 8 (Cap MAX) • Tutti gli ostacoli sbloccati!` nel riepilogo).

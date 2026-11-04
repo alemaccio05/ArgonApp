@@ -1788,12 +1788,12 @@ class AppStrings {
       );
 
   String get modeInfiniteCardSub => _t(
-        it: 'Senza fine • +1 ostacolo ogni 50m',
-        en: 'No summit • +1 obstacle every 50m',
-        es: 'Sin cima • +1 obstáculo cada 50m',
-        fr: 'Sans sommet • +1 obstacle / 50m',
-        de: 'Ohne Gipfel • +1 Hindernis / 50m',
-        pt: 'Sem topo • +1 obstáculo a cada 50m',
+        it: 'Senza fine • +1 ostacolo ogni 50m (fino al Cap MAX)',
+        en: 'No summit • +1 obstacle every 50m (up to MAX Cap)',
+        es: 'Sin cima • +1 obstáculo cada 50m (hasta el Cap MÁX)',
+        fr: 'Sans sommet • +1 obstacle / 50m (jusqu\'au Cap MAX)',
+        de: 'Ohne Gipfel • +1 Hindernis / 50m (bis zum MAX-Cap)',
+        pt: 'Sem topo • +1 obstáculo a cada 50m (até o Cap MÁX)',
       );
 
   String get hudInfiniteBadge => _t(
@@ -1859,6 +1859,15 @@ class AppStrings {
         pt: 'Fase Obstáculos $tier • Próximo obstáculo em ${nextMeters}m',
       );
 
+  String infiniteObstacleTierMaxInfo(int tier) => _t(
+        it: 'Fascia Ostacoli $tier (Cap MAX) • Tutti gli ostacoli sbloccati!',
+        en: 'Obstacle Tier $tier (MAX Cap) • All obstacles unlocked!',
+        es: 'Fase Obstáculos $tier (Cap MÁX) • ¡Todos los obstáculos desbloqueados!',
+        fr: 'Palier Obstacles $tier (Cap MAX) • Tous les obstacles débloqués !',
+        de: 'Hindernis-Stufe $tier (MAX-Cap) • Alle Hindernisse freigeschaltet!',
+        pt: 'Fase Obstáculos $tier (Cap MÁX) • Todos os obstáculos desbloqueados!',
+      );
+
   String leaderboardInfiniteOpenBtn(int rank, int tier) => _t(
         it: 'CLASSIFICA INFINITA (#$rank) • FASCIA OSTACOLI $tier',
         en: 'INFINITE RANKING (#$rank) • OBSTACLE TIER $tier',
@@ -1877,23 +1886,47 @@ class AppStrings {
         pt: 'JOGAR TORRE INFINITA (RECORDE ${bestMeters}m)',
       );
 
-  String infiniteNewObstacleStamp(int meters) => _t(
-        it: '${meters}m! +NUOVO OSTACOLO!',
-        en: '${meters}m! +NEW OBSTACLE!',
-        es: '¡${meters}m! ¡+NUEVO OBSTÁCULO!',
-        fr: '${meters}m ! +NOUVEL OBSTACLE !',
-        de: '${meters}m! +NEUES HINDERNIS!',
-        pt: '${meters}m! +NOVO OBSTÁCULO!',
+  String infiniteNewObstacleStamp(int meters, {bool isMaxTier = false}) {
+    if (isMaxTier) {
+      return _t(
+        it: '${meters}m! VELOCITÀ & DENSITÀ +',
+        en: '${meters}m! SPEED & DENSITY +',
+        es: '¡${meters}m! ¡VELOCIDAD Y DENSIDAD +!',
+        fr: '${meters}m ! VITESSE & DENSITÉ +',
+        de: '${meters}m! TEMPO & DICHTE +',
+        pt: '${meters}m! VELOCIDADE & DENSIDADE +',
       );
+    }
+    return _t(
+      it: '${meters}m! +NUOVO OSTACOLO!',
+      en: '${meters}m! +NEW OBSTACLE!',
+      es: '¡${meters}m! ¡+NUEVO OBSTÁCULO!',
+      fr: '${meters}m ! +NOUVEL OBSTACLE !',
+      de: '${meters}m! +NEUES HINDERNIS!',
+      pt: '${meters}m! +NOVO OBSTÁCULO!',
+    );
+  }
 
-  String infiniteMilestoneMarker(int meters) => _t(
-        it: '— ${meters}m • +NUOVO OSTACOLO —',
-        en: '— ${meters}m • +NEW OBSTACLE —',
-        es: '— ${meters}m • +NUEVO OBSTÁCULO —',
-        fr: '— ${meters}m • +NOUVEL OBSTACLE —',
-        de: '— ${meters}m • +NEUES HINDERNIS —',
-        pt: '— ${meters}m • +NOVO OBSTÁCULO —',
+  String infiniteMilestoneMarker(int meters, {bool isMaxTier = false}) {
+    if (isMaxTier) {
+      return _t(
+        it: '— ${meters}m • VELOCITÀ & DENSITÀ + —',
+        en: '— ${meters}m • SPEED & DENSITY + —',
+        es: '— ${meters}m • VELOCIDAD Y DENSIDAD + —',
+        fr: '— ${meters}m • VITESSE & DENSITÉ + —',
+        de: '— ${meters}m • TEMPO & DICHTE + —',
+        pt: '— ${meters}m • VELOCIDADE & DENSIDADE + —',
       );
+    }
+    return _t(
+      it: '— ${meters}m • +NUOVO OSTACOLO —',
+      en: '— ${meters}m • +NEW OBSTACLE —',
+      es: '— ${meters}m • +NUEVO OBSTÁCULO —',
+      fr: '— ${meters}m • +NOUVEL OBSTACLE —',
+      de: '— ${meters}m • +NEUES HINDERNIS —',
+      pt: '— ${meters}m • +NOVO OBSTÁCULO —',
+    );
+  }
 
   String get leaderboardInfiniteTitle => _t(
         it: 'CLASSIFICA TORRE INFINITA',
@@ -2217,12 +2250,12 @@ class AppStrings {
         pt: 'Jato de Tinta',
       );
   String get abilityInkSabotageDesc => _t(
-        it: 'In P2P macchia lo schermo avversario per 3.5s (+1 lancio). In solo distrugge la trappola vicina.',
-        en: 'In P2P splatters opponent screen for 3.5s (+1 sling). In solo destroys nearby hazard.',
-        es: 'En P2P mancha la pantalla rival por 3.5s (+1 tiro). En solo destruye trampa cercana.',
-        fr: 'En P2P tache l\'écran adverse 3.5s (+1 tir). En solo détruit le piège proche.',
-        de: 'Befleckt im P2P den Gegner-Screen für 3.5s (+1 Wurf). Zerstört solo nahe Falle.',
-        pt: 'No P2P mancha a tela rival por 3.5s (+1 lanço). No solo destrói armadilha próxima.',
+        it: 'In P2P acceca lo schermo e la mira avversaria per 4.8s (+1 lancio). In solo distrugge la trappola vicina.',
+        en: 'In P2P blinds opponent screen & aim for 4.8s (+1 sling). In solo destroys nearby hazard.',
+        es: 'En P2P ciega pantalla y puntería rival por 4.8s (+1 tiro). En solo destruye trampa cercana.',
+        fr: 'En P2P aveugle l\'écran et la visée adverse 4.8s (+1 tir). En solo détruit le piège proche.',
+        de: 'Blendet im P2P Gegner-Screen & Ziel für 4.8s (+1 Wurf). Zerstört solo nahe Falle.',
+        pt: 'No P2P cega a tela e mira rival por 4.8s (+1 lanço). No solo destrói armadilha próxima.',
       );
 
   String get abilityHankoSurgeName => _t(
@@ -2312,12 +2345,76 @@ class AppStrings {
         pt: 'ADICIONAR AMIGO (UMA SÓ VEZ)',
       );
   String get friendCodeHint => _t(
-        it: 'Codice (es. INK-4821)',
-        en: 'Code (e.g. INK-4821)',
-        es: 'Código (ej. INK-4821)',
-        fr: 'Code (ex. INK-4821)',
-        de: 'Code (z.B. INK-4821)',
-        pt: 'Código (ex. INK-4821)',
+        it: 'Codice Amico a 8 cifre (es. INK-84729103)',
+        en: '8-digit Friend Code (e.g. INK-84729103)',
+        es: 'Código de 8 dígitos (ej. INK-84729103)',
+        fr: 'Code Ami à 8 chiffres (ex. INK-84729103)',
+        de: '8-stelliger Freundescode (z.B. INK-84729103)',
+        pt: 'Código de 8 dígitos (ex. INK-84729103)',
+      );
+  String removeFriendTitle(String name) => _t(
+        it: 'Rimuovere $name?',
+        en: 'Remove $name?',
+        es: '¿Eliminar a $name?',
+        fr: 'Retirer $name ?',
+        de: '$name entfernen?',
+        pt: 'Remover $name?',
+      );
+  String get removeFriendMessage => _t(
+        it: 'Sei sicuro di voler eliminare questo amico dalla tua lista?',
+        en: 'Are you sure you want to remove this friend from your list?',
+        es: '¿Estás seguro de que quieres eliminar a este amigo de tu lista?',
+        fr: 'Voulez-vous vraiment supprimer cet ami de votre liste ?',
+        de: 'Möchtest du diesen Freund wirklich aus deiner Liste entfernen?',
+        pt: 'Tem certeza de que deseja remover este amigo da sua lista?',
+      );
+  String get removeFriendConfirmBtn => _t(
+        it: 'RIMUOVI',
+        en: 'REMOVE',
+        es: 'ELIMINAR',
+        fr: 'SUPPRIMER',
+        de: 'ENTFERNEN',
+        pt: 'REMOVER',
+      );
+  String p2pPausedByLabel(String playerName) => _t(
+        it: 'PARTITA SOSPESA DA ${playerName.toUpperCase()}',
+        en: 'MATCH PAUSED BY ${playerName.toUpperCase()}',
+        es: 'PARTIDA PAUSADA POR ${playerName.toUpperCase()}',
+        fr: 'PARTIE SUSPENDUE PAR ${playerName.toUpperCase()}',
+        de: 'SPIEL PAUSIERT VON ${playerName.toUpperCase()}',
+        pt: 'PARTIDA PAUSADA POR ${playerName.toUpperCase()}',
+      );
+  String waitingForFriendAccept(String name) => _t(
+        it: 'Invito inviato a $name (4G/5G/Wi-Fi)... In attesa di risposta',
+        en: 'Invite sent to $name (4G/5G/Wi-Fi)... Waiting for response',
+        es: 'Invitación enviada a $name (4G/5G/Wi-Fi)... Esperando respuesta',
+        fr: 'Invitation envoyée à $name (4G/5G/Wi-Fi)... En attente',
+        de: 'Einladung an $name gesendet (4G/5G/Wi-Fi)... Warte auf Antwort',
+        pt: 'Convite enviado para $name (4G/5G/Wi-Fi)... Aguardando resposta',
+      );
+  String get playVsBotFallbackBtn => _t(
+        it: 'Gioca contro il Bot (Allenamento)',
+        en: 'Play vs Bot (Training)',
+        es: 'Jugar contra el Bot (Entrenamiento)',
+        fr: 'Jouer contre le Bot (Entraînement)',
+        de: 'Gegen Bot spielen (Training)',
+        pt: 'Jogar contra o Bot (Treino)',
+      );
+  String get p2pYourTrailLabel => _t(
+        it: 'Tuo tracciato',
+        en: 'Your trail',
+        es: 'Tu ruta',
+        fr: 'Votre tracé',
+        de: 'Deine Spur',
+        pt: 'Seu trajeto',
+      );
+  String p2pRivalTrailLabel(String rivalName) => _t(
+        it: 'Tracciato $rivalName',
+        en: '$rivalName trail',
+        es: 'Ruta de $rivalName',
+        fr: 'Tracé $rivalName',
+        de: '$rivalName Spur',
+        pt: 'Trajeto $rivalName',
       );
   String get friendNameHint => _t(
         it: 'Nome amico',
@@ -2464,12 +2561,108 @@ class AppStrings {
         pt: 'Código de Amigo copiado!',
       );
   String get friendsEmptyHint => _t(
-        it: 'Aggiungi il codice di un amico per sfidarlo con 1 tocco!',
-        en: 'Add a friend code once to challenge them with 1 tap!',
-        es: '¡Añade el código de un amigo para retarlo con 1 toque!',
-        fr: 'Ajoutez le code d\'un ami pour le défier en 1 geste !',
-        de: 'Füge einmal einen Freundescode hinzu für 1-Tap-Duelle!',
-        pt: 'Adicione o código de um amigo para desafiá-lo com 1 toque!',
+        it: 'Invia una richiesta col Codice Amico a 8 cifre: appena accettata potrete sfidarvi con 1 tocco!',
+        en: 'Send a request with an 8-digit Friend Code: once accepted, challenge each other with 1 tap!',
+        es: '¡Envía una solicitud con el Código de 8 dígitos: al aceptarla podrán retarse con 1 toque!',
+        fr: 'Envoyez une demande avec le Code à 8 chiffres : une fois acceptée, défiez-vous en 1 geste !',
+        de: 'Sende eine Anfrage per 8-stelligem Code: Nach Annahme starten 1-Tap-Duelle!',
+        pt: 'Envie um pedido com o Código de 8 dígitos: após aceito, desafiem-se com 1 toque!',
+      );
+  String get sendFriendRequestBtn => _t(
+        it: 'INVIA RICHIESTA',
+        en: 'SEND REQUEST',
+        es: 'ENVIAR SOLICITUD',
+        fr: 'ENVOYER DEMANDE',
+        de: 'ANFRAGE SENDEN',
+        pt: 'ENVIAR PEDIDO',
+      );
+  String friendRequestSentSnack(String code) => _t(
+        it: 'Richiesta di amicizia inviata a $code!',
+        en: 'Friend request sent to $code!',
+        es: '¡Solicitud de amistad enviada a $code!',
+        fr: 'Demande d\'ami envoyée à $code !',
+        de: 'Freundschaftsanfrage an $code gesendet!',
+        pt: 'Pedido de amizade enviado para $code!',
+      );
+  String get friendRequestSelfErrorSnack => _t(
+        it: 'Non puoi inviare una richiesta al tuo stesso codice!',
+        en: 'You cannot send a friend request to your own code!',
+        es: '¡No puedes enviarte una solicitud a tu propio código!',
+        fr: 'Vous ne pouvez pas envoyer une demande à votre propre code !',
+        de: 'Du kannst keine Anfrage an deinen eigenen Code senden!',
+        pt: 'Você não pode enviar um pedido para o seu próprio código!',
+      );
+  String get friendRequestAlreadyFriendsSnack => _t(
+        it: 'Questo giocatore è già nella tua lista amici!',
+        en: 'This player is already in your friends list!',
+        es: '¡Este jugador ya está en tu lista de amigos!',
+        fr: 'Ce joueur est déjà dans votre liste d\'amis !',
+        de: 'Dieser Spieler ist bereits in deiner Freundesliste!',
+        pt: 'Este jogador já está na sua lista de amigos!',
+      );
+  String get incomingFriendRequestsTitle => _t(
+        it: 'RICHIESTE DI AMICIZIA RICEVUTE',
+        en: 'INCOMING FRIEND REQUESTS',
+        es: 'SOLICITUDES DE AMISTAD RECIBIDAS',
+        fr: 'DEMANDES D\'AMI REÇUES',
+        de: 'EMPFANGENE FREUNDSCHAFTSANFRAGEN',
+        pt: 'PEDIDOS DE AMIZADE RECEBIDOS',
+      );
+  String get outgoingFriendRequestsTitle => _t(
+        it: 'RICHIESTE INVIATE (IN ATTESA)',
+        en: 'SENT REQUESTS (PENDING)',
+        es: 'SOLICITUDES ENVIADAS (PENDIENTES)',
+        fr: 'DEMANDES ENVOYÉES (EN ATTENTE)',
+        de: 'GESENDETE ANFRAGEN (AUSSTEHEND)',
+        pt: 'PEDIDOS ENVIADOS (PENDENTES)',
+      );
+  String get confirmedFriendsListTitle => _t(
+        it: 'I TUOI AMICI',
+        en: 'YOUR FRIENDS',
+        es: 'TUS AMIGOS',
+        fr: 'VOS AMIS',
+        de: 'DEINE FREUNDE',
+        pt: 'SEUS AMIGOS',
+      );
+  String get friendRequestPendingLabel => _t(
+        it: '⏳ IN ATTESA DI ACCETTAZIONE',
+        en: '⏳ WAITING FOR ACCEPTANCE',
+        es: '⏳ ESPERANDO ACEPTACIÓN',
+        fr: '⏳ EN ATTENTE D\'ACCEPTATION',
+        de: '⏳ WARTE AUF ANNAHME',
+        pt: '⏳ AGUARDANDO ACEITAÇÃO',
+      );
+  String incomingFriendRequestBannerTitle(String name) => _t(
+        it: '🤝 Richiesta di amicizia da $name',
+        en: '🤝 Friend request from $name',
+        es: '🤝 Solicitud de amistad de $name',
+        fr: '🤝 Demande d\'ami de $name',
+        de: '🤝 Freundschaftsanfrage von $name',
+        pt: '🤝 Pedido de amizade de $name',
+      );
+  String get removeAllFriendsBtn => _t(
+        it: 'RIMUOVI TUTTI',
+        en: 'REMOVE ALL',
+        es: 'ELIMINAR TODOS',
+        fr: 'TOUT SUPPRIMER',
+        de: 'ALLE ENTFERNEN',
+        pt: 'REMOVER TODOS',
+      );
+  String get removeAllFriendsTitle => _t(
+        it: 'Rimuovere tutti gli amici?',
+        en: 'Remove all friends?',
+        es: '¿Eliminar todos los amigos?',
+        fr: 'Supprimer tous les amis ?',
+        de: 'Alle Freunde entfernen?',
+        pt: 'Remover todos os amigos?',
+      );
+  String get removeAllFriendsMessage => _t(
+        it: 'Tutti gli amici salvati verranno rimossi dalla tua lista.',
+        en: 'All saved friends will be removed from your list.',
+        es: 'Todos los amigos guardados se eliminarán de tu lista.',
+        fr: 'Tous les amis enregistrés seront supprimés de votre liste.',
+        de: 'Alle gespeicherten Freunde werden aus deiner Liste entfernt.',
+        pt: 'Todos os amigos salvos serão removidos da sua lista.',
       );
   String get abilityEquipAction => _t(
         it: 'TOCCA PER EQUIPAGGIARE',
@@ -2494,6 +2687,119 @@ class AppStrings {
   String get addFriendNameHint => friendNameHint;
   String get addFriendCodeHint => friendCodeHint;
   String get friendOnlineReady => '🟢 $onlineStatusLabel';
+  String get offlineStatusLabel => _t(
+        it: 'OFFLINE',
+        en: 'OFFLINE',
+        es: 'DESCONECTADO',
+        fr: 'HORS LIGNE',
+        de: 'OFFLINE',
+        pt: 'OFFLINE',
+      );
+  String get friendOfflineStatus => '⚪ $offlineStatusLabel';
+  String get cancelInviteBtn => _t(
+        it: 'ANNULLA INVITO',
+        en: 'CANCEL INVITE',
+        es: 'CANCELAR INVITACIÓN',
+        fr: 'ANNULER INVITATION',
+        de: 'EINLADUNG ABBRECHEN',
+        pt: 'CANCELAR CONVITE',
+      );
+  String inviteDeclinedBySnack(String name) => _t(
+        it: '$name ha rifiutato l\'invito alla sfida.',
+        en: '$name declined the duel invite.',
+        es: '$name rechazó la invitación al duelo.',
+        fr: '$name a refusé l\'invitation au duel.',
+        de: '$name hat die Duelleinladung abgelehnt.',
+        pt: '$name recusou o convite para o duelo.',
+      );
+  String get trainingVsBotStandaloneBtn => _t(
+        it: '🤖 ALLENAMENTO CONTRO IL BOT',
+        en: '🤖 PRACTICE VS BOT (TRAINING)',
+        es: '🤖 ENTRENAMIENTO CONTRA BOT',
+        fr: '🤖 ENTRAÎNEMENT CONTRE BOT',
+        de: '🤖 TRAINING GEGEN BOT',
+        pt: '🤖 TREINO CONTRA BOT',
+      );
+  String get trainingBotName => _t(
+        it: 'Bot Allenamento',
+        en: 'Training Bot',
+        es: 'Bot Entrenamiento',
+        fr: 'Bot Entraînement',
+        de: 'Trainings-Bot',
+        pt: 'Bot de Treino',
+      );
+  String opponentLeftMatchStamp(String name) => _t(
+        it: '👋 $name HA LASCIATO LA PARTITA',
+        en: '👋 $name LEFT THE MATCH',
+        es: '👋 $name SALIÓ DE LA PARTIDA',
+        fr: '👋 $name A QUITTÉ LA PARTIE',
+        de: '👋 $name HAT DAS SPIEL VERLASSEN',
+        pt: '👋 $name SAIU DA PARTIDA',
+      );
+  String get opponentLeftMatchShort => _t(
+        it: 'USCITO',
+        en: 'LEFT',
+        es: 'SALIÓ',
+        fr: 'PARTI',
+        de: 'VERLASSEN',
+        pt: 'SAIU',
+      );
+  String get proposeRematchBtn => _t(
+        it: '⚔️ PROPONI RIVINCITA',
+        en: '⚔️ PROPOSE REMATCH',
+        es: '⚔️ PROPONER REVANCHA',
+        fr: '⚔️ PROPOSER REVANCHE',
+        de: '⚔️ REVANCHE ANFRAGEN',
+        pt: '⚔️ PROPOR REVANCHE',
+      );
+  String rematchWaitingVoteLabel(String name) => _t(
+        it: '⏳ VOTO 1/2 • In attesa che $name accetti...',
+        en: '⏳ VOTE 1/2 • Waiting for $name to accept...',
+        es: '⏳ VOTO 1/2 • Esperando que $name acepte...',
+        fr: '⏳ VOTE 1/2 • En attente de $name...',
+        de: '⏳ STIMME 1/2 • Warte auf $name...',
+        pt: '⏳ VOTO 1/2 • Aguardando $name aceitar...',
+      );
+  String rematchIncomingVoteTitle(String name) => _t(
+        it: '⚔️ $name CHIEDE LA RIVINCITA! (1/2)',
+        en: '⚔️ $name WANTS A REMATCH! (1/2)',
+        es: '⚔️ ¡$name PIDE LA REVANCHA! (1/2)',
+        fr: '⚔️ $name DEMANDE UNE REVANCHE ! (1/2)',
+        de: '⚔️ $name WILL EINE REVANCHE! (1/2)',
+        pt: '⚔️ $name QUER REVANCHE! (1/2)',
+      );
+  String get acceptRematchVoteBtn => _t(
+        it: '✓ ACCETTA RIVINCITA (2/2)',
+        en: '✓ ACCEPT REMATCH (2/2)',
+        es: '✓ ACEPTAR REVANCHA (2/2)',
+        fr: '✓ ACCEPTER REVANCHE (2/2)',
+        de: '✓ REVANCHE ANNEHMEN (2/2)',
+        pt: '✓ ACEITAR REVANCHE (2/2)',
+      );
+  String get declineRematchVoteBtn => _t(
+        it: '✕ RIFIUTA',
+        en: '✕ DECLINE',
+        es: '✕ RECHAZAR',
+        fr: '✕ REFUSER',
+        de: '✕ ABLEHNEN',
+        pt: '✕ RECUSAR',
+      );
+  String rematchDeclinedLabel(String name) => _t(
+        it: '✕ $name ha rifiutato la rivincita.',
+        en: '✕ $name declined the rematch.',
+        es: '✕ $name rechazó la revancha.',
+        fr: '✕ $name a refusé la revanche.',
+        de: '✕ $name hat die Revanche abgelehnt.',
+        pt: '✕ $name recusou a revanche.',
+      );
+  String rematchOpponentLeftLabel(String name) => _t(
+        it: '👋 $name è uscito dalla partita.',
+        en: '👋 $name left the match.',
+        es: '👋 $name salió de la partida.',
+        fr: '👋 $name a quitté la partie.',
+        de: '👋 $name hat das Spiel verlassen.',
+        pt: '👋 $name saiu da partida.',
+      );
   String get challengeOneTapBtn => challengeNowBtn;
   String get abilitiesSectionTitle => abilitiesTitle;
   String get abilitiesSectionSubtitle => abilitiesSubtitle;

@@ -34,7 +34,8 @@ class MonetizationService {
     if (isProUnlocked) return false;
     if (sessionRunsPlayed < minRunsBeforeFirstInterstitial) return false;
     if (_lastInterstitialTime != null) {
-      final elapsed = DateTime.now().difference(_lastInterstitialTime!).inSeconds;
+      final elapsed =
+          DateTime.now().difference(_lastInterstitialTime!).inSeconds;
       if (elapsed < minInterstitialIntervalSeconds) return false;
     }
     return isAdReady;
@@ -54,10 +55,19 @@ class MonetizationService {
       return true;
     }
 
-    final completed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _SimulatedRewardedAdDialog(rewardTitle: rewardTitle),
+    final completed = await Navigator.of(context).push<bool>(
+      PageRouteBuilder<bool>(
+        opaque: false,
+        barrierDismissible: false,
+        barrierColor: Colors.black54,
+        transitionDuration: const Duration(milliseconds: 140),
+        // Rimozione istantanea della barriera modale al riscatto per non intercettare il primo drag!
+        reverseTransitionDuration: Duration.zero,
+        pageBuilder: (ctx, _, __) =>
+            _SimulatedRewardedAdDialog(rewardTitle: rewardTitle),
+        transitionsBuilder: (ctx, anim, _, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
     );
 
     return completed ?? false;

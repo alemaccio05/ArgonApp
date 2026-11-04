@@ -28,11 +28,13 @@ class _PauseOverlayState extends State<PauseOverlay> {
         widget.game.masterAudioNotifier,
         widget.game.soundNotifier,
         widget.game.musicNotifier,
+        widget.game.pausedByPlayerNameNotifier,
       ]),
       builder: (context, _) {
         final p = widget.game.paletteNotifier.value;
         final s = widget.game.strings;
         final volumeOn = widget.game.soundNotifier.value;
+        final pausedByName = widget.game.pausedByPlayerNameNotifier.value;
 
         return Material(
           color: Colors.black.withAlpha(148),
@@ -99,11 +101,18 @@ class _PauseOverlayState extends State<PauseOverlay> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    s.pauseSubtitle,
+                                    (widget.game.isP2PMatch &&
+                                            pausedByName != null &&
+                                            pausedByName.isNotEmpty)
+                                        ? s.p2pPausedByLabel(pausedByName)
+                                        : s.pauseSubtitle,
                                     style: TextStyle(
-                                      color: p.inkSecondary,
+                                      color: (widget.game.isP2PMatch &&
+                                              pausedByName != null)
+                                          ? p.vermilionHazard
+                                          : p.inkSecondary,
                                       fontSize: 11,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ],

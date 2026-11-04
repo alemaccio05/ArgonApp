@@ -13,6 +13,8 @@ enum BlockType {
   pulsingLaserHazard,
   bumperPin,
   hankoSeal,
+  shurikenSpinner,
+  spikeTrapPad,
 }
 
 /// Ostacoli della torre:
@@ -23,6 +25,8 @@ enum BlockType {
 /// - [BlockType.pulsingLaserHazard]: Raggio Laser a impulsi che alterna stato Spento (sicuro) e Attivo (letale).
 /// - [BlockType.bumperPin]: Respingente elastico circolare che rimbalza la palla ad alta velocità.
 /// - [BlockType.hankoSeal]: Gemma Dorata di Boost che spinge in alto e ricarica i tiri.
+/// - [BlockType.shurikenSpinner]: Ruota Shuriken Ninja a 4 lame rotanti letali.
+/// - [BlockType.spikeTrapPad]: Piattaforma Verde Adesiva con spuntoni retrattili a tempo (sicura -> avviso -> spuntoni letali).
 class ObstacleBlock extends PositionComponent
     with HasGameReference<InkSlingGame> {
   final BlockType type;
@@ -39,6 +43,7 @@ class ObstacleBlock extends PositionComponent
   double _vertDir = 1.0;
   double _pressOffset = 0.0;
   double _sealPulse = 0.0;
+  double _spinnerAngle = 0.0;
   double _crumbleTimer = 0.0;
   double _bumperCooldown = 0.0;
   static const double _maxCrumbleTime = 1.35;
@@ -62,6 +67,9 @@ class ObstacleBlock extends PositionComponent
   final Paint _detailPaint = Paint();
   final Path _gemShadowPath = Path();
   final Path _gemBodyPath = Path();
+  final Path _shurikenPath = Path();
+  final Path _shurikenShadowPath = Path();
+  final Path _spikePath = Path();
 
   ObstacleBlock({
     required super.position,
@@ -74,6 +82,7 @@ class ObstacleBlock extends PositionComponent
   }) : super(anchor: Anchor.center) {
     _originY = position.y;
     _sealPulse = phaseOffset;
+    _spinnerAngle = phaseOffset;
   }
 
   double get originY => _originY;
@@ -108,13 +117,54 @@ class ObstacleBlock extends PositionComponent
     return (cycle / 1.45).clamp(0.0, 1.0);
   }
 
+  /// Vero quando gli spuntoni rossi della piattaforma trappola sono completamente estratti (letali)
+  bool get isSpikeTrapActive {
+    if (type != BlockType.spikeTrapPad) return false;
+    // Ciclo di 2.6s: 0.0-1.45s sicura/adesiva, 1.45-1.85s preavviso tremante, 1.85-2.6s spuntoni letali estratti
+    final cycle = (_sealPulse % 2.6);
+    return cycle >= 1.85;
+  }
+
+  /// Vero durante la fase di preavviso prima dell'uscita degli spuntoni
+  bool get isSpikeTrapWarning {
+    if (type != BlockType.spikeTrapPad) return false;
+    final cycle = (_sealPulse % 2.6);
+    return cycle >= 1.45 && cycle < 1.85;
+  }
+
+  double get _spikeExtendProgress {
+    if (type != BlockType.spikeTrapPad) return 0.0;
+    final cycle = (_sealPulse % 2.6);
+    if (cycle < 1.45) return 0.0;
+    if (cycle < 1.85) return ((cycle - 1.45) / 0.40).clamp(0.0, 0.55);
+    return 1.0;
+  }
+
+  bool get isDeadlyHazard {
+    if (type == BlockType.vermilionHazard ||
+        type == BlockType.verticalPatrolHazard ||
+        type == BlockType.shurikenSpinner) {
+      return true;
+    }
+    if (type == BlockType.pulsingLaserHazard) return isLaserActive;
+    if (type == BlockType.spikeTrapPad) return isSpikeTrapActive;
+    return false;
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
     if (_consumed || (!game.isPlaying && !game.isMenuDemo)) return;
 
     final effDt = game.chronoSealTimer > 0.0 ? dt * 0.35 : dt;
-    _sealPulse += effDt * (type == BlockType.pulsingLaserHazard ? 1.0 : 3.5);
+    final pulseFactor = (type == BlockType.pulsingLaserHazard ||
+            type == BlockType.spikeTrapPad)
+        ? 1.0
+        : 3.5;
+    _sealPulse += effDt * pulseFactor;
+    if (type == BlockType.shurikenSpinner) {
+      _spinnerAngle += effDt * 4.2;
+    }
     if (_pressOffset > 0) {
       _pressOffset = max(0.0, _pressOffset - dt * 24.0);
     }
@@ -151,10 +201,33 @@ class ObstacleBlock extends PositionComponent
     }
 
     final p = game.player;
-    if (p.isDead || (p.isShadowPhaseActive && (type == BlockType.vermilionHazard || type == BlockType.verticalPatrolHazard || type == BlockType.pulsingLaserHazard))) return;
+    if (p.isDead || (p.isShadowPhaseActive && isDeadlyHazard)) return;
 
-    // 3. Se la palla è incollata a una piattaforma fragile (crumblingPad), avvia il conto alla rovescia!
+    // 3. Se la palla è incollata a una piattaforma fragile (crumblingPad) o a spuntoni (spikeTrapPad)!
     if (p.stuckPlatform == this) {
+      if (type == BlockType.spikeTrapPad && isSpikeTrapActive && !game.isMenuDemo) {
+        p.stuckPlatform = null;
+        if (p.isRespawnFrozen || p.shieldTimer > 0) {
+          p.breakShield();
+          p.velocity.setValues(0, -340);
+          game.addCameraTrauma(0.35);
+          game.spawnInkDropsAt(
+            position.x,
+            position.y,
+            game.palette.vermilionHazard,
+            count: 18,
+          );
+          game.spawnFloatingStampAt(
+            position.x,
+            position.y,
+            game.strings.floatingShield,
+          );
+          game.audioHaptics.onShieldBreak();
+        } else {
+          game.triggerGameOver(victory: false);
+        }
+        return;
+      }
       if (type == BlockType.crumblingPad && !game.isMenuDemo) {
         _crumbleTimer += dt;
         if (_crumbleTimer >= _maxCrumbleTime) {
@@ -180,11 +253,15 @@ class ObstacleBlock extends PositionComponent
       return;
     }
 
-    // 4. Rilevamento collisione preciso Cerchio-Rettangolo (include lati e angoli al 100%)
-    if (type == BlockType.bumperPin || type == BlockType.hankoSeal) {
-      final hitDist = (size.x / 2) + PlayerCore.radius;
-      final dx = p.position.x - position.x;
+    // 4. Rilevamento collisione circolare (bumperPin, hankoSeal, shurikenSpinner)
+    if (type == BlockType.bumperPin ||
+        type == BlockType.hankoSeal ||
+        type == BlockType.shurikenSpinner) {
+      final radiusFactor = type == BlockType.shurikenSpinner ? 0.44 : 0.5;
+      final hitDist = (size.x * radiusFactor) + PlayerCore.radius;
       final dy = p.position.y - position.y;
+      if (dy.abs() > hitDist) return;
+      final dx = p.position.x - position.x;
       if ((dx * dx + dy * dy) <= hitDist * hitDist) {
         _resolveCollision(p);
       }
@@ -194,7 +271,9 @@ class ObstacleBlock extends PositionComponent
     // Nel menu demo di sottofondo, la palla attraversa dal basso le piattaforme verdi mentre sale
     // e si incolla morbidamente sulla faccia superiore mentre scende dall'apice dell'arco
     if (game.isMenuDemo &&
-        (type == BlockType.matchaPad || type == BlockType.crumblingPad)) {
+        (type == BlockType.matchaPad ||
+            type == BlockType.crumblingPad ||
+            type == BlockType.spikeTrapPad)) {
       if (p.velocity.y < -10.0 || p.prevPosition.y > position.y - size.y * 0.25) {
         return;
       }
@@ -209,10 +288,10 @@ class ObstacleBlock extends PositionComponent
     final p1 = p.position;
 
     // Bounding-box rapido sul segmento percorso nel frame (Continuous Collision Detection)
-    if (max(p0.x, p1.x) < position.x - halfW - hitRadius ||
-        min(p0.x, p1.x) > position.x + halfW + hitRadius ||
-        max(p0.y, p1.y) < position.y - halfH - hitRadius ||
-        min(p0.y, p1.y) > position.y + halfH + hitRadius) {
+    if (max(p0.y, p1.y) < position.y - halfH - hitRadius ||
+        min(p0.y, p1.y) > position.y + halfH + hitRadius ||
+        max(p0.x, p1.x) < position.x - halfW - hitRadius ||
+        min(p0.x, p1.x) > position.x + halfW + hitRadius) {
       return;
     }
 
@@ -307,9 +386,7 @@ class ObstacleBlock extends PositionComponent
       return;
     }
 
-    if (type == BlockType.vermilionHazard ||
-        type == BlockType.verticalPatrolHazard ||
-        type == BlockType.pulsingLaserHazard) {
+    if (isDeadlyHazard) {
       if (game.isMenuDemo) {
         p.velocity.y = -520.0;
         return;
@@ -338,7 +415,9 @@ class ObstacleBlock extends PositionComponent
       return;
     }
 
-    if (type == BlockType.matchaPad || type == BlockType.crumblingPad) {
+    if (type == BlockType.matchaPad ||
+        type == BlockType.crumblingPad ||
+        type == BlockType.spikeTrapPad) {
       if (!p.stickToPlatform(this)) return;
       _pressOffset = 3.5;
       game.addInkStampAt(
@@ -364,6 +443,14 @@ class ObstacleBlock extends PositionComponent
   @override
   void render(Canvas canvas) {
     if (_consumed) return;
+    // Frustum culling verticale: salta i blocchi fuori dallo schermo (~85% della torre a 120 FPS)
+    final screenH = game.size.y;
+    if (screenH > 0) {
+      final camY = game.camera.viewfinder.position.y;
+      if ((position.y - camY).abs() > (screenH * 0.5) + size.y + 96.0) {
+        return;
+      }
+    }
     final p = game.palette;
     final lowQuality = game.isLowQualityMode;
 
@@ -375,6 +462,10 @@ class ObstacleBlock extends PositionComponent
       _renderBumperPin(canvas, p, lowQuality);
       return;
     }
+    if (type == BlockType.shurikenSpinner) {
+      _renderShurikenSpinner(canvas, p, lowQuality);
+      return;
+    }
     if (type == BlockType.pulsingLaserHazard) {
       _renderPulsingLaser(canvas, p);
       return;
@@ -383,6 +474,7 @@ class ObstacleBlock extends PositionComponent
     final isHazard = type == BlockType.vermilionHazard ||
         type == BlockType.verticalPatrolHazard;
     final isCrumbling = type == BlockType.crumblingPad;
+    final isSpikeTrap = type == BlockType.spikeTrapPad;
 
     final fillColor = isHazard
         ? p.vermilionHazard
@@ -391,6 +483,8 @@ class ObstacleBlock extends PositionComponent
     double shakeX = 0.0;
     if (isCrumbling && _crumbleTimer > 0) {
       shakeX = sin(_crumbleTimer * 48.0) * 2.5;
+    } else if (isSpikeTrap && isSpikeTrapWarning) {
+      shakeX = sin(_sealPulse * 62.0) * 2.0;
     }
 
     // 1. Ombra portata sotto il blocco (disattivata automaticamente se FPS < 60)
@@ -403,9 +497,36 @@ class ObstacleBlock extends PositionComponent
       canvas.drawRRect(shadowRect, _shadowPaint);
     }
 
-    // 2. Corpo del blocco
+    // 2. Corpo del blocco (e spuntoni esterni se spikeTrapPad)
     canvas.save();
     canvas.translate(shakeX, _pressOffset * 0.5);
+
+    if (isSpikeTrap) {
+      final spikeProgress = _spikeExtendProgress;
+      if (spikeProgress > 0.04) {
+        final maxSpikeH = 10.5 * spikeProgress;
+        _spikePath.reset();
+        const int numSpikes = 4;
+        final double stepW = (size.x - 16.0) / numSpikes;
+        for (int i = 0; i < numSpikes; i++) {
+          final sx = 8.0 + i * stepW;
+          // Spuntoni superiori
+          _spikePath.moveTo(sx + 1.5, 1.0);
+          _spikePath.lineTo(sx + stepW * 0.5, -maxSpikeH);
+          _spikePath.lineTo(sx + stepW - 1.5, 1.0);
+          // Spuntoni inferiori
+          _spikePath.moveTo(sx + 1.5, size.y - 1.0);
+          _spikePath.lineTo(sx + stepW * 0.5, size.y + maxSpikeH);
+          _spikePath.lineTo(sx + stepW - 1.5, size.y - 1.0);
+        }
+        _spikePath.close();
+        _fillPaint.color =
+            isSpikeTrapActive ? p.vermilionHazard : p.ochreSeal;
+        canvas.drawPath(_spikePath, _fillPaint);
+        _strokePaint.color = p.playerStroke;
+        canvas.drawPath(_spikePath, _strokePaint);
+      }
+    }
 
     final bodyRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(0, 0, size.x, size.y),
@@ -442,6 +563,19 @@ class ObstacleBlock extends PositionComponent
       _stickyBorderPaint.color = p.paperCard.withAlpha((0.48 * 255).round());
       canvas.drawRRect(innerStickyRect, _stickyBorderPaint);
 
+      if (isSpikeTrap) {
+        // Piccoli fori meccanici da cui fuoriescono gli spuntoni
+        _detailPaint.color = isSpikeTrapActive
+            ? p.vermilionHazard
+            : (isSpikeTrapWarning ? p.ochreSeal : p.inkPrimary.withAlpha(110));
+        const int numSlots = 4;
+        final double stepW = (size.x - 16.0) / numSlots;
+        for (int i = 0; i < numSlots; i++) {
+          final cx = 8.0 + (i + 0.5) * stepW;
+          canvas.drawCircle(Offset(cx, size.y * 0.5), 2.4, _detailPaint);
+        }
+      }
+
       if (isCrumbling && _crumbleTimer > 0) {
         final leftRatio = (1.0 - _crumbleTimer / _maxCrumbleTime).clamp(0.0, 1.0);
         _crumbleFillPaint.color =
@@ -457,6 +591,76 @@ class ObstacleBlock extends PositionComponent
     // 4. Contorno netto
     _strokePaint.color = p.playerStroke;
     canvas.drawRRect(bodyRect, _strokePaint);
+
+    canvas.restore();
+  }
+
+  void _renderShurikenSpinner(
+    Canvas canvas,
+    RisographPalette p,
+    bool lowQuality,
+  ) {
+    final center = Offset(size.x / 2, size.y / 2);
+    final r = size.x / 2;
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+
+    if (!lowQuality) {
+      canvas.save();
+      canvas.translate(3.0, 4.0);
+      canvas.rotate(_spinnerAngle);
+      _shurikenShadowPath.reset();
+      for (int i = 0; i < 4; i++) {
+        final a0 = i * (pi / 2);
+        final aMid = a0 + (pi / 4);
+        final tx = r * cos(a0);
+        final ty = r * sin(a0);
+        final wx = (r * 0.28) * cos(aMid);
+        final wy = (r * 0.28) * sin(aMid);
+        if (i == 0) {
+          _shurikenShadowPath.moveTo(tx, ty);
+        } else {
+          _shurikenShadowPath.lineTo(tx, ty);
+        }
+        _shurikenShadowPath.lineTo(wx, wy);
+      }
+      _shurikenShadowPath.close();
+      _shadowPaint.color = p.shadowColor;
+      canvas.drawPath(_shurikenShadowPath, _shadowPaint);
+      canvas.restore();
+    }
+
+    canvas.rotate(_spinnerAngle);
+    _shurikenPath.reset();
+    for (int i = 0; i < 4; i++) {
+      final a0 = i * (pi / 2);
+      final aMid = a0 + (pi / 4);
+      final tx = r * cos(a0);
+      final ty = r * sin(a0);
+      final wx = (r * 0.28) * cos(aMid);
+      final wy = (r * 0.28) * sin(aMid);
+      if (i == 0) {
+        _shurikenPath.moveTo(tx, ty);
+      } else {
+        _shurikenPath.lineTo(tx, ty);
+      }
+      _shurikenPath.lineTo(wx, wy);
+    }
+    _shurikenPath.close();
+
+    _fillPaint.color = p.vermilionHazard;
+    canvas.drawPath(_shurikenPath, _fillPaint);
+
+    _strokePaint
+      ..color = p.playerStroke
+      ..strokeWidth = 2.2;
+    canvas.drawPath(_shurikenPath, _strokePaint);
+
+    // Perno centrale forato dello Shuriken
+    _detailPaint.color = p.paperCard;
+    canvas.drawCircle(Offset.zero, r * 0.22, _detailPaint);
+    canvas.drawCircle(Offset.zero, r * 0.22, _strokePaint);
 
     canvas.restore();
   }

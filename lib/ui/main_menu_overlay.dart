@@ -11,7 +11,7 @@ import '../services/trusted_time_service.dart';
 import 'ball_skins_overlay.dart';
 import 'privacy_dialog.dart';
 import '../core/climb_abilities.dart';
-import '../services/p2p_multiplayer_service.dart';
+import '../services/storage_service.dart';
 import 'friends_p2p_overlay.dart';
 import 'profile_overlay.dart';
 
@@ -539,7 +539,6 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
           }
 
           final isDaily = _selectedMode == GameMode.dailyTower;
-          final isInfinite = _selectedMode == GameMode.infiniteTower;
           final isTampered = storage.isDailyLockedByTamper;
           final dateStr = DailySeedEngine.getFormattedDate();
 
@@ -557,13 +556,6 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
             totalLevelsPlayed: storage.totalLevelsPlayed,
             playerAvatarEmoji: userAvatarEmoji,
           );
-          final dailyLeaderboard = DailySeedEngine.getDailyLeaderboard(
-            playerName: storage.playerName,
-            playerBestMetersToday: storage.bestMetersToday,
-            completedToday: storage.completedToday,
-            playerBouncesToday: storage.bestBouncesToday,
-            playerAvatarEmoji: userAvatarEmoji,
-          );
           final infiniteLeaderboard = DailySeedEngine.getInfiniteLeaderboard(
             playerName: storage.playerName,
             playerInfiniteBestMeters: storage.infiniteBestMeters,
@@ -573,13 +565,8 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
 
           final userLevelsRank =
               levelsLeaderboard.firstWhere((e) => e.isCurrentUser).rank;
-          final userDailyRank =
-              dailyLeaderboard.firstWhere((e) => e.isCurrentUser).rank;
           final userInfiniteRank =
               infiniteLeaderboard.firstWhere((e) => e.isCurrentUser).rank;
-          final activeRank = isDaily
-              ? userDailyRank
-              : (isInfinite ? userInfiniteRank : userLevelsRank);
 
           final levelGoal =
               DailySeedEngine.getLevelGoalMeters(_selectedLevel).toInt();
@@ -631,29 +618,24 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 // ========================================================
-                                // Banner Sfida Rapida 1-Tap in arrivo da un Amico
-                                ValueListenableBuilder<P2PIncomingInvite?>(
+                                // Banner Richiesta di Amicizia in arrivo (conferma reciproca)
+                                ValueListenableBuilder<FriendRequestRecord?>(
                                   valueListenable: widget
                                       .game
                                       .p2pService
-                                      .incomingInviteNotifier,
-                                  builder: (context, invite, _) {
-                                    if (invite == null) {
+                                      .incomingFriendRequestNotifier,
+                                  builder: (context, req, _) {
+                                    if (req == null) {
                                       return const SizedBox.shrink();
                                     }
-                                    final modeName =
-                                        invite.format ==
-                                            P2PDuelFormat.infiniteSurvival
-                                        ? s.p2pFormatInfinite
-                                        : s.p2pFormat100m;
                                     return Container(
                                       margin: const EdgeInsets.only(bottom: 10),
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: p.vermilionHazard.withAlpha(32),
+                                        color: p.matchaSafe.withAlpha(32),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: p.vermilionHazard,
+                                          color: p.matchaSafe,
                                           width: 2.2,
                                         ),
                                       ),
@@ -662,22 +644,22 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                             CrossAxisAlignment.stretch,
                                         children: [
                                           Text(
-                                            s.incomingInviteTitle(
-                                              invite.senderName,
+                                            s.incomingFriendRequestBannerTitle(
+                                              '${req.avatarEmoji} ${req.name}',
                                             ),
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w900,
-                                              color: p.vermilionHazard,
+                                              color: p.inkPrimary,
                                             ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            s.incomingInviteSub(modeName),
+                                            req.code,
                                             style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w700,
-                                              color: p.inkPrimary,
+                                              color: p.inkSecondary,
                                             ),
                                           ),
                                           const SizedBox(height: 7),
@@ -690,9 +672,11 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                                         .game
                                                         .audioHaptics
                                                         .onButtonTap();
-                                                    widget.game
-                                                        .acceptIncomingP2PInvite(
-                                                          invite,
+                                                    widget
+                                                        .game
+                                                        .p2pService
+                                                        .acceptFriendRequest(
+                                                          req,
                                                         );
                                                   },
                                                   backgroundColor: p.matchaSafe,
@@ -724,7 +708,9 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                                     widget
                                                         .game
                                                         .p2pService
-                                                        .declineIncomingInvite();
+                                                        .declineFriendRequest(
+                                                          req,
+                                                        );
                                                   },
                                                   backgroundColor: p.paperBg,
                                                   borderColor: p.inkPrimary,
@@ -751,6 +737,7 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                     );
                                   },
                                 ),
+                                // ========================================================
                                 // STADIO 1: HEADER "INK TOWER" IN CIMA + SOTTOTITOLO FLUTTUANTE
                                 // (Senza pulsanti volume/tema che ora sono nelle Impostazioni)
                                 // ========================================================
@@ -1528,12 +1515,13 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                                 context,
                                                 p,
                                               ),
+                                              fixedHeight: 44,
                                               backgroundColor: p.paperBg,
                                               borderColor: p.inkPrimary,
                                               borderWidth: 2.0,
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                vertical: 11,
+                                                vertical: 8,
                                                 horizontal: 10,
                                               ),
                                               child: Row(
@@ -1579,12 +1567,13 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                                 );
                                                 if (mounted) setState(() {});
                                               },
+                                              fixedHeight: 44,
                                               backgroundColor: p.paperBg,
                                               borderColor: p.matchaSafe,
                                               borderWidth: 2.0,
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                vertical: 11,
+                                                vertical: 8,
                                                 horizontal: 10,
                                               ),
                                               child: Row(
@@ -1622,15 +1611,13 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                         ],
                                       ),
                                       const SizedBox(height: 8),
-                                      // Riga Duello P2P (1-Tap Amici) & Abilità Attive
+                                      // Riga Duello P2P (1-Tap Amici) & Abilità Attive (senza badge numerici)
                                       Row(
                                         children: [
                                           Expanded(
                                             child: _SecondaryMenuTile(
                                               emojiIcon: '⚔️',
                                               iconColor: p.vermilionHazard,
-                                              badgeText:
-                                                  '${storage.friendsList.length} 👥',
                                               label: s.friendsP2PBtn,
                                               palette: p,
                                               onTap: () async {
@@ -1652,8 +1639,6 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                                     storage.selectedAbilityId,
                                                   ).icon,
                                               iconColor: p.ochreSeal,
-                                              badgeText:
-                                                  '${ClimbAbilitiesCatalog.allAbilities.where((a) => a.isUnlocked(storage.currentTowerLevel)).length}/${ClimbAbilitiesCatalog.allAbilities.length}',
                                               label: s.abilitiesNavBtn,
                                               palette: p,
                                               onTap: () async {
@@ -1677,7 +1662,6 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                             child: _SecondaryMenuTile(
                                               icon: Icons.emoji_events_rounded,
                                               iconColor: p.ochreSeal,
-                                              badgeText: '#$activeRank',
                                               label: s.levelsNavBtn,
                                               palette: p,
                                               onTap: () =>
@@ -1692,8 +1676,6 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
                                             child: _SecondaryMenuTile(
                                               emojiIcon: equippedBallSkin.emoji,
                                               iconColor: p.matchaSafe,
-                                              badgeText:
-                                                  '${BallSkinsCatalog.allSkins.where((sk) => sk.isUnlocked(storage)).length}/${BallSkinsCatalog.allSkins.length}',
                                               label: s.shopNavBtn,
                                               palette: p,
                                               onTap: () async {
@@ -1793,16 +1775,18 @@ class _ModeSelectorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _MenuPressableButton(
       onTap: onTap,
+      fixedHeight: 68,
       backgroundColor:
           isSelected ? accentColor.withAlpha(32) : palette.paperBg,
       borderColor: isSelected ? accentColor : palette.inkPrimary,
       borderWidth: 2.0,
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: isSelected ? accentColor : palette.paperCard,
               borderRadius: BorderRadius.circular(9),
@@ -1821,7 +1805,7 @@ class _ModeSelectorCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   title,
@@ -1829,47 +1813,52 @@ class _ModeSelectorCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: palette.inkPrimary,
-                    fontSize: 12,
+                    fontSize: 12.2,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+                    letterSpacing: 0.4,
                   ),
                 ),
                 const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    subtitle,
-                    maxLines: 1,
-                    style: TextStyle(
-                      color: palette.inkSecondary,
-                      fontSize: 9.8,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.inkSecondary,
+                    fontSize: 10.2,
+                    height: 1.18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? accentColor.withAlpha(42)
-                  : palette.paperCard,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: palette.inkPrimary,
-                width: 1.4,
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 72),
+            child: Container(
+              alignment: Alignment.center,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 7, vertical: 4.5),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? accentColor.withAlpha(42)
+                    : palette.paperCard,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: palette.inkPrimary,
+                  width: 1.4,
+                ),
               ),
-            ),
-            child: Text(
-              trailingBadge,
-              style: TextStyle(
-                color: palette.inkPrimary,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w900,
+              child: Text(
+                trailingBadge,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.inkPrimary,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ),
@@ -2357,7 +2346,6 @@ class _SecondaryMenuTile extends StatelessWidget {
   final IconData? icon;
   final String? emojiIcon;
   final Color iconColor;
-  final String badgeText;
   final String label;
   final RisographPalette palette;
   final VoidCallback onTap;
@@ -2366,7 +2354,6 @@ class _SecondaryMenuTile extends StatelessWidget {
     this.icon,
     this.emojiIcon,
     required this.iconColor,
-    required this.badgeText,
     required this.label,
     required this.palette,
     required this.onTap,
@@ -2376,10 +2363,11 @@ class _SecondaryMenuTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return _MenuPressableButton(
       onTap: onTap,
+      fixedHeight: 44,
       backgroundColor: palette.paperBg,
       borderColor: palette.inkPrimary,
       borderWidth: 1.8,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -2387,7 +2375,7 @@ class _SecondaryMenuTile extends StatelessWidget {
             Text(emojiIcon!, style: const TextStyle(fontSize: 14))
           else if (icon != null)
             Icon(icon, size: 16, color: iconColor),
-          const SizedBox(width: 5),
+          const SizedBox(width: 6),
           Flexible(
             child: FittedBox(
               fit: BoxFit.scaleDown,
@@ -2395,28 +2383,9 @@ class _SecondaryMenuTile extends StatelessWidget {
                 label,
                 style: TextStyle(
                   color: palette.inkPrimary,
-                  fontSize: 10.5,
+                  fontSize: 11,
                   fontWeight: FontWeight.w900,
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 5),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 5,
-              vertical: 1.5,
-            ),
-            decoration: BoxDecoration(
-              color: palette.inkPrimary,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              badgeText,
-              style: TextStyle(
-                color: palette.paperCard,
-                fontSize: 8.5,
-                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -2433,6 +2402,7 @@ class _MenuPressableButton extends StatefulWidget {
   final Color borderColor;
   final double borderWidth;
   final EdgeInsetsGeometry padding;
+  final double? fixedHeight;
   final bool hasShadow;
   final Color? shadowColor;
   final Widget child;
@@ -2443,6 +2413,7 @@ class _MenuPressableButton extends StatefulWidget {
     required this.borderColor,
     this.borderWidth = 1.8,
     required this.padding,
+    this.fixedHeight,
     this.hasShadow = false,
     this.shadowColor,
     required this.child,
@@ -2469,6 +2440,8 @@ class _MenuPressableButtonState extends State<_MenuPressableButton> {
         duration: const Duration(milliseconds: 85),
         curve: Curves.easeOutCubic,
         child: Container(
+          height: widget.fixedHeight,
+          alignment: widget.fixedHeight != null ? Alignment.center : null,
           padding: widget.padding,
           decoration: BoxDecoration(
             color: widget.backgroundColor,

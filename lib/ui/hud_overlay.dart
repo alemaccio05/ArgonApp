@@ -309,13 +309,24 @@ class HudOverlay extends StatelessWidget {
                             animation: Listenable.merge([
                               game.p2pService.opponentMetersNotifier,
                               game.p2pService.opponentDeadNotifier,
+                              game.p2pService.opponentLeftNotifier,
                             ]),
                             builder: (_, __) {
                               final opp = game.p2pService.opponent;
+                              final oppLeft = !game.isBotTrainingMatch &&
+                                  game.p2pService.opponentLeftNotifier.value;
                               final oppMeters =
                                   game.p2pService.opponentMetersNotifier.value;
                               final oppDead =
                                   game.p2pService.opponentDeadNotifier.value;
+                              final iconStr = oppLeft
+                                  ? '👋'
+                                  : (oppDead
+                                      ? '💀'
+                                      : (game.isBotTrainingMatch ? '🤖' : '👻'));
+                              final labelStr = oppLeft
+                                  ? '${opp.name}: ${s.opponentLeftMatchShort}'
+                                  : '${opp.name}: ${oppMeters.toStringAsFixed(1)}m';
                               return Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
@@ -325,7 +336,7 @@ class HudOverlay extends StatelessWidget {
                                   color: p.paperCard.withAlpha(235),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: oppDead
+                                    color: (oppDead || oppLeft)
                                         ? p.vermilionHazard
                                         : p.inkPrimary,
                                     width: 1.6,
@@ -335,17 +346,21 @@ class HudOverlay extends StatelessWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      oppDead ? '💀' : '👻',
+                                      iconStr,
                                       style: const TextStyle(fontSize: 13),
                                     ),
                                     const SizedBox(width: 6),
-                                    Text(
-                                      '${opp.name}: ${oppMeters.toStringAsFixed(1)}m',
-                                      style: TextStyle(
-                                        fontFamily: 'monospace',
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w900,
-                                        color: p.inkPrimary,
+                                    Flexible(
+                                      child: Text(
+                                        labelStr,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontFamily: 'monospace',
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: p.inkPrimary,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -356,7 +371,7 @@ class HudOverlay extends StatelessWidget {
                         ),
                       ],
 
-                      // Banner Modalità Spettatore (quando il giocatore muore ma l'amico scala ancora)
+                      // Banner Modalità Spettatore (senza tasto Termina: si esce solo dal menu Pausa ||)
                       RepaintBoundary(
                         child: ValueListenableBuilder<bool>(
                           valueListenable: game.spectatingNotifier,
@@ -401,32 +416,6 @@ class HudOverlay extends StatelessWidget {
                                       color: p.paperBg,
                                     ),
                                   ),
-                                  const SizedBox(height: 7),
-                                  InkWell(
-                                    onTap: () {
-                                      game.audioHaptics.onButtonTap();
-                                      game.finishSpectatingEarly();
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: p.vermilionHazard,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        s.spectatorLeaveBtn,
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w900,
-                                          color: p.paperBg,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
                                 ],
                               ),
                             );
@@ -436,139 +425,143 @@ class HudOverlay extends StatelessWidget {
                     ],
                   ),
 
-                  // Sezione Inferiore: Pulsante Abilità Attiva con Cooldown in secondi
+                  // Sezione Inferiore: Pulsante Abilità Attiva centrato con Cooldown in secondi
                   RepaintBoundary(
                     child: ValueListenableBuilder<bool>(
                       valueListenable: game.spectatingNotifier,
                       builder: (_, isSpectating, __) {
                         if (isSpectating) return const SizedBox.shrink();
                         return Align(
-                          alignment: Alignment.bottomRight,
-                          child: ValueListenableBuilder<double>(
-                            valueListenable: game.abilityCooldownNotifier,
-                            builder: (_, cooldownRem, __) {
-                              final isReady = cooldownRem <= 0.05;
-                              final progress = isReady
-                                  ? 1.0
-                                  : (1.0 -
-                                            (cooldownRem /
-                                                equippedAbility
-                                                    .cooldownSeconds))
-                                        .clamp(0.0, 1.0);
-                              return Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(14),
-                                  onTap: isReady
-                                      ? () => game.activateEquippedAbility()
-                                      : null,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isReady
-                                          ? p.paperCard.withAlpha(242)
-                                          : p.paperGrid.withAlpha(220),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: isReady
-                                            ? p.ochreSeal
-                                            : p.inkPrimary.withAlpha(120),
-                                        width: isReady ? 2.4 : 1.6,
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: ValueListenableBuilder<double>(
+                              valueListenable: game.abilityCooldownNotifier,
+                              builder: (_, cooldownRem, __) {
+                                final isReady = cooldownRem <= 0.05;
+                                final progress = isReady
+                                    ? 1.0
+                                    : (1.0 -
+                                              (cooldownRem /
+                                                  equippedAbility
+                                                      .cooldownSeconds))
+                                          .clamp(0.0, 1.0);
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap: isReady
+                                        ? () => game.activateEquippedAbility()
+                                        : null,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8,
                                       ),
-                                      boxShadow: isReady
-                                          ? [
-                                              BoxShadow(
-                                                color: p.shadowColor,
-                                                offset: const Offset(2, 3),
-                                                blurRadius: 0,
-                                              ),
-                                            ]
-                                          : null,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          equippedAbility.icon,
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            color: isReady
-                                                ? null
-                                                : p.inkPrimary.withAlpha(110),
+                                      decoration: BoxDecoration(
+                                        color: isReady
+                                            ? p.paperCard.withAlpha(242)
+                                            : p.paperGrid.withAlpha(220),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: isReady
+                                              ? p.ochreSeal
+                                              : p.inkPrimary.withAlpha(120),
+                                          width: isReady ? 2.4 : 1.6,
+                                        ),
+                                        boxShadow: isReady
+                                            ? [
+                                                BoxShadow(
+                                                  color: p.shadowColor,
+                                                  offset: const Offset(2, 3),
+                                                  blurRadius: 0,
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            equippedAbility.icon,
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              color: isReady
+                                                  ? null
+                                                  : p.inkPrimary.withAlpha(110),
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              equippedAbility.getName(s),
-                                              style: TextStyle(
-                                                fontFamily: 'monospace',
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w900,
-                                                color: isReady
-                                                    ? p.inkPrimary
-                                                    : p.inkSecondary,
+                                          const SizedBox(width: 8),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                equippedAbility.getName(s),
+                                                style: TextStyle(
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: isReady
+                                                      ? p.inkPrimary
+                                                      : p.inkSecondary,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                SizedBox(
-                                                  width: 44,
-                                                  height: 5,
-                                                  child: ClipRRect(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          3,
-                                                        ),
-                                                    child:
-                                                        LinearProgressIndicator(
-                                                          value: progress,
-                                                          backgroundColor:
-                                                              p.paperBg,
-                                                          valueColor:
-                                                              AlwaysStoppedAnimation<
-                                                                Color
-                                                              >(
-                                                                isReady
-                                                                    ? p.matchaSafe
-                                                                    : p.ochreSeal,
-                                                              ),
-                                                        ),
+                                              const SizedBox(height: 2),
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  SizedBox(
+                                                    width: 44,
+                                                    height: 5,
+                                                    child: ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            3,
+                                                          ),
+                                                      child:
+                                                          LinearProgressIndicator(
+                                                            value: progress,
+                                                            backgroundColor:
+                                                                p.paperBg,
+                                                            valueColor:
+                                                                AlwaysStoppedAnimation<
+                                                                  Color
+                                                                >(
+                                                                  isReady
+                                                                      ? p.matchaSafe
+                                                                      : p.ochreSeal,
+                                                                ),
+                                                          ),
+                                                    ),
                                                   ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  isReady
-                                                      ? s.abilityReadyLabel
-                                                      : '${cooldownRem.ceil()}s',
-                                                  style: TextStyle(
-                                                    fontFamily: 'monospace',
-                                                    fontSize: 9.5,
-                                                    fontWeight: FontWeight.w900,
-                                                    color: isReady
-                                                        ? p.matchaSafe
-                                                        : p.vermilionHazard,
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    isReady
+                                                        ? s.abilityReadyLabel
+                                                        : '${cooldownRem.ceil()}s',
+                                                    style: TextStyle(
+                                                      fontFamily: 'monospace',
+                                                      fontSize: 9.5,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: isReady
+                                                          ? p.matchaSafe
+                                                          : p.vermilionHazard,
+                                                    ),
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
                         );
                       },
